@@ -13,6 +13,11 @@
 #include "Util.hpp"
 #include "glm/vec3.hpp"
 
+enum VRRuntime {
+    OPENVR,
+    OPENXR
+};
+
 static float floatOrDefault(const std::string& value, float def)
 {
     try {
@@ -54,6 +59,7 @@ struct Config {
     D3DMULTISAMPLE_TYPE msaa;
     int anisotropy;
     bool alwaysPresent;
+    VRRuntime runtime;
 
     auto operator<=>(const Config&) const = default;
 
@@ -74,7 +80,8 @@ struct Config {
             "renderPauseMenu3d = {}\n"
             "renderPreStage3d = {}\n"
             "renderReplays3d = {}\n"
-            "alwaysPresent = {}",
+            "alwaysPresent = {}\n"
+            "runtime = {}",
             superSampling,
             menuSize,
             overlaySize,
@@ -89,7 +96,8 @@ struct Config {
             renderPauseMenu3d,
             renderPreStage3d,
             renderReplays3d,
-            alwaysPresent);
+            alwaysPresent,
+            runtime == OPENVR ? "steamvr" : "openxr");
     }
 
     bool Write(const std::filesystem::path& path) const
@@ -121,6 +129,7 @@ struct Config {
             .msaa = D3DMULTISAMPLE_NONE,
             .anisotropy = -1,
             .alwaysPresent = true,
+            .runtime = OPENVR,
         };
 
         if (!std::filesystem::exists(path)) {
@@ -182,6 +191,8 @@ struct Config {
                 cfg.renderReplays3d = (value == "true");
             } else if (key == "alwaysPresent") {
                 cfg.alwaysPresent = (value == "true");
+            } else if (key == "runtime") {
+                cfg.runtime = value == "openxr" ? OPENXR : OPENVR;
             }
         }
 

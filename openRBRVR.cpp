@@ -11,6 +11,8 @@
 #include "Hook.hpp"
 #include "Licenses.hpp"
 #include "Menu.hpp"
+#include "OpenVR.hpp"
+#include "OpenXR.hpp"
 #include "Quaternion.hpp"
 #include "Util.hpp"
 #include "VR.hpp"
@@ -21,8 +23,10 @@
 
 IRBRGame* gGame;
 
-static IDirect3DDevice9* gD3Ddev = nullptr;
+std::unique_ptr<VRInterface> gVR;
 Config gCfg, gSavedCfg;
+
+static IDirect3DDevice9* gD3Ddev = nullptr;
 
 namespace shader {
     static M4 gCurrentProjectionMatrix;
@@ -111,6 +115,7 @@ static std::unordered_map<std::string, IDirect3DTexture9*> gCarTextures;
 static Quaternion* gCarQuat;
 static uint32_t* gCameraType;
 static M4 gLockToHorizonMatrix = glm::identity<M4>();
+static bool gVRError;
 
 constexpr uintptr_t RBRRXDeviceVtblOffset = 0x4f56c;
 constexpr uintptr_t RBRRXTrackStatusOffset = 0x608d0;
@@ -170,15 +175,73 @@ HRESULT __stdcall DXHook_CreateVertexShader(IDirect3DDevice9* This, const DWORD*
     return ret;
 }
 
+static void DrawDebugInfo(uint64_t cpuFrameTime_us)
+{
+    gGame->SetColor(1, 0, 1, 1.0);
+    gGame->SetFont(IRBRGame::EFonts::FONT_DEBUG);
+
+    float i = 0.0f;
+    gGame->WriteText(0, 18 * ++i, std::format("openRBRVR {}", VERSION_STR).c_str());
+    gGame->WriteText(0, 18 * ++i, std::format("VR runtime: {}", gVR->GetRuntimeType() == OPENVR ? "OpenVR (SteamVR)" : "OpenXR").c_str());
+
+    auto t = gVR->GetFrameTiming();
+    if (gVR->GetRuntimeType() == OPENVR) {
+        static uint32_t totalDroppedFrames = 0;
+        static uint32_t totalMispresentedFrames = 0;
+        totalDroppedFrames += t.droppedFrames;
+        totalMispresentedFrames += t.mispresentedFrames;
+
+        gGame->WriteText(0, 18 * ++i,
+            std::format("CPU: render time: {:.2f}ms, present: {:.2f}ms, waitforpresent: {:.2f}ms",
+                cpuFrameTime_us / 1000.0,
+                t.cpuPresentCall,
+                t.cpuWaitForPresent)
+                .c_str());
+        gGame->WriteText(0, 18 * ++i,
+            std::format("GPU: presubmit {:.2f}ms, postSubmit: {:.2f}ms, total: {:.2f}ms",
+                t.gpuPreSubmit,
+                t.gpuPostSubmit,
+                t.gpuTotal)
+                .c_str());
+        gGame->WriteText(0, 18 * ++i,
+            std::format("Compositor: CPU: {:.2f}ms, GPU: {:.2f}ms, submit: {:.2f}ms",
+                t.compositorCpu,
+                t.compositorGpu,
+                t.compositorSubmitFrame)
+                .c_str());
+        gGame->WriteText(0, 18 * ++i,
+            std::format("Total mispresented frames: {}, Total dropped frames: {}, Reprojection flags: {:X}",
+                totalMispresentedFrames,
+                totalDroppedFrames,
+                t.reprojectionFlags)
+                .c_str());
+    } else {
+        gGame->WriteText(0, 18 * ++i, std::format("CPU: render time: {:.2f}ms", cpuFrameTime_us / 1000.0).c_str());
+        static float gpuTotal;
+        if (t.gpuTotal > 0.0) {
+            // Cache non-zero GPU total value as we won't get a new value for every frame
+            gpuTotal = t.gpuTotal;
+        }
+        gGame->WriteText(0, 18 * ++i, std::format("GPU: render time: {:.2f}ms", gpuTotal * 1000.0).c_str());
+    }
+
+    gGame->WriteText(0, 18 * ++i, std::format("Mods: {} {}", IsRBRRXLoaded() ? "RBRRX" : "", IsRBRHUDLoaded() ? "RBRHUD" : "").c_str());
+    const auto& [lw, lh] = gVR->GetRenderResolution(LeftEye);
+    const auto& [rw, rh] = gVR->GetRenderResolution(RightEye);
+    gGame->WriteText(0, 18 * ++i, std::format("Render resolution: {}x{} (left), {}x{} (right)", lw, lh, rw, rh).c_str());
+    gGame->WriteText(0, 18 * ++i, std::format("Anti-aliasing: {}x", static_cast<int>(gCfg.msaa)).c_str());
+    gGame->WriteText(0, 18 * ++i, std::format("Anisotropic filtering: {}x", gCfg.anisotropy).c_str());
+}
+
 // Call the RBR render function with a texture as the render target
 // Even though the render pipeline changes the render target while rendering,
 // the original render target is respected and restored at the end of the pipeline.
 void RenderVREye(void* p, RenderTarget eye, bool clear = true)
 {
     gVRRenderTarget = eye;
-    if (PrepareVRRendering(gD3Ddev, eye, clear)) {
+    if (gVR->PrepareVRRendering(gD3Ddev, eye, clear)) {
         hooks::render.call(p);
-        FinishVRRendering(gD3Ddev, eye);
+        gVR->FinishVRRendering(gD3Ddev, eye);
     } else {
         Dbg("Failed to set 3D render target");
         gD3Ddev->SetRenderTarget(0, gOriginalScreenTgt);
@@ -192,19 +255,19 @@ void RenderVROverlay(RenderTarget renderTarget2D, bool clear)
 {
     const auto& size = renderTarget2D == Menu ? gCfg.menuSize : gCfg.overlaySize;
     const auto& translation = renderTarget2D == Overlay ? gCfg.overlayTranslation : glm::vec3 { 0.0f, -0.1f, 0.0f };
-    const auto& horizLock = renderTarget2D == Overlay ? std::make_optional(gLockToHorizonMatrix) : std::nullopt;
-    const auto& projection = gGameMode == GameMode::MainMenu ? gMainMenu3dProjection : gCockpitProjection;
+    const auto& horizLock = renderTarget2D == Overlay ? std::make_optional(gVR->GetHorizonLock()) : std::nullopt;
+    const auto projType = gGameMode == GameMode::MainMenu ? Projection::MainMenu : Projection::Cockpit;
 
-    if (PrepareVRRendering(gD3Ddev, LeftEye, clear)) [[likely]] {
-        RenderMenuQuad(gD3Ddev, LeftEye, renderTarget2D, size, projection[LeftEye], translation, horizLock);
-        FinishVRRendering(gD3Ddev, LeftEye);
+    if (gVR->PrepareVRRendering(gD3Ddev, LeftEye, clear)) [[likely]] {
+        RenderMenuQuad(gD3Ddev, gVR.get(), LeftEye, renderTarget2D, projType, size, translation, horizLock);
+        gVR->FinishVRRendering(gD3Ddev, LeftEye);
     } else {
         Dbg("Failed to render left eye overlay");
     }
 
-    if (PrepareVRRendering(gD3Ddev, RightEye, clear)) [[likely]] {
-        RenderMenuQuad(gD3Ddev, RightEye, renderTarget2D, size, projection[RightEye], translation, horizLock);
-        FinishVRRendering(gD3Ddev, RightEye);
+    if (gVR->PrepareVRRendering(gD3Ddev, RightEye, clear)) [[likely]] {
+        RenderMenuQuad(gD3Ddev, gVR.get(), RightEye, renderTarget2D, projType, size, translation, horizLock);
+        gVR->FinishVRRendering(gD3Ddev, RightEye);
     } else {
         Dbg("Failed to render left eye overlay");
     }
@@ -266,17 +329,20 @@ void __fastcall RBRHook_Render(void* p)
         gCameraType = reinterpret_cast<uint32_t*>(cameraInfo);
     }
 
-    if (gHMD) [[likely]] {
+    if (gVR) [[likely]] {
         if (gDriving && (gCfg.lockToHorizon != Config::HorizonLock::LOCK_NONE) && !gCarQuat) [[unlikely]] {
             uintptr_t p = *reinterpret_cast<uintptr_t*>(RBRCarQuatPtrAddr) + 0x100;
             gCarQuat = reinterpret_cast<Quaternion*>(p);
         } else if (gCarQuat && !gDriving) [[unlikely]] {
             gCarQuat = nullptr;
-            gLockToHorizonMatrix = glm::identity<M4>();
         }
 
         // UpdateVRPoses should be called as close to rendering as possible
-        UpdateVRPoses(gCarQuat, gCfg.lockToHorizon, &gLockToHorizonMatrix);
+        if (!gVR->UpdateVRPoses(gCarQuat, gCfg.lockToHorizon)) {
+            Dbg("UpdateVRPoses failed, skipping frame");
+            gVRError = true;
+            return;
+        }
 
         if (gCfg.debug) {
             gFrameStart = std::chrono::steady_clock::now();
@@ -285,7 +351,7 @@ void __fastcall RBRHook_Render(void* p)
         if (gRender3d) {
             RenderVREye(p, LeftEye);
             RenderVREye(p, RightEye);
-            if (PrepareVRRendering(gD3Ddev, Overlay)) {
+            if (gVR->PrepareVRRendering(gD3Ddev, Overlay)) {
                 gCurrent2DRenderTarget = Overlay;
             } else {
                 Dbg("Failed to set 2D render target");
@@ -298,7 +364,7 @@ void __fastcall RBRHook_Render(void* p)
             gVRRenderTarget = std::nullopt;
             auto shouldSwapRenderTarget = !(IsLoadingBTBStage() && !gCfg.drawLoadingScreen);
             if (shouldSwapRenderTarget) {
-                if (PrepareVRRendering(gD3Ddev, Menu)) {
+                if (gVR->PrepareVRRendering(gD3Ddev, Menu)) {
                     gCurrent2DRenderTarget = Menu;
                 } else {
                     Dbg("Failed to set 2D render target");
@@ -321,13 +387,13 @@ void __fastcall RBRHook_Render(void* p)
 
 HRESULT __stdcall DXHook_Present(IDirect3DDevice9* This, const RECT* pSourceRect, const RECT* pDestRect, HWND hDestWindowOverride, const RGNDATA* pDirtyRegion)
 {
-    if (gHMD) [[likely]] {
+    if (gVR && !gVRError) [[likely]] {
         auto shouldRender = gCurrent2DRenderTarget && !(IsLoadingBTBStage() && !gCfg.drawLoadingScreen);
         if (shouldRender) {
-            FinishVRRendering(gD3Ddev, gCurrent2DRenderTarget.value());
+            gVR->FinishVRRendering(gD3Ddev, gCurrent2DRenderTarget.value());
             RenderVROverlay(gCurrent2DRenderTarget.value(), !gRender3d);
         }
-        SubmitFramesToHMD(gD3Ddev);
+        gVR->SubmitFramesToHMD(gD3Ddev);
     }
 
     if (gD3Ddev->SetRenderTarget(0, gOriginalScreenTgt) != D3D_OK) {
@@ -340,58 +406,21 @@ HRESULT __stdcall DXHook_Present(IDirect3DDevice9* This, const RECT* pSourceRect
     gOriginalDepthStencil->Release();
 
     auto ret = 0;
-    if (gCfg.alwaysPresent || !gHMD) {
-        if (gHMD && (gCfg.drawCompanionWindow || !gDriving)) {
-            RenderCompanionWindowFromRenderTarget(gD3Ddev, gRender3d ? LeftEye : Menu);
+    if (gCfg.alwaysPresent || !gVR) {
+        if (gVR && (gCfg.drawCompanionWindow || !gDriving)) {
+            RenderCompanionWindowFromRenderTarget(gD3Ddev, gVR.get(), gRender3d ? LeftEye : Menu);
         }
         ret = hooks::present.call(gD3Ddev, pSourceRect, pDestRect, hDestWindowOverride, pDirtyRegion);
     }
 
-    if (gCfg.debug && gHMD) [[unlikely]] {
+    if (gCfg.debug && gVR) [[unlikely]] {
         auto frameEnd = std::chrono::steady_clock::now();
-        auto frameTime = std::chrono::duration_cast<std::chrono::microseconds>(frameEnd - gFrameStart);
+        auto cpuFrameTime = std::chrono::duration_cast<std::chrono::microseconds>(frameEnd - gFrameStart);
 
-        auto t = GetFrameTiming();
-        static uint32_t totalDroppedFrames = 0;
-        static uint32_t totalMispresentedFrames = 0;
-        totalDroppedFrames += t.droppedFrames;
-        totalMispresentedFrames += t.mispresentedFrames;
-
-        gGame->SetColor(1, 0, 1, 1.0);
-        gGame->SetFont(IRBRGame::EFonts::FONT_DEBUG);
-        gGame->WriteText(0, 18 * 0, std::format("openRBRVR {}", VERSION_STR).c_str());
-        gGame->WriteText(0, 18 * 1,
-            std::format("CPU: render time: {:.2f}ms, present: {:.2f}ms, waitforpresent: {:.2f}ms",
-                frameTime.count() / 1000.0,
-                t.cpuPresentCall,
-                t.cpuWaitForPresent)
-                .c_str());
-        gGame->WriteText(0, 18 * 2,
-            std::format("GPU: presubmit {:.2f}ms, postSubmit: {:.2f}ms, total: {:.2f}ms",
-                t.gpuPreSubmit,
-                t.gpuPostSubmit,
-                t.gpuTotal)
-                .c_str());
-        gGame->WriteText(0, 18 * 3,
-            std::format("Compositor: CPU: {:.2f}ms, GPU: {:.2f}ms, submit: {:.2f}ms",
-                t.compositorCpu,
-                t.compositorGpu,
-                t.compositorSubmitFrame)
-                .c_str());
-        gGame->WriteText(0, 18 * 4,
-            std::format("Total mispresented frames: {}, Total dropped frames: {}, Reprojection flags: {:X}",
-                totalMispresentedFrames,
-                totalDroppedFrames,
-                t.reprojectionFlags)
-                .c_str());
-        gGame->WriteText(0, 18 * 5, std::format("Mods: {} {}", IsRBRRXLoaded() ? "RBRRX" : "", IsRBRHUDLoaded() ? "RBRHUD" : "").c_str());
-        const auto& [lw, lh] = GetRenderResolution(LeftEye);
-        const auto& [rw, rh] = GetRenderResolution(RightEye);
-        gGame->WriteText(0, 18 * 6, std::format("Render resolution: {}x{} (left), {}x{} (right)", lw, lh, rw, rh).c_str());
-        gGame->WriteText(0, 18 * 7, std::format("Anti-aliasing: {}x", static_cast<int>(gCfg.msaa)).c_str());
-        gGame->WriteText(0, 18 * 8, std::format("Anisotropic filtering: {}x", gCfg.anisotropy).c_str());
+        DrawDebugInfo(cpuFrameTime.count());
     }
 
+    gVRError = false;
     return ret;
 }
 
@@ -444,15 +473,16 @@ HRESULT __stdcall DXHook_SetVertexShaderConstantF(IDirect3DDevice9* This, UINT S
 
         if (StartRegister == 0) {
             const auto orig = glm::transpose(M4FromShaderConstantPtr(pConstantData));
-            const auto& projection = isRenderingCockpit ? gCockpitProjection : gProjection;
+            const auto& projection = gVR->GetProjection(gVRRenderTarget.value(), isRenderingCockpit ? Projection::Cockpit : Projection::Stage);
+            const auto& eyepos = gVR->GetEyePos(gVRRenderTarget.value());
+            const auto& pose = gVR->GetPose(gVRRenderTarget.value());
+            const auto& horizonLock = gVR->GetHorizonLock();
 
             // MVP matrix
             // MV = P^-1 * MVP
             // MVP[VRRenderTarget] = P[VRRenderTarget] * MV
             const auto mv = shader::gCurrentProjectionMatrixInverse * orig;
-
-            // For some reason the Z-axis is pointing to the wrong direction, so it is flipped here as well
-            const auto mvp = glm::transpose(projection[gVRRenderTarget.value()] * gEyePos[gVRRenderTarget.value()] * gHMDPose * gFlipZMatrix * gLockToHorizonMatrix * mv);
+            const auto mvp = glm::transpose(projection * eyepos * pose * gFlipZMatrix * horizonLock * mv);
             return hooks::setvertexshaderconstantf.call(gD3Ddev, StartRegister, glm::value_ptr(mvp), Vector4fCount);
         } else if (StartRegister == 20) {
             // Sky/fog
@@ -464,7 +494,8 @@ HRESULT __stdcall DXHook_SetVertexShaderConstantF(IDirect3DDevice9* This, UINT S
             glm::vec4 perspective;
             glm::vec3 scale, translation, skew;
             glm::quat orientation;
-            glm::decompose(gHMDPose, scale, orientation, translation, skew, perspective);
+
+            glm::decompose(gVR->GetPose(gVRRenderTarget.value()), scale, orientation, translation, skew, perspective);
             const auto rotation = glm::mat4_cast(glm::conjugate(orientation));
 
             const auto m = glm::transpose(rotation * orig);
@@ -482,12 +513,13 @@ HRESULT __stdcall DXHook_SetTransform(IDirect3DDevice9* This, D3DTRANSFORMSTATET
 
         // Use the large space z-value projection matrix by default. The car specific parts
         // are patched to be rendered in gCockpitProjection in DXHook_DrawIndexedPrimitive.
-        const auto& projection = gProjection[gVRRenderTarget.value()];
+        const auto& projection = gVR->GetProjection(gVRRenderTarget.value(), Projection::Stage);
         fixedfunction::gCurrentProjectionMatrix = D3DFromM4(projection);
         fixedfunction::gCurrentProjectionMatrixInverse = glm::inverse(projection);
         return hooks::settransform.call(gD3Ddev, State, &fixedfunction::gCurrentProjectionMatrix);
     } else if (gVRRenderTarget && State == D3DTS_VIEW) {
-        fixedfunction::gCurrentViewMatrix = D3DFromM4(gEyePos[gVRRenderTarget.value()] * gHMDPose * gFlipZMatrix * gLockToHorizonMatrix * M4FromD3D(*pMatrix));
+        fixedfunction::gCurrentViewMatrix = D3DFromM4(
+            gVR->GetEyePos(gVRRenderTarget.value()) * gVR->GetPose(gVRRenderTarget.value()) * gFlipZMatrix * gVR->GetHorizonLock() * M4FromD3D(*pMatrix));
         return hooks::settransform.call(gD3Ddev, State, &fixedfunction::gCurrentViewMatrix);
     }
 
@@ -524,7 +556,7 @@ HRESULT __stdcall DXHook_DrawIndexedPrimitive(IDirect3DDevice9* This, D3DPRIMITI
     gD3Ddev->GetVertexShader(&shader);
     gD3Ddev->GetTexture(0, &texture);
     if (gVRRenderTarget && !shader && !texture) {
-        if(!IsUsingCockpitCamera()) {
+        if (!IsUsingCockpitCamera()) {
             // Don't draw these if we're not in a cockpit camera.
             // In this mode, a black transparent square is drawn in front of the car
             // if car shadows are enabled.
@@ -533,10 +565,10 @@ HRESULT __stdcall DXHook_DrawIndexedPrimitive(IDirect3DDevice9* This, D3DPRIMITI
         // Some parts of the car are drawn without a shader and without a texture (just black meshes)
         // We need to render these with the cockpit Z clipping values in order for them to look correct
         const auto projection = fixedfunction::gCurrentProjectionMatrix;
-        const auto cockpitProjection = D3DFromM4(gCockpitProjection[gVRRenderTarget.value()]);
-        hooks::settransform.call(gD3Ddev, D3DTS_PROJECTION, &cockpitProjection);
+        const auto cockpitProjection = D3DFromM4(gVR->GetProjection(gVRRenderTarget.value(), Projection::Cockpit));
+        hooks::settransform.call(This, D3DTS_PROJECTION, &cockpitProjection);
         auto ret = hooks::drawindexedprimitive.call(gD3Ddev, PrimitiveType, BaseVertexIndex, MinVertexIndex, NumVertices, startIndex, primCount);
-        hooks::settransform.call(gD3Ddev, D3DTS_PROJECTION, &fixedfunction::gCurrentProjectionMatrix);
+        hooks::settransform.call(This, D3DTS_PROJECTION, &fixedfunction::gCurrentProjectionMatrix);
         return ret;
     } else {
         if (shader)
@@ -604,8 +636,10 @@ HRESULT __stdcall DXHook_CreateDevice(
     RECT winBounds;
     GetWindowRect(hFocusWindow, &winBounds);
 
-    if (!InitVR(dev, gCfg, &gD3DVR, winBounds.right, winBounds.bottom)) {
-        Dbg("Could not initialize VR");
+    if (gVR && gVR->GetRuntimeType() == OPENXR) {
+        reinterpret_cast<OpenXR*>(gVR.get())->Init(dev, gCfg, &gD3DVR, winBounds.right, winBounds.bottom);
+    } else {
+        gVR = std::make_unique<OpenVR>(dev, gCfg, &gD3DVR, winBounds.right, winBounds.bottom);
     }
 
     // Initialize this pointer here, as it's too early to do this in openRBRVR constructor
@@ -627,6 +661,12 @@ HRESULT __stdcall DXHook_CreateDevice(
 
 IDirect3D9* __stdcall DXHook_Direct3DCreate9(UINT SDKVersion)
 {
+    if (gCfg.runtime == OPENXR) {
+        // OpenXR must be initialized before calling Direct3DCreate9
+        // because it will query extensions when initializing DXVK
+        gVR = std::make_unique<OpenXR>();
+    }
+
     auto d3d = hooks::create.call(SDKVersion);
     if (!d3d) {
         Dbg("Could not initialize Vulkan");
@@ -670,7 +710,9 @@ openRBRVR::openRBRVR(IRBRGame* g)
 
 openRBRVR::~openRBRVR()
 {
-    ShutdownVR();
+    if (gVR) {
+        gVR->ShutdownVR();
+    }
 }
 
 void openRBRVR::HandleFrontEndEvents(char txtKeyboard, bool bUp, bool bDown, bool bLeft, bool bRight, bool bSelect)

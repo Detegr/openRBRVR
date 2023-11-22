@@ -1,7 +1,7 @@
 #pragma once
 
-#include "dxvk/d3d9_vr.h"
 #include <d3d9.h>
+#include <d3d9_vr.h>
 
 extern "C" HRESULT __stdcall Direct3DCreateVR(IDirect3DDevice9* pDevice, IDirect3DVR9** pInterface);
 
