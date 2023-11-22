@@ -10,6 +10,9 @@ set(SOURCES
     "openRBRVR.cpp"
     "VR.cpp"
     "Vertex.cpp"
+    "openRBRVR.cpp"
+    "OpenVR.cpp"
+    "OpenXR.cpp"
 )
 
 set(HEADERS
@@ -26,12 +29,14 @@ set(HEADERS
     "Vertex.hpp"
     "openRBRVR.def"
     "openRBRVR.hpp"
+    "OpenVR.hpp"
+    "OpenXR.hpp"
     "Quaternion.hpp"
 )
 
 set(openRBRVR_Major 0)
-set(openRBRVR_Minor 4)
-set(openRBRVR_Patch 3)
+set(openRBRVR_Minor 5)
+set(openRBRVR_Patch 0)
 set(openRBRVR_Tweak 0)
 # set(openRBRVR_TweakStr "-beta${openRBRVR_Tweak}")
 
@@ -52,17 +57,21 @@ target_compile_options(${PROJECT_NAME} PRIVATE /arch:AVX)
 target_compile_definitions(${PROJECT_NAME} PRIVATE WIN32 _WINDOWS _USRDLL _MBCS)
 target_include_directories(${PROJECT_NAME} PRIVATE
     "${CMAKE_SOURCE_DIR}/minhook/include"
-    "${CMAKE_SOURCE_DIR}/dxvk"
+    "${CMAKE_SOURCE_DIR}/dxvk/src/d3d9"
+    "${CMAKE_SOURCE_DIR}/dxvk/include/vulkan/include"
     "${CMAKE_CURRENT_BINARY_DIR}"
 )
 target_link_directories(${PROJECT_NAME} PUBLIC
   ${CMAKE_SOURCE_DIR}/lib
   ${CMAKE_SOURCE_DIR}/minhook/bin
 )
+
+set(OPENXR_LOADER "$<$<CONFIG:Debug>:openxr_loaderd>$<$<NOT:$<CONFIG:Debug>>:openxr_loader>")
 target_link_libraries(${PROJECT_NAME} PUBLIC
   d3d9
   libminhook.x86
   openvr_api
+  ${OPENXR_LOADER}
 )
 
 cmake_path(NATIVE_PATH CMAKE_INSTALL_PREFIX NATIVE_CMAKE_INSTALL_PREFIX)
