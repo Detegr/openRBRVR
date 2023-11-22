@@ -99,7 +99,7 @@ void ChangeRenderIn3dSettings(bool forward)
 void Toggle(bool& value) { value = !value; }
 
 // clang-format off
-static Menu mainMenu = { "openRBRVR", {
+static class Menu mainMenu = { "openRBRVR", {
   { .text = id("Recenter VR view"), .longText = {"Recenters VR view"}, .menuColor = IRBRGame::EMenuColors::MENU_TEXT, .position = Menu::menuItemsStartPos, .selectAction = RecenterVR },
   { .text = [] { return std::format("Lock horizon: {}", GetHorizonLockStr()); },
     .longText = {
@@ -114,6 +114,12 @@ static Menu mainMenu = { "openRBRVR", {
   },
   { .text = id("Graphics settings") , .longText = {"Graphics settings"}, .selectAction = [] { SelectMenu(1); } },
   { .text = id("Debug settings"), .longText = {"Not intended to be changed unless there is a problem that needs more information."}, .selectAction = [] { SelectMenu(2); } },
+  { .text = [] { return std::format("VR runtime: {}", gCfg.runtime == OPENVR ? "OpenVR (SteamVR)" : "OpenXR"); },
+    .longText {"Selects VR runtime. Requires game restart.", "", "SteamVR support is more mature and supports more devices.", "", "OpenXR is an open-source, royalty-free standard.", "It has less overhead and may result in better performance.", "", "OpenXR device compatibility is more limited for old 32-bit games like RBR."},
+    .leftAction = [] { gCfg.runtime = gCfg.runtime == OPENXR ? OPENVR : OPENXR; },
+    .rightAction = [] { gCfg.runtime = gCfg.runtime == OPENXR ? OPENVR : OPENXR; },
+    .selectAction = [] { gCfg.runtime = gCfg.runtime == OPENXR ? OPENVR : OPENXR; },
+  },
   { .text = id("Licenses"), .longText = {"License information of open source libraries used in the plugin's implementation."}, .selectAction = [] { SelectMenu(3); } },
   { .text = id("Save the current config to openRBRVR.ini"),
     .color = [] { return (gCfg == gSavedCfg) ? std::make_tuple(0.5f, 0.5f, 0.5f, 1.0f) : std::make_tuple(1.0f, 1.0f, 1.0f, 1.0f); },

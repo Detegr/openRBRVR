@@ -1,54 +1,30 @@
 #include "VR.hpp"
+#include "OpenVR.hpp"
+#include "OpenXR.hpp"
+
 #include "D3D.hpp"
 #include "Util.hpp"
 #include "Vertex.hpp"
 
 #include <format>
+#include <vector>
 
 extern Config gCfg;
 
 IDirect3DVR9* gD3DVR = nullptr;
-vr::IVRSystem* gHMD = nullptr;
-vr::IVRCompositor* gCompositor = nullptr;
-M4 gHMDPose;
-M4 gEyePos[2];
-M4 gProjection[2];
-M4 gCockpitProjection[2];
-M4 gMainMenu3dProjection[2];
 
-static IDirect3DTexture9* dxTexture[4];
-static IDirect3DSurface9* dxSurface[4];
-static IDirect3DSurface9* dxDepthStencilSurface[4];
-static vr::TrackedDevicePose_t poses[vr::k_unMaxTrackedDeviceCount];
-static vr::Texture_t openvrTexture[2];
-static D3D9_TEXTURE_VR_DESC dxvkTexture[2];
-static IDirect3DVertexBuffer9* quadVertexBuf[2];
 static IDirect3DVertexBuffer9* companionWindowVertexBuf;
 static constexpr D3DMATRIX identityMatrix = D3DFromM4(glm::identity<glm::mat4x4>());
+static IDirect3DVertexBuffer9* quadVertexBuf[2];
 
 constexpr static bool IsAAEnabledForRenderTarget(RenderTarget t)
 {
     return gCfg.msaa > 0 && t < 2;
 }
 
-constexpr static M4 GetProjectionMatrix(RenderTarget eye, float zNear, float zFar)
+bool VRInterface::IsUsingTextureToRender(RenderTarget t)
 {
-    vr::HmdMatrix44_t mat = gHMD->GetProjectionMatrix(static_cast<vr::EVREye>(eye), zNear, zFar);
-
-    return M4(
-        { mat.m[0][0], mat.m[1][0], mat.m[2][0], mat.m[3][0] },
-        { mat.m[0][1], mat.m[1][1], mat.m[2][1], mat.m[3][1] },
-        { mat.m[0][2], mat.m[1][2], mat.m[2][2], mat.m[3][2] },
-        { mat.m[0][3], mat.m[1][3], mat.m[2][3], mat.m[3][3] });
-}
-
-constexpr static M4 M4FromSteamVRMatrix(const vr::HmdMatrix34_t& m)
-{
-    return M4(
-        { m.m[0][0], m.m[1][0], m.m[2][0], 0.0 },
-        { m.m[0][1], m.m[1][1], m.m[2][1], 0.0 },
-        { m.m[0][2], m.m[1][2], m.m[2][2], 0.0 },
-        { m.m[0][3], m.m[1][3], m.m[2][3], 1.0f });
+    return !(IsAAEnabledForRenderTarget(t) || (GetRuntimeType() == OPENXR && t < 2));
 }
 
 bool CreateCompanionWindowBuffer(IDirect3DDevice9* dev)
@@ -68,12 +44,13 @@ bool CreateCompanionWindowBuffer(IDirect3DDevice9* dev)
     return true;
 }
 
-static bool CreateRenderTarget(IDirect3DDevice9* dev, RenderTarget tgt, D3DFORMAT fmt, uint32_t w, uint32_t h)
+bool VRInterface::CreateRenderTarget(IDirect3DDevice9* dev, RenderTarget tgt, D3DFORMAT fmt, uint32_t w, uint32_t h)
 {
     HRESULT ret = 0;
+
     // If anti-aliasing is enabled, we need to first render into an anti-aliased render target.
     // If not, we can render directly to a texture that has D3DUSAGE_RENDERTARGET set.
-    if (IsAAEnabledForRenderTarget(tgt)) {
+    if (!IsUsingTextureToRender(tgt)) {
         ret |= dev->CreateRenderTarget(w, h, fmt, gCfg.msaa, 0, false, &dxSurface[tgt], nullptr);
     }
     ret |= dev->CreateTexture(w, h, 1, D3DUSAGE_RENDERTARGET, fmt, D3DPOOL_DEFAULT, &dxTexture[tgt], nullptr);
@@ -115,16 +92,7 @@ static bool CreateRenderTarget(IDirect3DDevice9* dev, RenderTarget tgt, D3DFORMA
     return true;
 }
 
-static bool CreateVRRenderTarget(IDirect3DDevice9* dev, RenderTarget eye, uint32_t w, uint32_t h)
-{
-    CreateRenderTarget(dev, eye, D3DFMT_X8R8G8B8, w, h);
-    openvrTexture[eye].handle = reinterpret_cast<void*>(&dxvkTexture[eye]);
-    openvrTexture[eye].eType = vr::TextureType_Vulkan;
-    openvrTexture[eye].eColorSpace = vr::ColorSpace_Auto;
-    return true;
-}
-
-static bool CreateQuad(IDirect3DDevice9* dev, RenderTarget tgt, float aspect)
+bool CreateQuad(IDirect3DDevice9* dev, RenderTarget tgt, float aspect)
 {
     constexpr auto w = 0.6f;
     const auto h = w / aspect;
@@ -148,161 +116,9 @@ static bool CreateQuad(IDirect3DDevice9* dev, RenderTarget tgt, float aspect)
     return CreateVertexBuffer(dev, quad, 4, &quadVertexBuf[tgtIdx]);
 }
 
-bool InitVR(IDirect3DDevice9* dev, const Config& cfg, IDirect3DVR9** vrdev, uint32_t companionWindowWidth, uint32_t companionWindowHeight)
+IDirect3DSurface9* VRInterface::PrepareVRRendering(IDirect3DDevice9* dev, RenderTarget tgt, bool clear)
 {
-    if (!vr::VR_IsHmdPresent()) {
-        Dbg("HMD not present, not initializing VR");
-        return false;
-    }
-
-    vr::EVRInitError e = vr::VRInitError_None;
-    gHMD = vr::VR_Init(&e, vr::VRApplication_Scene);
-
-    if (e != vr::VRInitError_None) {
-        Dbg(std::format("VR init failed: {}", vr::VR_GetVRInitErrorAsEnglishDescription(e)));
-        return false;
-    }
-    if (!gHMD) {
-        Dbg("VR init failed");
-        return false;
-    }
-
-    gCompositor = vr::VRCompositor();
-    if (!gCompositor) {
-        Dbg("Could not initialize VR compositor");
-        vr::VR_Shutdown();
-        return false;
-    }
-    gCompositor->SetTrackingSpace(vr::ETrackingUniverseOrigin::TrackingUniverseSeated);
-
-    constexpr auto zFar = 10000.0f;
-    constexpr auto zNearStage = 0.35f;
-    constexpr auto zNearCockpit = 0.01f;
-    constexpr auto zNearMainMenu = 0.1f;
-    gProjection[LeftEye] = GetProjectionMatrix(LeftEye, zNearStage, zFar);
-    gProjection[RightEye] = GetProjectionMatrix(RightEye, zNearStage, zFar);
-    gCockpitProjection[LeftEye] = GetProjectionMatrix(LeftEye, zNearCockpit, zFar);
-    gCockpitProjection[RightEye] = GetProjectionMatrix(RightEye, zNearCockpit, zFar);
-    gMainMenu3dProjection[LeftEye] = GetProjectionMatrix(LeftEye, zNearMainMenu, zFar);
-    gMainMenu3dProjection[RightEye] = GetProjectionMatrix(RightEye, zNearMainMenu, zFar);
-
-    gEyePos[LeftEye] = glm::inverse(M4FromSteamVRMatrix(gHMD->GetEyeToHeadTransform(static_cast<vr::EVREye>(LeftEye))));
-    gEyePos[RightEye] = glm::inverse(M4FromSteamVRMatrix(gHMD->GetEyeToHeadTransform(static_cast<vr::EVREye>(RightEye))));
-
-    if (auto e = gCompositor->WaitGetPoses(poses, vr::k_unMaxTrackedDeviceCount, nullptr, 0); e != vr::VRCompositorError_None) {
-        Dbg("Could not get VR poses");
-        vr::VR_Shutdown();
-        return false;
-    }
-
-    uint32_t w, h;
-    gHMD->GetRecommendedRenderTargetSize(&w, &h);
-
-    auto wss = static_cast<uint32_t>(w * cfg.superSampling);
-    auto hss = static_cast<uint32_t>(h * cfg.superSampling);
-
-    // This can also be used to get a (slightly different) VR display size, if need arises
-    // if (vr::IVRExtendedDisplay* VRExtDisplay = vr::VRExtendedDisplay()) {
-    //	int32_t x, y;
-    // 	VRExtDisplay->GetWindowBounds(&x, &y, &w, &h);
-    // }
-
-    if (!CreateVRRenderTarget(dev, LeftEye, wss, hss))
-        return false;
-    if (!CreateVRRenderTarget(dev, RightEye, wss, hss))
-        return false;
-    if (!CreateRenderTarget(dev, Menu, D3DFMT_X8B8G8R8, companionWindowWidth, companionWindowHeight))
-        return false;
-    if (!CreateRenderTarget(dev, Overlay, D3DFMT_A8B8G8R8, companionWindowWidth, companionWindowHeight))
-        return false;
-
-    auto aspectRatio = static_cast<double>(companionWindowWidth) / static_cast<double>(companionWindowHeight);
-
-    // Create and fill a vertex buffers for the 2D planes
-    if (!CreateQuad(dev, Menu, static_cast<float>(aspectRatio)))
-        return false;
-    if (!CreateQuad(dev, Overlay, static_cast<float>(aspectRatio)))
-        return false;
-
-    if (!CreateCompanionWindowBuffer(dev))
-        return false;
-
-    Direct3DCreateVR(dev, vrdev);
-
-    Dbg("VR init successful\n");
-
-    return true;
-}
-
-void ShutdownVR()
-{
-    if (gHMD) {
-        vr::VR_Shutdown();
-        gHMD = nullptr;
-        gCompositor = nullptr;
-        gD3DVR = nullptr;
-    }
-}
-
-bool UpdateVRPoses(Quaternion* carQuat, Config::HorizonLock lockSetting, M4* horizonLock)
-{
-    if (auto e = gCompositor->WaitGetPoses(poses, vr::k_unMaxTrackedDeviceCount, nullptr, 0); e != vr::VRCompositorError_None) {
-        Dbg("Could not get VR poses");
-        return false;
-    }
-    auto pose = &poses[vr::k_unTrackedDeviceIndex_Hmd];
-    if (pose->bPoseIsValid) {
-        gHMDPose = glm::inverse(M4FromSteamVRMatrix(pose->mDeviceToAbsoluteTracking));
-    }
-    if (carQuat) {
-        // If car quaternion is given, calculate matrix for locking the horizon
-        glm::quat q(carQuat->w, carQuat->x, carQuat->y, carQuat->z);
-        glm::vec3 ang = glm::eulerAngles(q);
-        auto pitch = (lockSetting & Config::HorizonLock::LOCK_PITCH) ? glm::pitch(q) : 0.0f;
-        auto roll = (lockSetting & Config::HorizonLock::LOCK_ROLL) ? glm::yaw(q) : 0.0f; // somehow in glm the axis is yaw
-        glm::quat cancelCarRotation = glm::quat(glm::vec3(pitch, 0.0f, roll));
-        *horizonLock = glm::mat4_cast(cancelCarRotation);
-    }
-    return true;
-}
-
-static constexpr std::string VRCompositorErrorStr(vr::VRCompositorError e)
-{
-    switch (e) {
-        case vr::VRCompositorError::VRCompositorError_AlreadySet:
-            return "AlreadySet";
-        case vr::VRCompositorError::VRCompositorError_AlreadySubmitted:
-            return "AlreadySubmitted";
-        case vr::VRCompositorError::VRCompositorError_DoNotHaveFocus:
-            return "DoNotHaveFocus";
-        case vr::VRCompositorError::VRCompositorError_IncompatibleVersion:
-            return "IncompatibleVersion";
-        case vr::VRCompositorError::VRCompositorError_IndexOutOfRange:
-            return "IndexOutOfRange";
-        case vr::VRCompositorError::VRCompositorError_InvalidBounds:
-            return "InvalidBounds";
-        case vr::VRCompositorError::VRCompositorError_InvalidTexture:
-            return "InvalidTexture";
-        case vr::VRCompositorError::VRCompositorError_IsNotSceneApplication:
-            return "IsNotSceneApplication";
-        case vr::VRCompositorError::VRCompositorError_None:
-            return "None";
-        case vr::VRCompositorError::VRCompositorError_RequestFailed:
-            return "RequestFailed";
-        case vr::VRCompositorError::VRCompositorError_SharedTexturesNotSupported:
-            return "SharedTexturesNotSupported";
-        case vr::VRCompositorError::VRCompositorError_TextureIsOnWrongDevice:
-            return "TextureIsOnWrongDevice";
-        case vr::VRCompositorError::VRCompositorError_TextureUsesUnsupportedFormat:
-            return "TextureUsesUnsupportedFormat";
-        default:
-            return "";
-    }
-}
-
-IDirect3DSurface9* PrepareVRRendering(IDirect3DDevice9* dev, RenderTarget tgt, bool clear)
-{
-    if (!IsAAEnabledForRenderTarget(tgt)) {
+    if (IsUsingTextureToRender(tgt)) {
         if (dxTexture[tgt]->GetSurfaceLevel(0, &dxSurface[tgt]) != D3D_OK) {
             Dbg("PrepareVRRendering: Failed to get surface level");
             dxSurface[tgt] = nullptr;
@@ -327,67 +143,34 @@ IDirect3DSurface9* PrepareVRRendering(IDirect3DDevice9* dev, RenderTarget tgt, b
     return dxSurface[tgt];
 }
 
-void FinishVRRendering(IDirect3DDevice9* dev, RenderTarget tgt)
+void VRInterface::FinishVRRendering(IDirect3DDevice9* dev, RenderTarget tgt)
 {
-    if (!IsAAEnabledForRenderTarget(tgt) && dxSurface[tgt]) {
+    if (IsUsingTextureToRender(tgt) && dxSurface[tgt]) {
         dxSurface[tgt]->Release();
         dxSurface[tgt] = nullptr;
     }
 }
 
-void SubmitFramesToHMD(IDirect3DDevice9* dev)
+void VRInterface::InitSurfaces(IDirect3DDevice9* dev, std::tuple<uint32_t, uint32_t> resl, std::tuple<uint32_t, uint32_t> resr, uint32_t resx2d, uint32_t resy2d)
 {
-    IDirect3DSurface9 *leftEye, *rightEye;
+    if (!CreateRenderTarget(dev, LeftEye, D3DFMT_X8B8G8R8, std::get<0>(resl), std::get<1>(resl)))
+        throw std::runtime_error("Could not create texture for left eye");
+    if (!CreateRenderTarget(dev, RightEye, D3DFMT_X8B8G8R8, std::get<0>(resr), std::get<1>(resr)))
+        throw std::runtime_error("Could not create texture for right eye");
+    if (!CreateRenderTarget(dev, Menu, D3DFMT_X8B8G8R8, resx2d, resy2d))
+        throw std::runtime_error("Could not create texture for menus");
+    if (!CreateRenderTarget(dev, Overlay, D3DFMT_A8B8G8R8, resx2d, resy2d))
+        throw std::runtime_error("Could not create texture for overlay");
 
-    if (dxTexture[LeftEye]->GetSurfaceLevel(0, &leftEye) != D3D_OK) {
-        Dbg("Failed to get left eye surface");
-        return;
-    }
-    if (dxTexture[RightEye]->GetSurfaceLevel(0, &rightEye) != D3D_OK) {
-        Dbg("Failed to get right eye surface");
-        leftEye->Release();
-        return;
-    }
+    auto aspectRatio = static_cast<float>(static_cast<double>(resx2d) / static_cast<double>(resy2d));
 
-    if (gCfg.msaa != D3DMULTISAMPLE_NONE) {
-        // Resolve multisampling
-        dev->StretchRect(dxSurface[LeftEye], nullptr, leftEye, nullptr, D3DTEXF_NONE);
-        dev->StretchRect(dxSurface[RightEye], nullptr, rightEye, nullptr, D3DTEXF_NONE);
-    }
-
-    if (gD3DVR->BeginVRSubmit() != D3D_OK) {
-        Dbg("BeginVRSubmit failed");
-        goto release;
-    }
-    if (gD3DVR->TransferSurfaceForVR(leftEye) != D3D_OK) {
-        Dbg("Failed to transfer left eye surface");
-        goto release;
-    }
-    if (gD3DVR->TransferSurfaceForVR(rightEye) != D3D_OK) {
-        Dbg("Failed to transfer right eye surface");
-        goto release;
-    }
-    if (gD3DVR->GetVRDesc(leftEye, &dxvkTexture[LeftEye]) != D3D_OK) {
-        Dbg("Failed to get left eye descriptor");
-        goto release;
-    }
-    if (gD3DVR->GetVRDesc(rightEye, &dxvkTexture[RightEye]) != D3D_OK) {
-        Dbg("Failed to get left eye descriptor");
-        goto release;
-    }
-    if (auto e = gCompositor->Submit(static_cast<vr::EVREye>(LeftEye), &openvrTexture[LeftEye]); e != vr::VRCompositorError_None) [[unlikely]] {
-        Dbg(std::format("Compositor error: {}", VRCompositorErrorStr(e)));
-    }
-    if (auto e = gCompositor->Submit(static_cast<vr::EVREye>(RightEye), &openvrTexture[RightEye]); e != vr::VRCompositorError_None) [[unlikely]] {
-        Dbg(std::format("Compositor error: {}", VRCompositorErrorStr(e)));
-    }
-    if (gD3DVR->EndVRSubmit() != D3D_OK) {
-        Dbg("EndVRSubmit failed");
-    }
-
-release:
-    leftEye->Release();
-    rightEye->Release();
+    // Create and fill a vertex buffers for the 2D planes
+    if (!CreateQuad(dev, Menu, aspectRatio))
+        throw std::runtime_error("Could not create menu quad");
+    if (!CreateQuad(dev, Overlay, aspectRatio))
+        throw std::runtime_error("Could not create overlay quad");
+    if (!CreateCompanionWindowBuffer(dev))
+        throw std::runtime_error("Could not create desktop window buffer");
 }
 
 static void RenderTexture(
@@ -446,44 +229,33 @@ static void RenderTexture(
     dev->SetTransform(D3DTS_WORLD, &origWorld);
 }
 
-void RenderMenuQuad(IDirect3DDevice9* dev, RenderTarget renderTarget3D, RenderTarget renderTarget2D, float size, const M4& projection, const glm::vec3& translation, const std::optional<M4>& horizonLock)
-{ // TODO: Arguments to this function are a bit silly already
-    const D3DMATRIX vr = D3DFromM4(projection * glm::translate(glm::scale(gEyePos[renderTarget3D] * gHMDPose * gFlipZMatrix * horizonLock.value_or(glm::identity<M4>()), { size, size, 1.0f }), translation));
-    RenderTexture(dev, &vr, &identityMatrix, &identityMatrix, dxTexture[renderTarget2D], quadVertexBuf[renderTarget2D == Menu ? 0 : 1]);
+void RenderMenuQuad(IDirect3DDevice9* dev, VRInterface* vr, RenderTarget renderTarget3D, RenderTarget renderTarget2D, Projection projType, float size, glm::vec3 translation, const std::optional<M4>& horizonLock)
+{
+    const auto& projection = vr->GetProjection(renderTarget3D, projType);
+    const auto& eyepos = vr->GetEyePos(renderTarget3D);
+    const auto& pose = vr->GetPose(renderTarget3D);
+    const auto& texture = vr->GetTexture(renderTarget2D);
+
+    const D3DMATRIX mvp = D3DFromM4(projection * glm::translate(glm::scale(eyepos * pose * gFlipZMatrix * horizonLock.value_or(glm::identity<M4>()), { size, size, 1.0f }), translation));
+    RenderTexture(dev, &mvp, &identityMatrix, &identityMatrix, texture, quadVertexBuf[renderTarget2D == Menu ? 0 : 1]);
 }
 
-void RenderCompanionWindowFromRenderTarget(IDirect3DDevice9* dev, RenderTarget tgt)
+void RenderCompanionWindowFromRenderTarget(IDirect3DDevice9* dev, VRInterface* vr, RenderTarget tgt)
 {
-    RenderTexture(dev, &identityMatrix, &identityMatrix, &identityMatrix, dxTexture[tgt], companionWindowVertexBuf);
+    RenderTexture(dev, &identityMatrix, &identityMatrix, &identityMatrix, vr->GetTexture(tgt), companionWindowVertexBuf);
 }
 
-std::tuple<uint32_t, uint32_t> GetRenderResolution(RenderTarget tgt)
+M4 GetHorizonLockMatrix(Quaternion* carQuat, Config::HorizonLock lockSetting)
 {
-    D3DSURFACE_DESC desc;
-    dxTexture[LeftEye]->GetLevelDesc(0, &desc);
-    return std::make_tuple(desc.Width, desc.Height);
-}
-
-FrameTimingInfo GetFrameTiming()
-{
-    FrameTimingInfo ret = { 0 };
-
-    vr::Compositor_FrameTiming t {
-        .m_nSize = sizeof(vr::Compositor_FrameTiming)
-    };
-    if (gCompositor->GetFrameTiming(&t)) {
-        ret.gpuPreSubmit = t.m_flPreSubmitGpuMs;
-        ret.gpuPostSubmit = t.m_flPostSubmitGpuMs;
-        ret.compositorGpu = t.m_flCompositorRenderGpuMs;
-        ret.compositorCpu = t.m_flCompositorRenderCpuMs;
-        ret.compositorSubmitFrame = t.m_flSubmitFrameMs;
-        ret.gpuTotal = t.m_flTotalRenderGpuMs;
-        ret.frameInterval = t.m_flClientFrameIntervalMs;
-        ret.cpuPresentCall = t.m_flPresentCallCpuMs;
-        ret.cpuWaitForPresent = t.m_flWaitForPresentCpuMs;
-        ret.reprojectionFlags = t.m_nReprojectionFlags;
-        ret.mispresentedFrames = t.m_nNumMisPresented;
-        ret.droppedFrames = t.m_nNumDroppedFrames;
+    if (carQuat) {
+        // If car quaternion is given, calculate matrix for locking the horizon
+        glm::quat q(carQuat->w, carQuat->x, carQuat->y, carQuat->z);
+        glm::vec3 ang = glm::eulerAngles(q);
+        auto pitch = (lockSetting & Config::HorizonLock::LOCK_PITCH) ? glm::pitch(q) : 0.0f;
+        auto roll = (lockSetting & Config::HorizonLock::LOCK_ROLL) ? glm::yaw(q) : 0.0f; // somehow in glm the axis is yaw
+        glm::quat cancelCarRotation = glm::quat(glm::vec3(pitch, 0.0f, roll));
+        return glm::mat4_cast(cancelCarRotation);
+    } else {
+        return glm::identity<M4>();
     }
-    return ret;
 }

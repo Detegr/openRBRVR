@@ -4,12 +4,14 @@
 
 #include "Config.hpp"
 #include "Quaternion.hpp"
-#include "dxvk/d3d9_vr.h"
 #include "glm/gtc/quaternion.hpp"
 #include "glm/gtc/type_ptr.hpp"
 #include "glm/mat3x3.hpp"
 #include "glm/mat4x4.hpp"
+#include <d3d9_vr.h>
+#define XR_USE_GRAPHICS_API_VULKAN
 #include "openvr/openvr.h"
+#include "openxr/openxr.h"
 #include <d3d9.h>
 
 enum RenderTarget : size_t {
@@ -19,19 +21,15 @@ enum RenderTarget : size_t {
     Overlay = 3,
 };
 
+enum class Projection {
+    Stage,
+    Cockpit,
+    MainMenu,
+};
+
 using M4 = glm::mat4x4;
 
 extern IDirect3DVR9* gD3DVR;
-extern vr::IVRSystem* gHMD;
-extern vr::IVRCompositor* gCompositor;
-extern D3DVIEWPORT9 gVRViewPort;
-
-extern M4 gHMDPose;
-extern M4 gEyePos[2];
-extern M4 gProjection[2];
-extern M4 gCockpitProjection[2];
-extern M4 gMainMenu3dProjection[2];
-extern M4 gLockToHorizon;
 
 struct FrameTimingInfo {
     float gpuPreSubmit;
@@ -49,16 +47,70 @@ struct FrameTimingInfo {
     uint32_t droppedFrames;
 };
 
-bool InitVR(IDirect3DDevice9* dev, const Config& cfg, IDirect3DVR9** vrdev, uint32_t ww, uint32_t wh);
-void ShutdownVR();
-bool UpdateVRPoses(Quaternion* carQuat, Config::HorizonLock lockSetting, M4* horizonLock);
-IDirect3DSurface9* PrepareVRRendering(IDirect3DDevice9* dev, RenderTarget tgt, bool clear = true);
-void FinishVRRendering(IDirect3DDevice9* dev, RenderTarget tgt);
-void SubmitFramesToHMD(IDirect3DDevice9* dev);
-void RenderMenuQuad(IDirect3DDevice9* dev, RenderTarget renderTarget3D, RenderTarget renderTarget2D, float size, const M4& projection, const glm::vec3& translation, const std::optional<M4>& horizonLock);
-std::tuple<uint32_t, uint32_t> GetRenderResolution(RenderTarget tgt);
-void RenderCompanionWindowFromRenderTarget(IDirect3DDevice9* dev, RenderTarget tgt);
-FrameTimingInfo GetFrameTiming();
+class VRInterface {
+protected:
+    IDirect3DTexture9* dxTexture[4];
+    IDirect3DSurface9* dxSurface[4];
+    IDirect3DSurface9* dxDepthStencilSurface[4];
+
+    M4 HMDPose[2];
+    M4 eyePos[2];
+    M4 cockpitProjection[2];
+    M4 stageProjection[2];
+    M4 mainMenuProjection[2];
+    M4 horizonLock;
+
+    bool CreateRenderTarget(IDirect3DDevice9* dev, RenderTarget tgt, D3DFORMAT fmt, uint32_t w, uint32_t h);
+    void InitSurfaces(IDirect3DDevice9* dev, std::tuple<uint32_t, uint32_t> resl, std::tuple<uint32_t, uint32_t> resr, uint32_t resx2d, uint32_t resy2d);
+
+    static constexpr float zFar = 10000.0f;
+    static constexpr float zNearStage = 0.35f;
+    static constexpr float zNearCockpit = 0.01f;
+    static constexpr float zNearMainMenu = 0.1f;
+
+    bool IsUsingTextureToRender(RenderTarget t);
+
+public:
+    virtual void ShutdownVR() = 0;
+    virtual bool UpdateVRPoses(Quaternion* carQuat, Config::HorizonLock lockSetting) = 0;
+    virtual IDirect3DSurface9* PrepareVRRendering(IDirect3DDevice9* dev, RenderTarget tgt, bool clear = true);
+    virtual void FinishVRRendering(IDirect3DDevice9* dev, RenderTarget tgt);
+    virtual void SubmitFramesToHMD(IDirect3DDevice9* dev) = 0;
+    virtual std::tuple<uint32_t, uint32_t> GetRenderResolution(RenderTarget tgt) const
+    {
+        D3DSURFACE_DESC desc;
+        dxTexture[LeftEye]->GetLevelDesc(0, &desc);
+        return std::make_tuple(desc.Width, desc.Height);
+    }
+    virtual FrameTimingInfo GetFrameTiming() = 0;
+
+    const M4& GetProjection(RenderTarget tgt, Projection p) const
+    {
+        switch (p) {
+            case Projection::Stage:
+                return stageProjection[tgt];
+            case Projection::Cockpit:
+                return cockpitProjection[tgt];
+            case Projection::MainMenu:
+                return mainMenuProjection[tgt];
+            default:
+                std::unreachable();
+        }
+    }
+    const M4& GetEyePos(RenderTarget tgt) const { return eyePos[tgt]; }
+    const M4& GetPose(RenderTarget tgt) const { return HMDPose[tgt]; }
+    const M4& GetHorizonLock() const { return horizonLock; }
+    IDirect3DTexture9* GetTexture(RenderTarget tgt) const { return dxTexture[tgt]; }
+
+    virtual void ResetView() = 0;
+    virtual VRRuntime GetRuntimeType() const = 0;
+};
+
+bool CreateQuad(IDirect3DDevice9* dev, RenderTarget tgt, float aspect);
+bool CreateCompanionWindowBuffer(IDirect3DDevice9* dev);
+void RenderMenuQuad(IDirect3DDevice9* dev, VRInterface* vr, RenderTarget renderTarget3D, RenderTarget renderTarget2D, Projection projType, float size, glm::vec3 translation, const std::optional<M4>& horizonLock);
+void RenderCompanionWindowFromRenderTarget(IDirect3DDevice9* dev, VRInterface* vr, RenderTarget tgt);
+M4 GetHorizonLockMatrix(Quaternion* carQuat, Config::HorizonLock lockSetting);
 
 constexpr M4 gFlipZMatrix = {
     { 1, 0, 0, 0 },
