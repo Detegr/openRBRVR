@@ -1,7 +1,7 @@
 #pragma once
 #include <array>
 
-const std::array<const char*, 93> gLicenseInformation = {
+const std::array<const char*, 75> gLicenseInformation = {
     "openRBRVR:",
     "This software is licensed under the terms of the Mozilla Public License 2.0 (MPL-2.0).",
     "",
@@ -71,10 +71,10 @@ const std::array<const char*, 93> gLicenseInformation = {
     "The above copyright notice and this permission notice shall be included in all",
     "copies or substantial portions of the Software.",
     "",
-    "THE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED,"
-    "INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR"
-    "PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE"
+    "THE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED,",
+    "INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR",
+    "PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE",
     "FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,",
-    "TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR"
+    "TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR",
     "OTHER DEALINGS IN THE SOFTWARE.",
 };
