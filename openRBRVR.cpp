@@ -34,9 +34,25 @@ namespace fixedfunction {
     D3DMATRIX gCurrentViewMatrix;
 }
 
-constexpr uintptr_t RBRTrackIdAddr = 0x1660804;
-constexpr uintptr_t RBRRenderFunctionAddr = 0x47E1E0;
-constexpr uintptr_t RBRRXTrackStatusOffset = 0x608d0;
+static uintptr_t GetRBRBaseAddress()
+{
+    // If ASLR is enabled, the base address is randomized
+    static uintptr_t addr;
+    addr = reinterpret_cast<uintptr_t>(GetModuleHandle(nullptr));
+    if (!addr) {
+        Dbg("Could not retrieve RBR base address, this may be bad.");
+    }
+    return addr;
+}
+
+static uintptr_t GetRBRAddress(uintptr_t target)
+{
+    constexpr uintptr_t RBRAbsoluteLoadAddr = 0x400000;
+    return GetRBRBaseAddress() + target - RBRAbsoluteLoadAddr;
+}
+
+static uintptr_t RBRTrackIdAddr = GetRBRAddress(0x1660804);
+static uintptr_t RBRRenderFunctionAddr = GetRBRAddress(0x47E1E0);
 void __fastcall RBRHook_Render(void* p);
 
 namespace hooks {
@@ -245,6 +261,7 @@ HRESULT __stdcall DXHook_CreateDevice(
     // Initialize this pointer here, as it's too early to do this in openRBRVR constructor
     auto rxHandle = GetModuleHandle("Plugins\\rbr_rx.dll");
     if (rxHandle) {
+        constexpr uintptr_t RBRRXTrackStatusOffset = 0x608d0;
         auto rxAddr = reinterpret_cast<uintptr_t>(rxHandle);
         gBTBTrackStatus = reinterpret_cast<uint8_t*>(rxAddr + RBRRXTrackStatusOffset);
     }
