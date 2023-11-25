@@ -303,3 +303,10 @@ void RenderMenuQuad(IDirect3DDevice9* dev, RenderTarget renderTarget3D, RenderTa
     dev->SetTransform(D3DTS_VIEW, &view);
     dev->SetTransform(D3DTS_WORLD, &world);
 }
+
+std::tuple<uint32_t, uint32_t> GetRenderResolution(RenderTarget tgt)
+{
+    D3DSURFACE_DESC desc;
+    dxTexture[LeftEye]->GetLevelDesc(0, &desc);
+    return std::make_tuple(desc.Width, desc.Height);
+}

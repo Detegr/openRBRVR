@@ -347,6 +347,9 @@ void openRBRVR::DrawFrontEndPage()
     constexpr auto rowHeight = 21.0f;
     constexpr auto licenseRowHeight = 14.0f;
 
+    const auto& [lw, lh] = GetRenderResolution(LeftEye);
+    const auto& [rw, rh] = GetRenderResolution(RightEye);
+
     switch (menuPage) {
     case 0: {
         game->DrawBlackOut(520.0f, 0.0f, 190.0f, 500.0f);
@@ -366,6 +369,7 @@ void openRBRVR::DrawFrontEndPage()
         game->WriteText(70.0f, menuItemsStartPos + rowHeight * 4, std::format("Menu size: {:.2f}", gCfg.menuSize).c_str());
         game->WriteText(70.0f, menuItemsStartPos + rowHeight * 5, std::format("Overlay size: {:.2f}", gCfg.overlaySize).c_str());
         game->WriteText(70.0f, menuItemsStartPos + rowHeight * 6, std::format("Supersampling: {:.2f}", gCfg.superSampling).c_str());
+        game->WriteText(70.0f, menuItemsStartPos + rowHeight * 7, std::format("Render resolution: {}x{} (left), {}x{} (right)", lw, lh, rw, rh).c_str());
 
         game->SetMenuColor(IRBRGame::EMenuColors::MENU_TEXT);
         game->WriteText(10.0f, 500.0 - rowHeight * 2, "https://github.com/Detegr/openRBRVR");
