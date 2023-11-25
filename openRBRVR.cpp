@@ -12,7 +12,6 @@
 #include "VR.hpp"
 #include "openRBRVR.hpp"
 
-static openRBRVR* plugin = nullptr;
 static IDirect3DDevice9* gD3Ddev = nullptr;
 static Config gCfg;
 
@@ -54,14 +53,6 @@ BOOL APIENTRY DllMain(HANDLE hModule, DWORD ul_reason_for_call, LPVOID lpReserve
 {
     MH_Initialize();
     return TRUE;
-}
-
-extern "C" __declspec(dllexport) IPlugin* RBR_CreatePlugin(IRBRGame* game)
-{
-    if (!plugin) {
-        plugin = new openRBRVR(game);
-    }
-    return plugin;
 }
 
 static std::optional<RenderTarget> gVRRenderTarget;

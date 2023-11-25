@@ -5,6 +5,7 @@ project(openRBRVR)
 set(CMAKE_CXX_STANDARD 20)
 
 set(SOURCES
+    "API.cpp"
     "openRBRVR.cpp"
     "VR.cpp"
 )
