@@ -35,6 +35,12 @@ configure_file(
   ${CMAKE_CURRENT_BINARY_DIR}/version.rc
   @ONLY)
 
+configure_file(
+  ${CMAKE_CURRENT_SOURCE_DIR}/Version.hpp.in
+  ${CMAKE_CURRENT_BINARY_DIR}/Version.hpp
+  @ONLY
+)
+
 add_library(${PROJECT_NAME} SHARED ${SOURCES} ${HEADERS} ${CMAKE_CURRENT_BINARY_DIR}/version.rc)
 
 target_compile_options(${PROJECT_NAME} PRIVATE /arch:AVX)
@@ -42,6 +48,7 @@ target_compile_definitions(${PROJECT_NAME} PRIVATE WIN32 _WINDOWS _USRDLL _MBCS)
 target_include_directories(${PROJECT_NAME} PRIVATE
     "${CMAKE_SOURCE_DIR}/minhook/include"
     "${CMAKE_SOURCE_DIR}/dxvk"
+    "${CMAKE_CURRENT_BINARY_DIR}"
 )
 target_link_directories(${PROJECT_NAME} PUBLIC
   ${CMAKE_SOURCE_DIR}/lib

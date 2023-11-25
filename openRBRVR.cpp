@@ -10,10 +10,15 @@
 #include "Licenses.hpp"
 #include "Util.hpp"
 #include "VR.hpp"
+#include "Version.hpp"
 #include "openRBRVR.hpp"
+
+IRBRGame* gGame;
 
 static IDirect3DDevice9* gD3Ddev = nullptr;
 static Config gCfg;
+
+static bool gDebug;
 
 static glm::mat4 gFlipZMatrix = {
     { 1, 0, 0, 0 },
@@ -76,7 +81,27 @@ static IDirect3DSurface9 *gOriginalScreenTgt, *gOriginalDepthStencil;
 static bool gDriving;
 static uint32_t gGameMode;
 static std::vector<IDirect3DVertexShader9*> gOriginalShaders;
+
+constexpr uintptr_t RBRRXTrackStatusOffset = 0x608d0;
 static volatile uint8_t* gBTBTrackStatus;
+static bool IsRBRRXLoaded()
+{
+    return reinterpret_cast<uintptr_t>(gBTBTrackStatus) != RBRRXTrackStatusOffset;
+}
+
+static bool IsRBRHUDLoaded()
+{
+    static bool triedToObtain;
+    static bool isLoaded;
+
+    if (!triedToObtain) {
+        auto hudHandle = GetModuleHandle("Plugins\\RBRHUD.dll");
+        isLoaded = (hudHandle != nullptr);
+    }
+    return isLoaded;
+}
+
+static std::chrono::steady_clock::time_point gFrameStart;
 
 static bool IsLoadingBTBStage()
 {
@@ -147,6 +172,10 @@ void __fastcall RBRHook_Render(void* p)
         // UpdateVRPoses should be called as close to rendering as possible
         UpdateVRPoses();
 
+        if (gDebug) [[unlikely]] {
+            gFrameStart = std::chrono::steady_clock::now();
+        }
+
         if (gDriving) {
             RenderVREye(p, LeftEye);
             RenderVREye(p, RightEye);
@@ -179,6 +208,21 @@ HRESULT __stdcall DXHook_Present(IDirect3DDevice9* This, const RECT* pSourceRect
             RenderVROverlay(current2DRenderTarget, !gDriving);
         }
         SubmitFramesToHMD();
+    }
+
+    if (gDebug) [[unlikely]] {
+        auto frameEnd = std::chrono::steady_clock::now();
+        auto frameTime = std::chrono::duration_cast<std::chrono::microseconds>(frameEnd - gFrameStart);
+
+        gGame->SetColor(1, 0, 1, 1.0);
+        gGame->SetFont(IRBRGame::EFonts::FONT_DEBUG);
+        gGame->WriteText(0, 18 * 0, std::format("openRBRVR {}", VERSION_STR).c_str());
+        gGame->WriteText(0, 18 * 1, std::format("Frame time: {}us", frameTime.count()).c_str());
+        gGame->WriteText(0, 18 * 2, std::format("Theoretical FPS: {:.1f}", 1000000.0 / frameTime.count()).c_str());
+        gGame->WriteText(0, 18 * 3, std::format("Mods: {} {}", IsRBRRXLoaded() ? "RBRRX" : "", IsRBRHUDLoaded() ? "RBRHUD" : "").c_str());
+        const auto& [lw, lh] = GetRenderResolution(LeftEye);
+        const auto& [rw, rh] = GetRenderResolution(RightEye);
+        gGame->WriteText(0, 18 * 4, std::format("Render resolution: {}x{} (left), {}x{} (right)", lw, lh, rw, rh).c_str());
     }
 
     gD3Ddev->SetRenderTarget(0, gOriginalScreenTgt);
@@ -261,7 +305,6 @@ HRESULT __stdcall DXHook_CreateDevice(
     // Initialize this pointer here, as it's too early to do this in openRBRVR constructor
     auto rxHandle = GetModuleHandle("Plugins\\rbr_rx.dll");
     if (rxHandle) {
-        constexpr uintptr_t RBRRXTrackStatusOffset = 0x608d0;
         auto rxAddr = reinterpret_cast<uintptr_t>(rxHandle);
         gBTBTrackStatus = reinterpret_cast<uint8_t*>(rxAddr + RBRRXTrackStatusOffset);
     }
@@ -283,6 +326,7 @@ openRBRVR::openRBRVR(IRBRGame* g)
     , menuPage(0)
     , menuScroll(0)
 {
+    gGame = g;
     Dbg("Hooking DirectX");
 
     auto d3ddll = GetModuleHandle("d3d9.dll");
@@ -300,6 +344,7 @@ openRBRVR::openRBRVR(IRBRGame* g)
     hooks::render = Hook(*reinterpret_cast<decltype(RBRHook_Render)*>(RBRRenderFunctionAddr), RBRHook_Render);
 
     gCfg = Config::fromFile("Plugins\\openRBRVR.ini");
+    gDebug = gCfg.debug;
 }
 
 openRBRVR::~openRBRVR()
@@ -321,6 +366,10 @@ void openRBRVR::HandleFrontEndEvents(char txtKeyboard, bool bUp, bool bDown, boo
                 break;
             }
             case 1: {
+                gDebug = !gDebug;
+                break;
+            }
+            case 2: {
                 menuPage = 1;
                 break;
             }
@@ -361,15 +410,16 @@ void openRBRVR::DrawFrontEndPage()
 
         game->SetMenuColor(IRBRGame::EMenuColors::MENU_TEXT);
         game->WriteText(65.0f, menuItemsStartPos, "Recenter view");
-        game->WriteText(65.0f, menuItemsStartPos + rowHeight, "Licenses");
+        game->WriteText(65.0f, menuItemsStartPos + rowHeight * 1, std::format("Debug information: {}", gDebug ? "ON" : "OFF").c_str());
+        game->WriteText(65.0f, menuItemsStartPos + rowHeight * 2, "Licenses");
 
-        game->WriteText(65.0f, menuItemsStartPos + rowHeight * 3, "Configuration:");
+        game->WriteText(65.0f, menuItemsStartPos + rowHeight * 4, "Configuration:");
         game->SetFont(IRBRGame::EFonts::FONT_SMALL);
         game->SetColor(0.7f, 0.7f, 0.7f, 1.0f);
-        game->WriteText(70.0f, menuItemsStartPos + rowHeight * 4, std::format("Menu size: {:.2f}", gCfg.menuSize).c_str());
-        game->WriteText(70.0f, menuItemsStartPos + rowHeight * 5, std::format("Overlay size: {:.2f}", gCfg.overlaySize).c_str());
-        game->WriteText(70.0f, menuItemsStartPos + rowHeight * 6, std::format("Supersampling: {:.2f}", gCfg.superSampling).c_str());
-        game->WriteText(70.0f, menuItemsStartPos + rowHeight * 7, std::format("Render resolution: {}x{} (left), {}x{} (right)", lw, lh, rw, rh).c_str());
+        game->WriteText(70.0f, menuItemsStartPos + rowHeight * 5, std::format("Menu size: {:.2f}", gCfg.menuSize).c_str());
+        game->WriteText(70.0f, menuItemsStartPos + rowHeight * 6, std::format("Overlay size: {:.2f}", gCfg.overlaySize).c_str());
+        game->WriteText(70.0f, menuItemsStartPos + rowHeight * 7, std::format("Supersampling: {:.2f}", gCfg.superSampling).c_str());
+        game->WriteText(70.0f, menuItemsStartPos + rowHeight * 8, std::format("Render resolution: {}x{} (left), {}x{} (right)", lw, lh, rw, rh).c_str());
 
         game->SetMenuColor(IRBRGame::EMenuColors::MENU_TEXT);
         game->WriteText(10.0f, 500.0 - rowHeight * 2, "https://github.com/Detegr/openRBRVR");

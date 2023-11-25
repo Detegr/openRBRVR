@@ -2,11 +2,13 @@
 
 #include <algorithm>
 #include <cctype>
+#include <filesystem>
 #include <fstream>
+#include <iostream>
 #include <sstream>
 #include <string>
 
-#include <iostream>
+#include "Util.hpp"
 
 static float floatOrDefault(const std::string& value, float def)
 {
@@ -22,19 +24,32 @@ struct Config {
     float menuSize;
     float overlaySize;
     float superSampling;
+    bool debug;
 
-    static Config fromFile(const std::string& path)
+    static Config fromFile(const std::filesystem::path& path)
     {
         auto cfg = Config {
             .menuSize = 1.0,
             .overlaySize = 1.0,
             .superSampling = 1.0,
+            .debug = false,
         };
 
-        std::ifstream f;
-        try {
-            f = std::ifstream(path);
-        } catch (const std::exception&) {
+        if (!std::filesystem::exists(path)) {
+            std::ofstream f(path);
+            f << "superSampling = 1.0\n";
+            f << "menuSize = 1.0\n";
+            f << "overlaySize = 1.0\n";
+            f << "debug = false";
+
+            f.close();
+
+            return cfg;
+        }
+
+        std::ifstream f(path);
+        if (!f.good()) {
+            Dbg("Could not open openRBRVR.ini");
             return cfg;
         }
 
@@ -62,6 +77,8 @@ struct Config {
                 cfg.overlaySize = floatOrDefault(value, 1.0);
             } else if (key == "superSampling") {
                 cfg.superSampling = floatOrDefault(value, 1.0);
+            } else if (key == "debug") {
+                cfg.debug = (value == "true");
             }
         }
         return cfg;

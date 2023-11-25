@@ -9,7 +9,7 @@ class openRBRVR : public IPlugin {
     uint32_t menuIdx;
     uint32_t menuPage;
     uint32_t menuScroll;
-    const uint32_t menuItems = 2;
+    const uint32_t menuItems = 3;
 
 public:
     openRBRVR(IRBRGame* g);
