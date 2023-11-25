@@ -23,7 +23,18 @@ set(HEADERS
     "openRBRVR.def"
 )
 
-add_library(${PROJECT_NAME} SHARED ${SOURCES} ${HEADERS})
+set(openRBRVR_Major 0)
+set(openRBRVR_Minor 1)
+set(openRBRVR_Patch 0)
+set(openRBRVR_Tweak 3)
+set(openRBRVR_TweakStr "-beta${openRBRVR_Tweak}")
+
+configure_file(
+  ${CMAKE_CURRENT_SOURCE_DIR}/version.rc.in
+  ${CMAKE_CURRENT_BINARY_DIR}/version.rc
+  @ONLY)
+
+add_library(${PROJECT_NAME} SHARED ${SOURCES} ${HEADERS} ${CMAKE_CURRENT_BINARY_DIR}/version.rc)
 
 target_compile_options(${PROJECT_NAME} PRIVATE /arch:AVX)
 target_compile_definitions(${PROJECT_NAME} PRIVATE WIN32 _WINDOWS _USRDLL _MBCS)
