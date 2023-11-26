@@ -332,3 +332,27 @@ std::tuple<uint32_t, uint32_t> GetRenderResolution(RenderTarget tgt)
     dxTexture[LeftEye]->GetLevelDesc(0, &desc);
     return std::make_tuple(desc.Width, desc.Height);
 }
+
+FrameTimingInfo GetFrameTiming()
+{
+    FrameTimingInfo ret = { 0 };
+
+    vr::Compositor_FrameTiming t {
+        .m_nSize = sizeof(vr::Compositor_FrameTiming)
+    };
+    if (gCompositor->GetFrameTiming(&t)) {
+        ret.gpuPreSubmit = t.m_flPreSubmitGpuMs;
+        ret.gpuPostSubmit = t.m_flPostSubmitGpuMs;
+        ret.compositorGpu = t.m_flCompositorRenderGpuMs;
+        ret.compositorCpu = t.m_flCompositorRenderCpuMs;
+        ret.compositorSubmitFrame = t.m_flSubmitFrameMs;
+        ret.gpuTotal = t.m_flTotalRenderGpuMs;
+        ret.frameInterval = t.m_flClientFrameIntervalMs;
+        ret.cpuPresentCall = t.m_flPresentCallCpuMs;
+        ret.cpuWaitForPresent = t.m_flWaitForPresentCpuMs;
+        ret.reprojectionFlags = t.m_nReprojectionFlags;
+        ret.mispresentedFrames = t.m_nNumMisPresented;
+        ret.droppedFrames = t.m_nNumDroppedFrames;
+    }
+    return ret;
+}

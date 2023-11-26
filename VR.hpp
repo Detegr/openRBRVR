@@ -27,6 +27,22 @@ extern M4 gHMDPose;
 extern M4 gEyePos[2];
 extern M4 gProjection[2];
 
+struct FrameTimingInfo {
+    float gpuPreSubmit;
+    float gpuPostSubmit;
+    float compositorGpu;
+    float compositorCpu;
+    float compositorSubmitFrame;
+    float gpuTotal;
+    float frameInterval;
+    float waitForPresent;
+    float cpuPresentCall;
+    float cpuWaitForPresent;
+    uint32_t reprojectionFlags;
+    uint32_t mispresentedFrames;
+    uint32_t droppedFrames;
+};
+
 bool InitVR(IDirect3DDevice9* dev, const Config& cfg, IDirect3DVR9** vrdev, uint32_t ww, uint32_t wh);
 void ShutdownVR();
 bool UpdateVRPoses();
@@ -36,6 +52,7 @@ void SubmitFramesToHMD();
 void RenderMenuQuad(IDirect3DDevice9* dev, RenderTarget renderTarget3D, RenderTarget renderTarget2D);
 std::tuple<uint32_t, uint32_t> GetRenderResolution(RenderTarget tgt);
 void RenderCompanionWindowFromRenderTarget(IDirect3DDevice9* dev, RenderTarget tgt);
+FrameTimingInfo GetFrameTiming();
 
 constexpr M4 M4FromD3D(const D3DMATRIX& m)
 {

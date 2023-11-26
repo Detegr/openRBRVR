@@ -220,24 +220,52 @@ HRESULT __stdcall DXHook_Present(IDirect3DDevice9* This, const RECT* pSourceRect
         RenderCompanionWindowFromRenderTarget(This, gDriving ? LeftEye : Menu);
     }
 
-    if (gDebug) [[unlikely]] {
+    auto ret = hooks::present.call(This, pSourceRect, pDestRect, hDestWindowOverride, pDirtyRegion);
+
+    if (gDebug && gHMD) [[unlikely]] {
         auto frameEnd = std::chrono::steady_clock::now();
         auto frameTime = std::chrono::duration_cast<std::chrono::microseconds>(frameEnd - gFrameStart);
+
+        auto t = GetFrameTiming();
+        static uint32_t totalDroppedFrames = 0;
+        static uint32_t totalMispresentedFrames = 0;
+        totalDroppedFrames += t.droppedFrames;
+        totalMispresentedFrames += t.mispresentedFrames;
 
         gGame->SetColor(1, 0, 1, 1.0);
         gGame->SetFont(IRBRGame::EFonts::FONT_DEBUG);
         gGame->WriteText(0, 18 * 0, std::format("openRBRVR {}", VERSION_STR).c_str());
-        gGame->WriteText(0, 18 * 1, std::format("Frame time: {}us", frameTime.count()).c_str());
-        gGame->WriteText(0, 18 * 2, std::format("Theoretical FPS: {:.1f}", 1000000.0 / frameTime.count()).c_str());
-        gGame->WriteText(0, 18 * 3, std::format("Mods: {} {}", IsRBRRXLoaded() ? "RBRRX" : "", IsRBRHUDLoaded() ? "RBRHUD" : "").c_str());
-        if (gHMD) {
-            const auto& [lw, lh] = GetRenderResolution(LeftEye);
-            const auto& [rw, rh] = GetRenderResolution(RightEye);
-            gGame->WriteText(0, 18 * 4, std::format("Render resolution: {}x{} (left), {}x{} (right)", lw, lh, rw, rh).c_str());
-        }
+        gGame->WriteText(0, 18 * 1,
+            std::format("CPU: render time: {:.2f}ms, present: {:.2f}ms, waitforpresent: {:.2f}ms",
+                frameTime.count() / 1000.0,
+                t.cpuPresentCall,
+                t.cpuWaitForPresent)
+                .c_str());
+        gGame->WriteText(0, 18 * 2,
+            std::format("GPU: presubmit {:.2f}ms, postSubmit: {:.2f}ms, total: {:.2f}ms",
+                t.gpuPreSubmit,
+                t.gpuPostSubmit,
+                t.gpuTotal)
+                .c_str());
+        gGame->WriteText(0, 18 * 3,
+            std::format("Compositor: CPU: {:.2f}ms, GPU: {:.2f}ms, submit: {:.2f}ms",
+                t.compositorCpu,
+                t.compositorGpu,
+                t.compositorSubmitFrame)
+                .c_str());
+        gGame->WriteText(0, 18 * 4,
+            std::format("Total mispresented frames: {}, Total dropped frames: {}, Reprojection flags: {:X}",
+                totalMispresentedFrames,
+                totalDroppedFrames,
+                t.reprojectionFlags)
+                .c_str());
+        gGame->WriteText(0, 18 * 5, std::format("Mods: {} {}", IsRBRRXLoaded() ? "RBRRX" : "", IsRBRHUDLoaded() ? "RBRHUD" : "").c_str());
+        const auto& [lw, lh] = GetRenderResolution(LeftEye);
+        const auto& [rw, rh] = GetRenderResolution(RightEye);
+        gGame->WriteText(0, 18 * 6, std::format("Render resolution: {}x{} (left), {}x{} (right)", lw, lh, rw, rh).c_str());
     }
 
-    return hooks::present.call(This, pSourceRect, pDestRect, hDestWindowOverride, pDirtyRegion);
+    return ret;
 }
 
 HRESULT __stdcall DXHook_SetVertexShaderConstantF(IDirect3DDevice9* This, UINT StartRegister, const float* pConstantData, UINT Vector4fCount)

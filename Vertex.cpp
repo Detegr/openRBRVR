@@ -1,6 +1,6 @@
 #include "Vertex.hpp"
 
-bool CreateVertexBuffer(IDirect3DDevice9 *dev, Vertex* v, size_t vertexCount, IDirect3DVertexBuffer9 **buf)
+bool CreateVertexBuffer(IDirect3DDevice9* dev, Vertex* v, size_t vertexCount, IDirect3DVertexBuffer9** buf)
 
 {
     const auto vsz = vertexCount * sizeof(Vertex);
