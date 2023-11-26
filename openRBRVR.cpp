@@ -11,6 +11,7 @@
 #include "Util.hpp"
 #include "VR.hpp"
 #include "Version.hpp"
+#include "Vertex.hpp"
 #include "openRBRVR.hpp"
 
 IRBRGame* gGame;
@@ -210,6 +211,15 @@ HRESULT __stdcall DXHook_Present(IDirect3DDevice9* This, const RECT* pSourceRect
         SubmitFramesToHMD();
     }
 
+    gD3Ddev->SetRenderTarget(0, gOriginalScreenTgt);
+    gD3Ddev->SetDepthStencilSurface(gOriginalDepthStencil);
+    gOriginalScreenTgt->Release();
+    gOriginalDepthStencil->Release();
+
+    if (gHMD) {
+        RenderCompanionWindowFromRenderTarget(This, gDriving ? LeftEye : Menu);
+    }
+
     if (gDebug) [[unlikely]] {
         auto frameEnd = std::chrono::steady_clock::now();
         auto frameTime = std::chrono::duration_cast<std::chrono::microseconds>(frameEnd - gFrameStart);
@@ -220,15 +230,12 @@ HRESULT __stdcall DXHook_Present(IDirect3DDevice9* This, const RECT* pSourceRect
         gGame->WriteText(0, 18 * 1, std::format("Frame time: {}us", frameTime.count()).c_str());
         gGame->WriteText(0, 18 * 2, std::format("Theoretical FPS: {:.1f}", 1000000.0 / frameTime.count()).c_str());
         gGame->WriteText(0, 18 * 3, std::format("Mods: {} {}", IsRBRRXLoaded() ? "RBRRX" : "", IsRBRHUDLoaded() ? "RBRHUD" : "").c_str());
-        const auto& [lw, lh] = GetRenderResolution(LeftEye);
-        const auto& [rw, rh] = GetRenderResolution(RightEye);
-        gGame->WriteText(0, 18 * 4, std::format("Render resolution: {}x{} (left), {}x{} (right)", lw, lh, rw, rh).c_str());
+        if (gHMD) {
+            const auto& [lw, lh] = GetRenderResolution(LeftEye);
+            const auto& [rw, rh] = GetRenderResolution(RightEye);
+            gGame->WriteText(0, 18 * 4, std::format("Render resolution: {}x{} (left), {}x{} (right)", lw, lh, rw, rh).c_str());
+        }
     }
-
-    gD3Ddev->SetRenderTarget(0, gOriginalScreenTgt);
-    gD3Ddev->SetDepthStencilSurface(gOriginalDepthStencil);
-    gOriginalScreenTgt->Release();
-    gOriginalDepthStencil->Release();
 
     return hooks::present.call(This, pSourceRect, pDestRect, hDestWindowOverride, pDirtyRegion);
 }

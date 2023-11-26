@@ -6,8 +6,9 @@ set(CMAKE_CXX_STANDARD 20)
 
 set(SOURCES
     "API.cpp"
-    "openRBRVR.cpp"
     "VR.cpp"
+    "Vertex.cpp"
+    "openRBRVR.cpp"
 )
 
 set(HEADERS
@@ -20,8 +21,9 @@ set(HEADERS
     "Licenses.hpp"
     "Util.hpp"
     "VR.hpp"
-    "openRBRVR.hpp"
+    "Vertex.hpp"
     "openRBRVR.def"
+    "openRBRVR.hpp"
 )
 
 set(openRBRVR_Major 0)

@@ -1,6 +1,7 @@
 #include "VR.hpp"
 #include "D3D.hpp"
 #include "Util.hpp"
+#include "Vertex.hpp"
 
 #include <format>
 
@@ -18,11 +19,8 @@ static vr::TrackedDevicePose_t poses[vr::k_unMaxTrackedDeviceCount];
 static vr::Texture_t openvrTexture[2];
 static D3D9_TEXTURE_VR_DESC dxvkTexture[2];
 static IDirect3DVertexBuffer9* quadVertexBuf[2];
-
-struct Vertex {
-    float x, y, z;
-    float u, v; // Texture coordinates
-};
+static IDirect3DVertexBuffer9* companionWindowVertexBuf;
+static constexpr D3DMATRIX identityMatrix = D3DFromM4(glm::identity<glm::mat4x4>());
 
 constexpr static M4 GetProjectionMatrix(RenderTarget eye)
 {
@@ -46,6 +44,23 @@ constexpr static M4 M4FromSteamVRMatrix(const vr::HmdMatrix34_t& m)
         { m.m[0][1], m.m[1][1], m.m[2][1], 0.0 },
         { m.m[0][2], m.m[1][2], m.m[2][2], 0.0 },
         { m.m[0][3], m.m[1][3], m.m[2][3], 1.0f });
+}
+
+bool CreateCompanionWindowBuffer(IDirect3DDevice9* dev)
+{
+    // clang-format off
+    Vertex quad[] = {
+        { -1, 1, 1, 0, 0, }, // Top-left
+        { 1, 1, 1, 1, 0, }, // Top-right
+        { -1, -1, 1, 0, 1 }, // Bottom-left
+        { 1, -1, 1, 1, 1 } // Bottom-right
+    };
+    // clang-format on
+    if (!CreateVertexBuffer(dev, quad, 4, &companionWindowVertexBuf)) {
+        Dbg("Could not create vertex buffer for companion window");
+        return false;
+    }
+    return true;
 }
 
 static bool CreateTexture(IDirect3DDevice9* dev, RenderTarget tgt, D3DFORMAT fmt, uint32_t w, uint32_t h)
@@ -82,16 +97,7 @@ static bool CreateQuad(IDirect3DDevice9* dev, RenderTarget tgt, float size)
     auto tgtIdx = tgt == Menu ? 0 : 1;
 
     // clang-format on
-    if (auto ret = dev->CreateVertexBuffer(sizeof(quad), 0, D3DFVF_XYZ | D3DFVF_TEX1, D3DPOOL_MANAGED, &quadVertexBuf[tgtIdx], nullptr); FAILED(ret)) {
-        Dbg("D3D initialization failed: CreateVertexBuffer");
-        return false;
-    }
-    void* bufmem;
-    quadVertexBuf[tgtIdx]->Lock(0, sizeof(quad), &bufmem, 0);
-    memcpy(bufmem, quad, sizeof(quad));
-    quadVertexBuf[tgtIdx]->Unlock();
-
-    return true;
+    return CreateVertexBuffer(dev, quad, 4, &quadVertexBuf[tgtIdx]);
 }
 
 bool InitVR(IDirect3DDevice9* dev, const Config& cfg, IDirect3DVR9** vrdev, uint32_t companionWindowWidth, uint32_t companionWindowHeight)
@@ -157,6 +163,9 @@ bool InitVR(IDirect3DDevice9* dev, const Config& cfg, IDirect3DVR9** vrdev, uint
     if (!CreateQuad(dev, Menu, cfg.menuSize))
         return false;
     if (!CreateQuad(dev, Overlay, cfg.overlaySize))
+        return false;
+
+    if (!CreateCompanionWindowBuffer(dev))
         return false;
 
     Direct3DCreateVR(dev, vrdev);
@@ -255,53 +264,66 @@ void SubmitFramesToHMD()
     gD3DVR->EndVRSubmit();
 }
 
-void RenderMenuQuad(IDirect3DDevice9* dev, RenderTarget renderTarget3D, RenderTarget renderTarget2D)
+static void RenderTexture(
+    IDirect3DDevice9* dev,
+    const D3DMATRIX* proj,
+    const D3DMATRIX* view,
+    const D3DMATRIX* world,
+    IDirect3DTexture9* tex,
+    IDirect3DVertexBuffer9* vbuf)
 {
     IDirect3DVertexShader9* vs;
     IDirect3DPixelShader9* ps;
-    D3DMATRIX proj, view, identity, world;
-    identity = D3DFromM4(glm::identity<glm::mat4x4>());
+    D3DMATRIX origProj, origView, origWorld;
 
     dev->GetVertexShader(&vs);
     dev->GetPixelShader(&ps);
-    dev->GetTransform(D3DTS_PROJECTION, &proj);
-    dev->GetTransform(D3DTS_VIEW, &view);
-    dev->GetTransform(D3DTS_WORLD, &world);
-
-    D3DMATRIX vr;
-    vr = D3DFromM4(gProjection[renderTarget3D] * gEyePos[renderTarget3D] * gHMDPose);
+    dev->GetTransform(D3DTS_PROJECTION, &origProj);
+    dev->GetTransform(D3DTS_VIEW, &origView);
+    dev->GetTransform(D3DTS_WORLD, &origWorld);
 
     dev->SetVertexShader(nullptr);
     dev->SetPixelShader(nullptr);
 
-    dev->SetTransform(D3DTS_PROJECTION, &vr);
-    dev->SetTransform(D3DTS_VIEW, &identity);
-    dev->SetTransform(D3DTS_WORLD, &identity);
+    dev->SetTransform(D3DTS_PROJECTION, proj);
+    dev->SetTransform(D3DTS_VIEW, view);
+    dev->SetTransform(D3DTS_WORLD, world);
 
     dev->BeginScene();
 
-    IDirect3DBaseTexture9* tex;
-    dev->GetTexture(0, &tex);
+    IDirect3DBaseTexture9* origTex;
+    dev->GetTexture(0, &origTex);
 
     dev->SetTextureStageState(0, D3DTSS_COLOROP, D3DTOP_SELECTARG1);
     dev->SetTextureStageState(0, D3DTSS_COLORARG1, D3DTA_TEXTURE);
     dev->SetTextureStageState(0, D3DTSS_ALPHAOP, D3DTOP_SELECTARG1);
     dev->SetTextureStageState(0, D3DTSS_ALPHAARG1, D3DTA_TEXTURE);
 
-    dev->SetTexture(0, dxTexture[renderTarget2D]);
+    dev->SetTexture(0, tex);
 
-    dev->SetStreamSource(0, quadVertexBuf[renderTarget2D == Menu ? 0 : 1], 0, sizeof(Vertex));
+    dev->SetStreamSource(0, vbuf, 0, sizeof(Vertex));
     dev->SetFVF(D3DFVF_XYZ | D3DFVF_TEX1);
     dev->DrawPrimitive(D3DPT_TRIANGLESTRIP, 0, 2);
 
     dev->EndScene();
 
-    dev->SetTexture(0, tex);
+    dev->SetTexture(0, origTex);
     dev->SetVertexShader(vs);
     dev->SetPixelShader(ps);
-    dev->SetTransform(D3DTS_PROJECTION, &proj);
-    dev->SetTransform(D3DTS_VIEW, &view);
-    dev->SetTransform(D3DTS_WORLD, &world);
+    dev->SetTransform(D3DTS_PROJECTION, &origProj);
+    dev->SetTransform(D3DTS_VIEW, &origView);
+    dev->SetTransform(D3DTS_WORLD, &origWorld);
+}
+
+void RenderMenuQuad(IDirect3DDevice9* dev, RenderTarget renderTarget3D, RenderTarget renderTarget2D)
+{
+    D3DMATRIX vr = D3DFromM4(gProjection[renderTarget3D] * gEyePos[renderTarget3D] * gHMDPose);
+    RenderTexture(dev, &vr, &identityMatrix, &identityMatrix, dxTexture[renderTarget2D], quadVertexBuf[renderTarget2D == Menu ? 0 : 1]);
+}
+
+void RenderCompanionWindowFromRenderTarget(IDirect3DDevice9* dev, RenderTarget tgt)
+{
+    RenderTexture(dev, &identityMatrix, &identityMatrix, &identityMatrix, dxTexture[tgt], companionWindowVertexBuf);
 }
 
 std::tuple<uint32_t, uint32_t> GetRenderResolution(RenderTarget tgt)

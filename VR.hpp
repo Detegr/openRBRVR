@@ -35,6 +35,7 @@ void FinishVRRendering(IDirect3DDevice9* dev, RenderTarget tgt);
 void SubmitFramesToHMD();
 void RenderMenuQuad(IDirect3DDevice9* dev, RenderTarget renderTarget3D, RenderTarget renderTarget2D);
 std::tuple<uint32_t, uint32_t> GetRenderResolution(RenderTarget tgt);
+void RenderCompanionWindowFromRenderTarget(IDirect3DDevice9* dev, RenderTarget tgt);
 
 constexpr M4 M4FromD3D(const D3DMATRIX& m)
 {
