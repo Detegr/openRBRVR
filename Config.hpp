@@ -19,11 +19,27 @@ static float floatOrDefault(const std::string& value, float def)
     }
 }
 
+static int intOrDefault(const std::string& value, int def)
+{
+    try {
+        return std::stoi(value);
+    } catch (const std::exception&) {
+        return def;
+    }
+}
+
 // Simplified ini file parser for plugin configuration
 struct Config {
+    enum HorizonLock : uint8_t {
+        LOCK_NONE = 0x0,
+        LOCK_ROLL = 0x1,
+        LOCK_PITCH = 0x2,
+    };
+
     float menuSize;
     float overlaySize;
     float superSampling;
+    HorizonLock lockToHorizon;
     bool debug;
 
     static Config fromFile(const std::filesystem::path& path)
@@ -32,6 +48,7 @@ struct Config {
             .menuSize = 1.0,
             .overlaySize = 1.0,
             .superSampling = 1.0,
+            .lockToHorizon = LOCK_NONE,
             .debug = false,
         };
 
@@ -40,6 +57,7 @@ struct Config {
             f << "superSampling = 1.0\n";
             f << "menuSize = 1.0\n";
             f << "overlaySize = 1.0\n";
+            f << "lockToHorizon = 0";
             f << "debug = false";
 
             f.close();
@@ -77,6 +95,8 @@ struct Config {
                 cfg.overlaySize = floatOrDefault(value, 1.0);
             } else if (key == "superSampling") {
                 cfg.superSampling = floatOrDefault(value, 1.0);
+            } else if (key == "lockToHorizon") {
+                cfg.lockToHorizon = static_cast<HorizonLock>(intOrDefault(value, 0));
             } else if (key == "debug") {
                 cfg.debug = (value == "true");
             }

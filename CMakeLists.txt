@@ -24,6 +24,7 @@ set(HEADERS
     "Vertex.hpp"
     "openRBRVR.def"
     "openRBRVR.hpp"
+    "Quaternion.hpp"
 )
 
 set(openRBRVR_Major 0)

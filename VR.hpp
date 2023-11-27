@@ -5,8 +5,11 @@
 #include "Config.hpp"
 #include "dxvk/d3d9_vr.h"
 #include "glm/gtc/type_ptr.hpp"
+#include "glm/gtc/quaternion.hpp"
+#include "glm/mat3x3.hpp"
 #include "glm/mat4x4.hpp"
 #include "openvr/openvr.h"
+#include "Quaternion.hpp"
 #include <d3d9.h>
 
 enum RenderTarget : size_t {
@@ -26,6 +29,7 @@ extern D3DVIEWPORT9 gVRViewPort;
 extern M4 gHMDPose;
 extern M4 gEyePos[2];
 extern M4 gProjection[2];
+extern M4 gLockToHorizon;
 
 struct FrameTimingInfo {
     float gpuPreSubmit;
@@ -45,7 +49,7 @@ struct FrameTimingInfo {
 
 bool InitVR(IDirect3DDevice9* dev, const Config& cfg, IDirect3DVR9** vrdev, uint32_t ww, uint32_t wh);
 void ShutdownVR();
-bool UpdateVRPoses();
+bool UpdateVRPoses(Quaternion* carQuat, Config::HorizonLock lockSetting, M4* horizonLock);
 IDirect3DSurface9* PrepareVRRendering(IDirect3DDevice9* dev, RenderTarget tgt, bool clear = true);
 void FinishVRRendering(IDirect3DDevice9* dev, RenderTarget tgt);
 void SubmitFramesToHMD();

@@ -185,7 +185,7 @@ void ShutdownVR()
     }
 }
 
-bool UpdateVRPoses()
+bool UpdateVRPoses(Quaternion* carQuat, Config::HorizonLock lockSetting, M4* horizonLock)
 {
     if (auto e = gCompositor->WaitGetPoses(poses, vr::k_unMaxTrackedDeviceCount, nullptr, 0); e != vr::VRCompositorError_None) {
         Dbg("Could not get VR poses");
@@ -195,6 +195,15 @@ bool UpdateVRPoses()
     if (pose->bPoseIsValid) {
         gHMDPose = glm::inverse(M4FromSteamVRMatrix(pose->mDeviceToAbsoluteTracking));
     }
+	if (carQuat) {
+		// If car quaternion is given, calculate matrix for locking the horizon
+		glm::quat q(carQuat->w, carQuat->x, carQuat->y, carQuat->z);
+		glm::vec3 ang = glm::eulerAngles(q);
+		auto pitch = (lockSetting & Config::HorizonLock::LOCK_PITCH) ? glm::pitch(q) : 0.0f;
+		auto roll = (lockSetting & Config::HorizonLock::LOCK_ROLL) ? glm::yaw(q) : 0.0f; // somehow in glm the axis is yaw
+		glm::quat cancelCarRotation = glm::quat(glm::vec3(pitch, 0.0f, roll)); 
+		*horizonLock = glm::mat4_cast(cancelCarRotation);
+	}
     return true;
 }
 

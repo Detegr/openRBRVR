@@ -13,6 +13,8 @@
 #include "Version.hpp"
 #include "Vertex.hpp"
 #include "openRBRVR.hpp"
+#include "Quaternion.hpp"
+#include "glm/gtx/matrix_decompose.hpp"
 
 IRBRGame* gGame;
 
@@ -20,6 +22,7 @@ static IDirect3DDevice9* gD3Ddev = nullptr;
 static Config gCfg;
 
 static bool gDebug;
+static Config::HorizonLock gHorizonLockSetting;
 
 static glm::mat4 gFlipZMatrix = {
     { 1, 0, 0, 0 },
@@ -59,6 +62,7 @@ static uintptr_t GetRBRAddress(uintptr_t target)
 
 static uintptr_t RBRTrackIdAddr = GetRBRAddress(0x1660804);
 static uintptr_t RBRRenderFunctionAddr = GetRBRAddress(0x47E1E0);
+static uintptr_t RBRCarQuatPtrAddr = GetRBRAddress(0x8EF660);
 void __fastcall RBRHook_Render(void* p);
 
 namespace hooks {
@@ -82,6 +86,8 @@ static IDirect3DSurface9 *gOriginalScreenTgt, *gOriginalDepthStencil;
 static bool gDriving;
 static uint32_t gGameMode;
 static std::vector<IDirect3DVertexShader9*> gOriginalShaders;
+static Quaternion* gCarQuat; 
+static M4 gLockToHorizonMatrix = glm::identity<M4>();
 
 constexpr uintptr_t RBRRXTrackStatusOffset = 0x608d0;
 static volatile uint8_t* gBTBTrackStatus;
@@ -170,8 +176,16 @@ void __fastcall RBRHook_Render(void* p)
     }
 
     if (gHMD) [[likely]] {
+        if (gDriving && (gHorizonLockSetting != Config::HorizonLock::LOCK_NONE) && !gCarQuat) [[unlikely]] {
+			uintptr_t p = *reinterpret_cast<uintptr_t*>(RBRCarQuatPtrAddr) + 0x100;
+			gCarQuat = reinterpret_cast<Quaternion*>(p);
+        } else if (gCarQuat && !gDriving) [[unlikely]] {
+			gCarQuat = nullptr;
+			gLockToHorizonMatrix = glm::identity<M4>();
+        }
+
         // UpdateVRPoses should be called as close to rendering as possible
-        UpdateVRPoses();
+        UpdateVRPoses(gCarQuat, gHorizonLockSetting, &gLockToHorizonMatrix);
 
         if (gDebug) [[unlikely]] {
             gFrameStart = std::chrono::steady_clock::now();
@@ -286,7 +300,7 @@ HRESULT __stdcall DXHook_SetVertexShaderConstantF(IDirect3DDevice9* This, UINT S
 
         auto orig = glm::transpose(M4FromShaderConstantPtr(pConstantData));
         auto mv = shader::gCurrentProjectionMatrixInverse * orig;
-        auto mvp = glm::transpose(gProjection[gVRRenderTarget.value()] * gEyePos[gVRRenderTarget.value()] * gHMDPose * gFlipZMatrix * mv);
+        auto mvp = glm::transpose(gProjection[gVRRenderTarget.value()] * gEyePos[gVRRenderTarget.value()] * gHMDPose * gFlipZMatrix * gLockToHorizonMatrix * mv);
         return hooks::setvertexshaderconstantf.call(This, StartRegister, glm::value_ptr(mvp), Vector4fCount);
     }
     return hooks::setvertexshaderconstantf.call(This, StartRegister, pConstantData, Vector4fCount);
@@ -300,7 +314,7 @@ HRESULT __stdcall DXHook_SetTransform(IDirect3DDevice9* This, D3DTRANSFORMSTATET
         fixedfunction::gCurrentProjectionMatrix = D3DFromM4(gProjection[gVRRenderTarget.value()]);
         return hooks::settransform.call(This, State, &fixedfunction::gCurrentProjectionMatrix);
     } else if (gVRRenderTarget && State == D3DTS_VIEW) {
-        fixedfunction::gCurrentViewMatrix = D3DFromM4(gEyePos[gVRRenderTarget.value()] * gHMDPose * gFlipZMatrix * M4FromD3D(*pMatrix));
+        fixedfunction::gCurrentViewMatrix = D3DFromM4(gEyePos[gVRRenderTarget.value()] * gHMDPose * gFlipZMatrix * gLockToHorizonMatrix * M4FromD3D(*pMatrix));
         return hooks::settransform.call(This, State, &fixedfunction::gCurrentViewMatrix);
     }
 
@@ -380,11 +394,27 @@ openRBRVR::openRBRVR(IRBRGame* g)
 
     gCfg = Config::fromFile("Plugins\\openRBRVR.ini");
     gDebug = gCfg.debug;
+    gHorizonLockSetting = gCfg.lockToHorizon;
 }
 
 openRBRVR::~openRBRVR()
 {
     ShutdownVR();
+}
+
+static Config::HorizonLock ChangeHorizonLock(Config::HorizonLock lock, bool forward) {
+	switch (lock) {
+		case Config::HorizonLock::LOCK_NONE:
+        return forward ? Config::HorizonLock::LOCK_ROLL : static_cast<Config::HorizonLock>((Config::HorizonLock::LOCK_ROLL | Config::HorizonLock::LOCK_PITCH));
+		case Config::HorizonLock::LOCK_ROLL:
+        return forward ? Config::HorizonLock::LOCK_PITCH : Config::HorizonLock::LOCK_NONE;
+		case Config::HorizonLock::LOCK_PITCH:
+        return forward ? static_cast<Config::HorizonLock>((Config::HorizonLock::LOCK_ROLL | Config::HorizonLock::LOCK_PITCH)) : Config::HorizonLock::LOCK_ROLL;
+		case (Config::HorizonLock::LOCK_ROLL | Config::HorizonLock::LOCK_PITCH):
+        return forward ? Config::HorizonLock::LOCK_NONE : Config::HorizonLock::LOCK_PITCH;
+		default:
+        return Config::HorizonLock::LOCK_NONE;
+	}
 }
 
 void openRBRVR::HandleFrontEndEvents(char txtKeyboard, bool bUp, bool bDown, bool bLeft, bool bRight, bool bSelect)
@@ -404,10 +434,24 @@ void openRBRVR::HandleFrontEndEvents(char txtKeyboard, bool bUp, bool bDown, boo
                 gDebug = !gDebug;
                 break;
             }
-            case 2: {
+            case 3: {
                 menuPage = 1;
                 break;
             }
+            default:
+                break;
+            }
+        } else if (bLeft) {
+            switch (menuIdx) {
+            case 2:
+                gHorizonLockSetting = ChangeHorizonLock(gHorizonLockSetting, false);
+                break;
+            }
+        } else if (bRight) {
+            switch (menuIdx) {
+            case 2:
+                gHorizonLockSetting = ChangeHorizonLock(gHorizonLockSetting, true);
+                break;
             }
         }
     } else if (menuPage == 1) {
@@ -446,15 +490,34 @@ void openRBRVR::DrawFrontEndPage()
         game->SetMenuColor(IRBRGame::EMenuColors::MENU_TEXT);
         game->WriteText(65.0f, menuItemsStartPos, "Recenter view");
         game->WriteText(65.0f, menuItemsStartPos + rowHeight * 1, std::format("Debug information: {}", gDebug ? "ON" : "OFF").c_str());
-        game->WriteText(65.0f, menuItemsStartPos + rowHeight * 2, "Licenses");
+        std::string horiz;
+        switch (gHorizonLockSetting) {
+        case Config::HorizonLock::LOCK_NONE:
+            horiz = "Off";
+            break;
+        case Config::HorizonLock::LOCK_ROLL:
+            horiz = "Roll";
+            break;
+        case Config::HorizonLock::LOCK_PITCH:
+            horiz = "Pitch";
+            break;
+        case (Config::HorizonLock::LOCK_ROLL | Config::HorizonLock::LOCK_PITCH):
+            horiz = "Pitch and roll";
+            break;
+        default:
+            horiz = "Unknown";
+            break;
+        }
+        game->WriteText(65.0f, menuItemsStartPos + rowHeight * 2, std::format("Lock horizon: {}", horiz).c_str());
+        game->WriteText(65.0f, menuItemsStartPos + rowHeight * 3, "Licenses");
 
-        game->WriteText(65.0f, menuItemsStartPos + rowHeight * 4, "Configuration:");
+        game->WriteText(65.0f, menuItemsStartPos + rowHeight * 5, "Configuration:");
         game->SetFont(IRBRGame::EFonts::FONT_SMALL);
         game->SetColor(0.7f, 0.7f, 0.7f, 1.0f);
-        game->WriteText(70.0f, menuItemsStartPos + rowHeight * 5, std::format("Menu size: {:.2f}", gCfg.menuSize).c_str());
-        game->WriteText(70.0f, menuItemsStartPos + rowHeight * 6, std::format("Overlay size: {:.2f}", gCfg.overlaySize).c_str());
-        game->WriteText(70.0f, menuItemsStartPos + rowHeight * 7, std::format("Supersampling: {:.2f}", gCfg.superSampling).c_str());
-        game->WriteText(70.0f, menuItemsStartPos + rowHeight * 8, std::format("Render resolution: {}x{} (left), {}x{} (right)", lw, lh, rw, rh).c_str());
+        game->WriteText(70.0f, menuItemsStartPos + rowHeight * 6, std::format("Menu size: {:.2f}", gCfg.menuSize).c_str());
+        game->WriteText(70.0f, menuItemsStartPos + rowHeight * 7, std::format("Overlay size: {:.2f}", gCfg.overlaySize).c_str());
+        game->WriteText(70.0f, menuItemsStartPos + rowHeight * 8, std::format("Supersampling: {:.2f}", gCfg.superSampling).c_str());
+        game->WriteText(70.0f, menuItemsStartPos + rowHeight * 9, std::format("Render resolution: {}x{} (left), {}x{} (right)", lw, lh, rw, rh).c_str());
 
         game->SetMenuColor(IRBRGame::EMenuColors::MENU_TEXT);
         game->WriteText(10.0f, 500.0 - rowHeight * 2, "https://github.com/Detegr/openRBRVR");
