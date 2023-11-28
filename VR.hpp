@@ -3,13 +3,13 @@
 #define GLM_FORCE_SIMD_AVX2
 
 #include "Config.hpp"
+#include "Quaternion.hpp"
 #include "dxvk/d3d9_vr.h"
-#include "glm/gtc/type_ptr.hpp"
 #include "glm/gtc/quaternion.hpp"
+#include "glm/gtc/type_ptr.hpp"
 #include "glm/mat3x3.hpp"
 #include "glm/mat4x4.hpp"
 #include "openvr/openvr.h"
-#include "Quaternion.hpp"
 #include <d3d9.h>
 
 enum RenderTarget : size_t {

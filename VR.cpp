@@ -195,49 +195,49 @@ bool UpdateVRPoses(Quaternion* carQuat, Config::HorizonLock lockSetting, M4* hor
     if (pose->bPoseIsValid) {
         gHMDPose = glm::inverse(M4FromSteamVRMatrix(pose->mDeviceToAbsoluteTracking));
     }
-	if (carQuat) {
-		// If car quaternion is given, calculate matrix for locking the horizon
-		glm::quat q(carQuat->w, carQuat->x, carQuat->y, carQuat->z);
-		glm::vec3 ang = glm::eulerAngles(q);
-		auto pitch = (lockSetting & Config::HorizonLock::LOCK_PITCH) ? glm::pitch(q) : 0.0f;
-		auto roll = (lockSetting & Config::HorizonLock::LOCK_ROLL) ? glm::yaw(q) : 0.0f; // somehow in glm the axis is yaw
-		glm::quat cancelCarRotation = glm::quat(glm::vec3(pitch, 0.0f, roll)); 
-		*horizonLock = glm::mat4_cast(cancelCarRotation);
-	}
+    if (carQuat) {
+        // If car quaternion is given, calculate matrix for locking the horizon
+        glm::quat q(carQuat->w, carQuat->x, carQuat->y, carQuat->z);
+        glm::vec3 ang = glm::eulerAngles(q);
+        auto pitch = (lockSetting & Config::HorizonLock::LOCK_PITCH) ? glm::pitch(q) : 0.0f;
+        auto roll = (lockSetting & Config::HorizonLock::LOCK_ROLL) ? glm::yaw(q) : 0.0f; // somehow in glm the axis is yaw
+        glm::quat cancelCarRotation = glm::quat(glm::vec3(pitch, 0.0f, roll));
+        *horizonLock = glm::mat4_cast(cancelCarRotation);
+    }
     return true;
 }
 
 static constexpr std::string VRCompositorErrorStr(vr::VRCompositorError e)
 {
     switch (e) {
-    case vr::VRCompositorError::VRCompositorError_AlreadySet:
-        return "AlreadySet";
-    case vr::VRCompositorError::VRCompositorError_AlreadySubmitted:
-        return "AlreadySubmitted";
-    case vr::VRCompositorError::VRCompositorError_DoNotHaveFocus:
-        return "DoNotHaveFocus";
-    case vr::VRCompositorError::VRCompositorError_IncompatibleVersion:
-        return "IncompatibleVersion";
-    case vr::VRCompositorError::VRCompositorError_IndexOutOfRange:
-        return "IndexOutOfRange";
-    case vr::VRCompositorError::VRCompositorError_InvalidBounds:
-        return "InvalidBounds";
-    case vr::VRCompositorError::VRCompositorError_InvalidTexture:
-        return "InvalidTexture";
-    case vr::VRCompositorError::VRCompositorError_IsNotSceneApplication:
-        return "IsNotSceneApplication";
-    case vr::VRCompositorError::VRCompositorError_None:
-        return "None";
-    case vr::VRCompositorError::VRCompositorError_RequestFailed:
-        return "RequestFailed";
-    case vr::VRCompositorError::VRCompositorError_SharedTexturesNotSupported:
-        return "SharedTexturesNotSupported";
-    case vr::VRCompositorError::VRCompositorError_TextureIsOnWrongDevice:
-        return "TextureIsOnWrongDevice";
-    case vr::VRCompositorError::VRCompositorError_TextureUsesUnsupportedFormat:
-        return "TextureUsesUnsupportedFormat";
-    default:
-        return "";
+        case vr::VRCompositorError::VRCompositorError_AlreadySet:
+            return "AlreadySet";
+        case vr::VRCompositorError::VRCompositorError_AlreadySubmitted:
+            return "AlreadySubmitted";
+        case vr::VRCompositorError::VRCompositorError_DoNotHaveFocus:
+            return "DoNotHaveFocus";
+        case vr::VRCompositorError::VRCompositorError_IncompatibleVersion:
+            return "IncompatibleVersion";
+        case vr::VRCompositorError::VRCompositorError_IndexOutOfRange:
+            return "IndexOutOfRange";
+        case vr::VRCompositorError::VRCompositorError_InvalidBounds:
+            return "InvalidBounds";
+        case vr::VRCompositorError::VRCompositorError_InvalidTexture:
+            return "InvalidTexture";
+        case vr::VRCompositorError::VRCompositorError_IsNotSceneApplication:
+            return "IsNotSceneApplication";
+        case vr::VRCompositorError::VRCompositorError_None:
+            return "None";
+        case vr::VRCompositorError::VRCompositorError_RequestFailed:
+            return "RequestFailed";
+        case vr::VRCompositorError::VRCompositorError_SharedTexturesNotSupported:
+            return "SharedTexturesNotSupported";
+        case vr::VRCompositorError::VRCompositorError_TextureIsOnWrongDevice:
+            return "TextureIsOnWrongDevice";
+        case vr::VRCompositorError::VRCompositorError_TextureUsesUnsupportedFormat:
+            return "TextureUsesUnsupportedFormat";
+        default:
+            return "";
     }
 }
 

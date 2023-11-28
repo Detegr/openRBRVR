@@ -1,2 +1,4 @@
 BasedOnStyle: WebKit
 NamespaceIndentation: All
+AllowShortCaseLabelsOnASingleLine: true
+IndentCaseLabels: true
