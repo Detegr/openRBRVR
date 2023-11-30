@@ -40,6 +40,7 @@ struct Config {
     float overlaySize;
     float superSampling;
     HorizonLock lockToHorizon;
+    bool drawDesktopWindow;
     bool debug;
 
     static Config fromFile(const std::filesystem::path& path)
@@ -49,6 +50,7 @@ struct Config {
             .overlaySize = 1.0,
             .superSampling = 1.0,
             .lockToHorizon = LOCK_NONE,
+            .drawDesktopWindow = true,
             .debug = false,
         };
 
@@ -57,8 +59,9 @@ struct Config {
             f << "superSampling = 1.0\n";
             f << "menuSize = 1.0\n";
             f << "overlaySize = 1.0\n";
-            f << "lockToHorizon = 0";
-            f << "debug = false";
+            f << "lockToHorizon = 0\n";
+            f << "drawDesktopWindow = true\n";
+            f << "debug = false\n";
 
             f.close();
 
@@ -97,6 +100,8 @@ struct Config {
                 cfg.superSampling = floatOrDefault(value, 1.0);
             } else if (key == "lockToHorizon") {
                 cfg.lockToHorizon = static_cast<HorizonLock>(intOrDefault(value, 0));
+            } else if (key == "drawDesktopWindow") {
+                cfg.drawDesktopWindow = (value == "true");
             } else if (key == "debug") {
                 cfg.debug = (value == "true");
             }

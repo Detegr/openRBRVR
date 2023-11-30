@@ -2,6 +2,7 @@
 
 #include "IPlugin.h"
 #include <cstdint>
+#include <ranges>
 
 class openRBRVR : public IPlugin {
     IRBRGame* game;
@@ -9,7 +10,6 @@ class openRBRVR : public IPlugin {
     uint32_t menuIdx;
     uint32_t menuPage;
     uint32_t menuScroll;
-    const uint32_t menuItems = 3;
 
 public:
     openRBRVR(IRBRGame* g);
@@ -22,4 +22,6 @@ public:
     virtual void StageStarted(int iMap, const char* ptxtPlayerName, bool bWasFalseStart) { }
     virtual void HandleResults(float fCheckPoint1, float fCheckPoint2, float fFinishTime, const char* ptxtPlayerName) { }
     virtual void CheckPoint(float fCheckPointTime, int iCheckPointID, const char* ptxtPlayerName) { }
+
+    void DrawMenuEntries(const std::ranges::forward_range auto& entries, float rowHeight = 21.0f);
 };
