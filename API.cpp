@@ -4,6 +4,7 @@
 #include "VR.hpp"
 #include "openRBRVR.hpp"
 
+extern bool gDebug;
 static openRBRVR* gPlugin;
 
 extern "C" __declspec(dllexport) IPlugin* RBR_CreatePlugin(IRBRGame* game)
@@ -15,13 +16,21 @@ extern "C" __declspec(dllexport) IPlugin* RBR_CreatePlugin(IRBRGame* game)
 }
 
 enum ApiOperations : uint64_t {
-    RESET_VR_VIEW = 1,
+    API_VERSION = 0,
+    RECENTER_VR_VIEW = 0b1,
+    TOGGLE_DEBUG_INFO = 0b10,
 };
 
-extern "C" __declspec(dllexport) int32_t openRBRVR_Exec(ApiOperations ops)
+extern "C" __declspec(dllexport) int32_t openRBRVR_Exec(ApiOperations ops, uint64_t value)
 {
-    if (ops & RESET_VR_VIEW) {
+    if (ops == API_VERSION) {
+        return 1;
+    }
+    if (ops & RECENTER_VR_VIEW) {
         vr::VRChaperone()->ResetZeroPose(vr::ETrackingUniverseOrigin::TrackingUniverseSeated);
+    }
+    if (ops & TOGGLE_DEBUG_INFO) {
+        gDebug = !gDebug;
     }
     return 0;
 }

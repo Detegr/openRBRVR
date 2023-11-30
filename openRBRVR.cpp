@@ -21,7 +21,7 @@ IRBRGame* gGame;
 static IDirect3DDevice9* gD3Ddev = nullptr;
 static Config gCfg;
 
-static bool gDebug;
+bool gDebug;
 static Config::HorizonLock gHorizonLockSetting;
 
 static glm::mat4 gFlipZMatrix = {
