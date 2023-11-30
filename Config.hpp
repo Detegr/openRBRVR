@@ -8,6 +8,7 @@
 #include <sstream>
 #include <string>
 
+#include "glm/vec3.hpp"
 #include "Util.hpp"
 
 static float floatOrDefault(const std::string& value, float def)
@@ -38,6 +39,7 @@ struct Config {
 
     float menuSize;
     float overlaySize;
+    glm::vec3 overlayTranslation;
     float superSampling;
     HorizonLock lockToHorizon;
     bool drawDesktopWindow;
@@ -48,6 +50,7 @@ struct Config {
         auto cfg = Config {
             .menuSize = 1.0,
             .overlaySize = 1.0,
+            .overlayTranslation = glm::vec3 { 0.0f, 0.0f, 0.0f},
             .superSampling = 1.0,
             .lockToHorizon = LOCK_NONE,
             .drawDesktopWindow = true,
@@ -59,6 +62,9 @@ struct Config {
             f << "superSampling = 1.0\n";
             f << "menuSize = 1.0\n";
             f << "overlaySize = 1.0\n";
+            f << "overlayTranslateX = 0.0\n";
+            f << "overlayTranslateY = 0.0\n";
+            f << "overlayTranslateZ = 0.0\n";
             f << "lockToHorizon = 0\n";
             f << "drawDesktopWindow = true\n";
             f << "debug = false\n";
@@ -96,6 +102,12 @@ struct Config {
                 cfg.menuSize = floatOrDefault(value, 1.0);
             } else if (key == "overlaySize") {
                 cfg.overlaySize = floatOrDefault(value, 1.0);
+            } else if (key == "overlayTranslateX") {
+                cfg.overlayTranslation.x = floatOrDefault(value, 1.0);
+            } else if (key == "overlayTranslateY") {
+                cfg.overlayTranslation.y = floatOrDefault(value, 1.0);
+            } else if (key == "overlayTranslateZ") {
+                cfg.overlayTranslation.z = floatOrDefault(value, 1.0);
             } else if (key == "superSampling") {
                 cfg.superSampling = floatOrDefault(value, 1.0);
             } else if (key == "lockToHorizon") {

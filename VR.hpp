@@ -53,10 +53,17 @@ bool UpdateVRPoses(Quaternion* carQuat, Config::HorizonLock lockSetting, M4* hor
 IDirect3DSurface9* PrepareVRRendering(IDirect3DDevice9* dev, RenderTarget tgt, bool clear = true);
 void FinishVRRendering(IDirect3DDevice9* dev, RenderTarget tgt);
 void SubmitFramesToHMD();
-void RenderMenuQuad(IDirect3DDevice9* dev, RenderTarget renderTarget3D, RenderTarget renderTarget2D);
+void RenderMenuQuad(IDirect3DDevice9* dev, RenderTarget renderTarget3D, RenderTarget renderTarget2D, float size, glm::vec3 translation);
 std::tuple<uint32_t, uint32_t> GetRenderResolution(RenderTarget tgt);
 void RenderCompanionWindowFromRenderTarget(IDirect3DDevice9* dev, RenderTarget tgt);
 FrameTimingInfo GetFrameTiming();
+
+constexpr M4 gFlipZMatrix = {
+    { 1, 0, 0, 0 },
+    { 0, 1, 0, 0 },
+    { 0, 0, -1, 0 },
+    { 0, 0, 0, 1 },
+};
 
 constexpr M4 M4FromD3D(const D3DMATRIX& m)
 {

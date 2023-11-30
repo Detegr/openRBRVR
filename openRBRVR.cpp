@@ -26,13 +26,6 @@ bool gDebug;
 static bool gDrawCompanionWindow;
 static Config::HorizonLock gHorizonLockSetting;
 
-static glm::mat4 gFlipZMatrix = {
-    { 1, 0, 0, 0 },
-    { 0, 1, 0, 0 },
-    { 0, 0, -1, 0 },
-    { 0, 0, 0, 1 },
-};
-
 namespace shader {
     static M4 gCurrentProjectionMatrix;
     static M4 gCurrentProjectionMatrixInverse;
@@ -145,21 +138,13 @@ void RenderVREye(void* p, RenderTarget eye, bool clear = true)
 // Render `renderTarget2d` on a plane for both eyes
 void RenderVROverlay(RenderTarget renderTarget2D, bool clear)
 {
-    // Somehow the shader parameters still have an effect on RenderMenuQuad
-    // even though we disable shaders there. Therefore gVRRenderTarget needs
-    // to be set correctly. I don't understand how this works to be honest :D
-
-    gVRRenderTarget = LeftEye;
     PrepareVRRendering(gD3Ddev, LeftEye, clear);
-    RenderMenuQuad(gD3Ddev, LeftEye, renderTarget2D);
+    RenderMenuQuad(gD3Ddev, LeftEye, renderTarget2D, renderTarget2D == Menu ? gCfg.menuSize : gCfg.overlaySize, renderTarget2D == Overlay ? gCfg.overlayTranslation : glm::vec3 {0.0f, 0.0f, 0.0f});
     FinishVRRendering(gD3Ddev, LeftEye);
 
-    gVRRenderTarget = RightEye;
     PrepareVRRendering(gD3Ddev, RightEye, clear);
-    RenderMenuQuad(gD3Ddev, RightEye, renderTarget2D);
+    RenderMenuQuad(gD3Ddev, RightEye, renderTarget2D, renderTarget2D == Menu ? gCfg.menuSize : gCfg.overlaySize, renderTarget2D == Overlay ? gCfg.overlayTranslation : glm::vec3 {0.0f, 0.0f, 0.0f});
     FinishVRRendering(gD3Ddev, RightEye);
-
-    gVRRenderTarget = std::nullopt;
 }
 
 // RBR 3D scene draw function is rerouted here

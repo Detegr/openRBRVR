@@ -83,15 +83,15 @@ static bool CreateVRTexture(IDirect3DDevice9* dev, RenderTarget eye, uint32_t w,
     return true;
 }
 
-static bool CreateQuad(IDirect3DDevice9* dev, RenderTarget tgt, float size)
+static bool CreateQuad(IDirect3DDevice9* dev, RenderTarget tgt)
 {
     // clang-format off
-	Vertex quad[] = {
-		{ -0.6f * size, 0.3f * size, 1.0f, 0.0f, 0.0f, }, // Top-left
-		{ 0.6f * size, 0.3f * size, 1.0f, 1.0f, 0.0f, }, // Top-right
-		{ -0.6f * size, -0.3f * size, 1.0f, 0.0f, 1.0f }, // Bottom-left
-		{ 0.6f * size, -0.3f * size, 1.0f, 1.0f, 1.0f } // Bottom-right
-	};
+    Vertex quad[] = {
+        { -0.6f, 0.35f, 1.0f, 0.0f, 0.0f, }, // Top-left
+        { 0.6f, 0.35f, 1.0f, 1.0f, 0.0f, }, // Top-right
+        { -0.6f, -0.35f, 1.0f, 0.0f, 1.0f }, // Bottom-left
+        { 0.6f, -0.35f, 1.0f, 1.0f, 1.0f } // Bottom-right
+    };
 
     // We have only 2 quads, so indexing by RenderTarget directly does not work here
     auto tgtIdx = tgt == Menu ? 0 : 1;
@@ -160,9 +160,9 @@ bool InitVR(IDirect3DDevice9* dev, const Config& cfg, IDirect3DVR9** vrdev, uint
         return false;
 
     // Create and fill a vertex buffers for the 2D planes
-    if (!CreateQuad(dev, Menu, cfg.menuSize))
+    if (!CreateQuad(dev, Menu))
         return false;
-    if (!CreateQuad(dev, Overlay, cfg.overlaySize))
+    if (!CreateQuad(dev, Overlay))
         return false;
 
     if (!CreateCompanionWindowBuffer(dev))
@@ -287,12 +287,13 @@ static void RenderTexture(
 
     dev->GetVertexShader(&vs);
     dev->GetPixelShader(&ps);
-    dev->GetTransform(D3DTS_PROJECTION, &origProj);
-    dev->GetTransform(D3DTS_VIEW, &origView);
-    dev->GetTransform(D3DTS_WORLD, &origWorld);
 
     dev->SetVertexShader(nullptr);
     dev->SetPixelShader(nullptr);
+
+    dev->GetTransform(D3DTS_PROJECTION, &origProj);
+    dev->GetTransform(D3DTS_VIEW, &origView);
+    dev->GetTransform(D3DTS_WORLD, &origWorld);
 
     dev->SetTransform(D3DTS_PROJECTION, proj);
     dev->SetTransform(D3DTS_VIEW, view);
@@ -324,9 +325,9 @@ static void RenderTexture(
     dev->SetTransform(D3DTS_WORLD, &origWorld);
 }
 
-void RenderMenuQuad(IDirect3DDevice9* dev, RenderTarget renderTarget3D, RenderTarget renderTarget2D)
+void RenderMenuQuad(IDirect3DDevice9* dev, RenderTarget renderTarget3D, RenderTarget renderTarget2D, float size, glm::vec3 translation)
 {
-    D3DMATRIX vr = D3DFromM4(gProjection[renderTarget3D] * gEyePos[renderTarget3D] * gHMDPose);
+    const D3DMATRIX vr = D3DFromM4(gProjection[renderTarget3D] * glm::translate(glm::scale(gEyePos[renderTarget3D] * gHMDPose * gFlipZMatrix, {size, size, 1.0f}), translation));
     RenderTexture(dev, &vr, &identityMatrix, &identityMatrix, dxTexture[renderTarget2D], quadVertexBuf[renderTarget2D == Menu ? 0 : 1]);
 }
 
