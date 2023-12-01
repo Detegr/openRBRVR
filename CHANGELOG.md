@@ -1,3 +1,7 @@
+## beta8
+
+- Fix crashes when loading certain BTB stages
+
 ## beta7
 
 - Fix skybox and fog rendering
