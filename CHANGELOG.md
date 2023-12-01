@@ -1,3 +1,7 @@
+## beta7
+
+- Fix skybox and fog rendering
+
 ## beta6
 
 - Add drawDesktopWindow option to openRBRVR.ini. Drawing of the desktop window can be disabled with this. The option is also available from Options -> Plugins -> openRBRVR
