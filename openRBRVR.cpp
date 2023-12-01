@@ -280,15 +280,33 @@ HRESULT __stdcall DXHook_SetVertexShaderConstantF(IDirect3DDevice9* This, UINT S
         shouldPatchShader = std::find(gOriginalShaders.cbegin(), gOriginalShaders.cend(), shader) != gOriginalShaders.end();
     }
 
-    if (shouldPatchShader && gVRRenderTarget && Vector4fCount == 4 && StartRegister == 0) {
-        // MV = P^-1 * MVP
-        // MVP[VRRenderTarget] = P[VRRenderTarget] * MV
-        // For some reason the Z-axis is pointing to the wrong direction, so it is flipped here as well
+    if (shouldPatchShader && gVRRenderTarget && Vector4fCount == 4) {
+        if (StartRegister == 0) {
+            // MVP matrix
+            // MV = P^-1 * MVP
+            // MVP[VRRenderTarget] = P[VRRenderTarget] * MV
+            // For some reason the Z-axis is pointing to the wrong direction, so it is flipped here as well
 
-        auto orig = glm::transpose(M4FromShaderConstantPtr(pConstantData));
-        auto mv = shader::gCurrentProjectionMatrixInverse * orig;
-        auto mvp = glm::transpose(gProjection[gVRRenderTarget.value()] * gEyePos[gVRRenderTarget.value()] * gHMDPose * gFlipZMatrix * gLockToHorizonMatrix * mv);
-        return hooks::setvertexshaderconstantf.call(This, StartRegister, glm::value_ptr(mvp), Vector4fCount);
+            auto orig = glm::transpose(M4FromShaderConstantPtr(pConstantData));
+            auto mv = shader::gCurrentProjectionMatrixInverse * orig;
+            auto mvp = glm::transpose(gProjection[gVRRenderTarget.value()] * gEyePos[gVRRenderTarget.value()] * gHMDPose * gFlipZMatrix * gLockToHorizonMatrix * mv);
+            return hooks::setvertexshaderconstantf.call(This, StartRegister, glm::value_ptr(mvp), Vector4fCount);
+        } else if (StartRegister == 20) {
+            // Sky/fog
+            // It seems this parameter contains the orientation of the car and the
+            // skybox and fog is rendered correctly only in the direction where the car
+            // points at. By rotating this with the HMD's rotation, the skybox and possible
+            // fog is rendered correctly.
+            auto orig = glm::transpose(M4FromShaderConstantPtr(pConstantData));
+            glm::vec4 perspective;
+            glm::vec3 scale, translation, skew;
+            glm::quat orientation;
+            glm::decompose(gHMDPose, scale, orientation, translation, skew, perspective);
+            auto rotation = glm::mat4_cast(glm::conjugate(orientation));
+
+            auto m = glm::transpose(rotation * orig);
+            return hooks::setvertexshaderconstantf.call(This, StartRegister, glm::value_ptr(m), Vector4fCount);
+        }
     }
     return hooks::setvertexshaderconstantf.call(This, StartRegister, pConstantData, Vector4fCount);
 }
