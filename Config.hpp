@@ -8,8 +8,8 @@
 #include <sstream>
 #include <string>
 
-#include "glm/vec3.hpp"
 #include "Util.hpp"
+#include "glm/vec3.hpp"
 
 static float floatOrDefault(const std::string& value, float def)
 {
@@ -50,7 +50,7 @@ struct Config {
         auto cfg = Config {
             .menuSize = 1.0,
             .overlaySize = 1.0,
-            .overlayTranslation = glm::vec3 { 0.0f, 0.0f, 0.0f},
+            .overlayTranslation = glm::vec3 { 0.0f, 0.0f, 0.0f },
             .superSampling = 1.0,
             .lockToHorizon = LOCK_NONE,
             .drawDesktopWindow = true,

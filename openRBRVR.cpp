@@ -139,11 +139,11 @@ void RenderVREye(void* p, RenderTarget eye, bool clear = true)
 void RenderVROverlay(RenderTarget renderTarget2D, bool clear)
 {
     PrepareVRRendering(gD3Ddev, LeftEye, clear);
-    RenderMenuQuad(gD3Ddev, LeftEye, renderTarget2D, renderTarget2D == Menu ? gCfg.menuSize : gCfg.overlaySize, renderTarget2D == Overlay ? gCfg.overlayTranslation : glm::vec3 {0.0f, 0.0f, 0.0f});
+    RenderMenuQuad(gD3Ddev, LeftEye, renderTarget2D, renderTarget2D == Menu ? gCfg.menuSize : gCfg.overlaySize, renderTarget2D == Overlay ? gCfg.overlayTranslation : glm::vec3 { 0.0f, 0.0f, 0.0f });
     FinishVRRendering(gD3Ddev, LeftEye);
 
     PrepareVRRendering(gD3Ddev, RightEye, clear);
-    RenderMenuQuad(gD3Ddev, RightEye, renderTarget2D, renderTarget2D == Menu ? gCfg.menuSize : gCfg.overlaySize, renderTarget2D == Overlay ? gCfg.overlayTranslation : glm::vec3 {0.0f, 0.0f, 0.0f});
+    RenderMenuQuad(gD3Ddev, RightEye, renderTarget2D, renderTarget2D == Menu ? gCfg.menuSize : gCfg.overlaySize, renderTarget2D == Overlay ? gCfg.overlayTranslation : glm::vec3 { 0.0f, 0.0f, 0.0f });
     FinishVRRendering(gD3Ddev, RightEye);
 }
 
