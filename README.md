@@ -72,8 +72,8 @@ launcher). To set the FoV override, do the following steps:
 
 - BTB stages don't work with RBRHUD. For some reason the track geometry
   disappears when RBRHUD is enabled.
-- Some BTB stages have rendering artifacts. See *Buggy stages* section for more
-  information.
+- Loading of some BTB stages crash the game. See *Buggy stages* section for
+  more information.
 - PaceNote plugin causes rendering artifacts in BTB stages when the PaceNote
   plugin menu is open. The plugin itself works correctly and the settings can
   be changed. When the plugin menus are closed, everything is back to normal.
@@ -82,16 +82,15 @@ launcher). To set the FoV override, do the following steps:
   causes rendering artifacts).
 - The VR view can only be recentered from Options -> Plugins -> openRBRVR ->
   Reset view. There is no runtime keyboard capture implemented in the plugin.
-- The skybox fades to black in the opposing direction where the car is pointing
-  at. Luckily you rarely look over your shoulder while driving :)
 - Some occasional crashes might happen.
 
 ### Buggy stages
 
 These stages are found with my limited testing to not be rendering correctly:
 
-- Ahvenus I
-- Ahvenus II
+- Pirttijärvi
+- Karankamäki
+- Hokkara Gravel
 
 ## Build instructions
 
