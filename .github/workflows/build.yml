@@ -1,0 +1,35 @@
+name: Build openRBRVR
+
+on:
+  push:
+    branches:
+      - github-actions
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v2
+
+    - name: Set up MSVC
+      uses: microsoft/setup-msbuild@v1.0.2
+
+    - name: Download DirectX Headers
+      run: |
+        $url = 'https://github.com/apitrace/dxsdk/archive/refs/heads/master.zip'
+        $headersPath = 'dxsdk-master/Include'
+        Invoke-WebRequest -Uri $url -OutFile 'dx.zip'
+        Expand-Archive -Path 'dx.zip' -DestinationPath '.'
+        Move-Item -Path $headersPath -Destination 'C:\Program Files (x86)\Microsoft SDKs\Windows\v10.0A\Include'
+
+    - name: Add CMake to PATH
+      run: |
+        $env:PATH += ";C:\Program Files\CMake\bin"
+
+    - name: Configure CMake
+      run: cmake -S . -B build -A Win32 -DCMAKE_BUILD_TYPE=Release
+
+    - name: Build
+      run: cmake --build build --config Release
