@@ -254,15 +254,23 @@ IDirect3DSurface9* PrepareVRRendering(IDirect3DDevice9* dev, RenderTarget tgt, b
 
 void FinishVRRendering(IDirect3DDevice9* dev, RenderTarget tgt)
 {
-    dxSurface[tgt]->Release();
+    if (dxSurface[tgt]) [[likely]] {
+        dxSurface[tgt]->Release();
+        dxSurface[tgt] = nullptr;
+    }
 }
 
-void SubmitFramesToHMD()
+void SubmitFramesToHMD(IDirect3DDevice9* dev)
 {
-    gD3DVR->TransferSurfaceForVR(dxSurface[LeftEye]);
-    gD3DVR->TransferSurfaceForVR(dxSurface[RightEye]);
-    gD3DVR->GetVRDesc(dxSurface[LeftEye], &dxvkTexture[LeftEye]);
-    gD3DVR->GetVRDesc(dxSurface[RightEye], &dxvkTexture[RightEye]);
+    IDirect3DSurface9 *leftEye, *rightEye;
+
+    dxTexture[LeftEye]->GetSurfaceLevel(0, &leftEye);
+    dxTexture[RightEye]->GetSurfaceLevel(0, &rightEye);
+
+    gD3DVR->TransferSurfaceForVR(leftEye);
+    gD3DVR->TransferSurfaceForVR(rightEye);
+    gD3DVR->GetVRDesc(leftEye, &dxvkTexture[LeftEye]);
+    gD3DVR->GetVRDesc(rightEye, &dxvkTexture[RightEye]);
     gD3DVR->BeginVRSubmit();
     if (auto e = gCompositor->Submit(static_cast<vr::EVREye>(LeftEye), &openvrTexture[LeftEye]); e != vr::VRCompositorError_None) [[unlikely]] {
         Dbg(std::format("Compositor error: {}", VRCompositorErrorStr(e)));
@@ -271,6 +279,9 @@ void SubmitFramesToHMD()
         Dbg(std::format("Compositor error: {}", VRCompositorErrorStr(e)));
     }
     gD3DVR->EndVRSubmit();
+
+    leftEye->Release();
+    rightEye->Release();
 }
 
 static void RenderTexture(

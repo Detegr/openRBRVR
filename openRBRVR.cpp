@@ -209,7 +209,7 @@ HRESULT __stdcall DXHook_Present(IDirect3DDevice9* This, const RECT* pSourceRect
             FinishVRRendering(gD3Ddev, current2DRenderTarget);
             RenderVROverlay(current2DRenderTarget, !gDriving);
         }
-        SubmitFramesToHMD();
+        SubmitFramesToHMD(gD3Ddev);
     }
 
     gD3Ddev->SetRenderTarget(0, gOriginalScreenTgt);
