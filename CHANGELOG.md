@@ -1,3 +1,8 @@
+## beta9
+
+- Fix RBRHUD + BTB stage rendering issue
+- Internal improvements
+
 ## beta8
 
 - Fix crashes when loading certain BTB stages

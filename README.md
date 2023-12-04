@@ -8,12 +8,13 @@ Open source VR plugin for Richard Burns Rally.
 
 - Performance overall seems better compared to RBRVR. On some stages the
   difference is huge, on others they're quite similar. I haven't yet found a
-  stage that would run noticeably worse on openRBRVR, apart of a couple of
-  buggy BTB stages. I'm also running openRBRVR with 200% supersampling where in
-  RBRVR I used 150% because 200% was not running smoothly anymore.
+  stage that would run noticeably worse on openRBRVR.
+- The image is more clear with openRBRVR with same resolution compared to
+  RBRVR.
 - Vulkan backend via dxvk ([fork](https://github.com/TheIronWolfModding/dxvk)
   by TheIronWolf that adds D3D9 VR support).
 - PaceNote plugin UI works correctly.
+- Gaugerplugin works correctly (but has a performance impact).
 
 ## Installation instructions
 
@@ -44,18 +45,26 @@ Always run RBR from `RichardBurnsRally_SSE.exe` directly.
 
 In `Plugins/openRBRVR.ini` you can change the following values:
 
+- `superSampling` supersampling setting for the HMD. I'm running this at 2.0
+  with no problems (SteamVR SS 100%). The default is 1.0
 - `menuSize` the size of the rendered 2D plane when menus are visible. The
   default is 1.0
 - `overlaySize` the size of the rendered 2D plane where the overlays are
   rendered while driving. The default is 1.0
-- `superSampling` supersampling setting for the HMD. I'm running this at 2.0
-  with no problems (SteamVR SS 100%). The default is 1.0
+- `overlayTranslateX` overlay (2D content) translation in the X direction
+- `overlayTranslateY` overlay (2D content) translation in the Y direction
+- `overlayTranslateZ` overlay (2D content) translation in the Z direction
+- `lockToHorizon` counters the car motion for the headset's pose so that the
+  driver does not move with the car but the car moves around the driver's head.
+  Values 1, 2 and 3 are supported where 1 locks the roll axis, 2 locks the
+  pitch axis and 3 locks both.
+- `debug` enable to see debug information on the screen
 
 With the desktop FoV, objects might disappear from your peripheral vision
 before they go out of frame. On some stages this is more apparent than others.
 This can be fixed either from the RSF launcher, NGPCarMenu, or runtime by using
 the PaceNote plugin (double click right mouse button to open up the menu).
-Values between 2.4-2.6 work fine for my wide FoV headset.
+Values between 2.3-2.6 work fine for my wide FoV headset.
 
 ### Overriding FoV with the RSF launcher
 
@@ -70,17 +79,14 @@ launcher). To set the FoV override, do the following steps:
 
 ## Known bugs and limitations
 
-- BTB stages don't work with RBRHUD. For some reason the track geometry
-  disappears when RBRHUD is enabled.
-- PaceNote plugin causes rendering artifacts in BTB stages when the PaceNote
-  plugin menu is open. The plugin itself works correctly and the settings can
-  be changed. When the plugin menus are closed, everything is back to normal.
+- If PaceNote plugin is not loaded, there is a black screen in front of the
+  windshield.
 - The seat position cannot be changed via keyboard. PaceNote plugin can and
-  should be used instead. The UI works as expected (except on BTB stages it
-  causes rendering artifacts).
+  should be used instead. The UI works as expected.
 - The VR view can only be recentered from Options -> Plugins -> openRBRVR ->
-  Reset view. There is no runtime keyboard capture implemented in the plugin.
-- Some occasional crashes might happen.
+  Recenter view. There is no runtime keyboard capture implemented in the
+  plugin. RBRControls plugin (included in RSF install) will have support for
+  recentering the view from a wheel button in the upcoming release.
 
 ## Build instructions
 
@@ -93,9 +99,12 @@ To build d3d9.dll, build `dxvk` using meson. I used `meson setup
 ## Thanks
 
 - [Kegetys](https://www.kegetys.fi/) for RBRVR, showing that this is possible.
-- [TheIronWolf](https://github.com/TheIronWolfModding) for patching VR support for D3D9 into dxvk.
-- Towerbrah for the idea to implement VR support using TheIronWolf's fork.
-- [mika-n](https://github.com/mika-n) for open sourcing [NGPCarMenu](https://github.com/mika-n/NGPCarMenu).
+- [TheIronWolf](https://github.com/TheIronWolfModding) for patching VR support
+  for D3D9 into dxvk.
+- Towerbrah for the idea to implement VR support using TheIronWolf's fork and
+  the help debugging RBRHUD+RBRRX issues.
+- [mika-n](https://github.com/mika-n) for open sourcing
+  [NGPCarMenu](https://github.com/mika-n/NGPCarMenu).
 
 ## License
 
