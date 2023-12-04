@@ -68,6 +68,7 @@ namespace hooks {
     Hook<decltype(IDirect3DDevice9Vtbl::Present)> present;
     Hook<decltype(&RBRHook_Render)> render;
     Hook<decltype(IDirect3DDevice9Vtbl::CreateVertexShader)> createvertexshader;
+    Hook<decltype(IDirect3DDevice9Vtbl::SetRenderTarget)> btbsetrendertarget;
 }
 
 BOOL APIENTRY DllMain(HANDLE hModule, DWORD ul_reason_for_call, LPVOID lpReserved)
@@ -84,6 +85,7 @@ static std::vector<IDirect3DVertexShader9*> gOriginalShaders;
 static Quaternion* gCarQuat;
 static M4 gLockToHorizonMatrix = glm::identity<M4>();
 
+constexpr uintptr_t RBRRXDeviceVtblOffset = 0x4f56c;
 constexpr uintptr_t RBRRXTrackStatusOffset = 0x608d0;
 static volatile uint8_t* gBTBTrackStatus;
 static bool IsRBRRXLoaded()
@@ -326,6 +328,16 @@ HRESULT __stdcall DXHook_SetTransform(IDirect3DDevice9* This, D3DTRANSFORMSTATET
     return hooks::settransform.call(This, State, pMatrix);
 }
 
+HRESULT __stdcall BTB_SetRenderTarget(IDirect3DDevice9* This, DWORD RenderTargetIndex, IDirect3DSurface9* pRenderTarget)
+{
+    // This was found purely by luck after testing all kinds of things.
+    // For some reason, if this call is called with the original This pointer (from RBRRX)
+    // plugins switching the render target (i.e. RBRHUD) will cause the stage geometry
+    // to not be rendered at all. Routing the call to the D3D device created by openRBRVR,
+    // it seems to work correctly.
+    return gD3Ddev->SetRenderTarget(RenderTargetIndex, pRenderTarget);
+}
+
 HRESULT __stdcall DXHook_CreateDevice(
     IDirect3D9* This,
     UINT Adapter,
@@ -361,6 +373,9 @@ HRESULT __stdcall DXHook_CreateDevice(
     if (rxHandle) {
         auto rxAddr = reinterpret_cast<uintptr_t>(rxHandle);
         gBTBTrackStatus = reinterpret_cast<uint8_t*>(rxAddr + RBRRXTrackStatusOffset);
+
+        IDirect3DDevice9Vtbl* rbrrxdev = reinterpret_cast<IDirect3DDevice9Vtbl*>(rxAddr + RBRRXDeviceVtblOffset);
+        hooks::btbsetrendertarget = Hook(rbrrxdev->SetRenderTarget, BTB_SetRenderTarget);
     }
 
     return ret;
