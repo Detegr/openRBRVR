@@ -74,7 +74,8 @@ jobs:
         cp openRBRVR.dll openRBRVR.ini.sample openRBRVR-${{ github.ref_name }}/Plugins
         cp LICENSE openRBRVR-${{ github.ref_name }}/Plugins/openRBRVR
         cp README.md openRBRVR-${{ github.ref_name }}/Plugins/openRBRVR/README.openrbrvr.txt
-        zip -r openRBRVR-${{ github.ref_name }} openRBRVR-${{ github.ref_name }}
+        cp README_FR.md openRBRVR-${{ github.ref_name }}/Plugins/openRBRVR/README_FR.openrbrvr.txt
+        zip -r openRBRVR-${{ github.ref_name }}.zip openRBRVR-${{ github.ref_name }}
 
     - name: Create GitHub release
       id: create_release
