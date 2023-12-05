@@ -21,6 +21,7 @@ IRBRGame* gGame;
 
 static IDirect3DDevice9* gD3Ddev = nullptr;
 Config gCfg;
+static Config gSavedCfg;
 
 namespace shader {
     static M4 gCurrentProjectionMatrix;
@@ -413,6 +414,7 @@ openRBRVR::openRBRVR(IRBRGame* g)
     hooks::render = Hook(*reinterpret_cast<decltype(RBRHook_Render)*>(RBRRenderFunctionAddr), RBRHook_Render);
 
     gCfg = Config::fromFile("Plugins\\openRBRVR.ini");
+    gSavedCfg = gCfg;
 }
 
 openRBRVR::~openRBRVR()
@@ -443,7 +445,8 @@ enum MenuItems {
     LOADING_SCREEN = 3,
     HORIZON = 4,
     LICENSES = 5,
-    MENU_ITEM_COUNT = 6,
+    SAVE = 6,
+    MENU_ITEM_COUNT = 7,
 };
 
 void openRBRVR::HandleFrontEndEvents(char txtKeyboard, bool bUp, bool bDown, bool bLeft, bool bRight, bool bSelect)
@@ -451,8 +454,13 @@ void openRBRVR::HandleFrontEndEvents(char txtKeyboard, bool bUp, bool bDown, boo
     if (menuPage == 0) {
         if (bDown) {
             (++menuIdx) %= MENU_ITEM_COUNT;
+            if (menuIdx == SAVE && gCfg == gSavedCfg) {
+                (++menuIdx) %= MENU_ITEM_COUNT;
+            }
         } else if (bUp) {
-            (--menuIdx) %= MENU_ITEM_COUNT;
+            if (--menuIdx < 0) {
+                menuIdx = MENU_ITEM_COUNT - 2;
+            }
         } else if (bSelect) {
             switch (menuIdx) {
                 case RECENTER_VIEW: {
@@ -477,6 +485,12 @@ void openRBRVR::HandleFrontEndEvents(char txtKeyboard, bool bUp, bool bDown, boo
                 }
                 case LICENSES: {
                     menuPage = 1;
+                    break;
+                }
+                case SAVE: {
+                    if (gCfg.Write("Plugins\\openRBRVR.ini")) {
+                        gSavedCfg = gCfg;
+                    }
                     break;
                 }
                 default:
@@ -592,8 +606,15 @@ void openRBRVR::DrawFrontEndPage()
     constexpr auto licenseRowHeight = 14.0f;
     constexpr auto configurationTextColor = std::make_tuple(0.7f, 0.7f, 0.7f, 1.0f);
 
-    const auto& [lw, lh] = GetRenderResolution(LeftEye);
-    const auto& [rw, rh] = GetRenderResolution(RightEye);
+    MenuEntry renderResolution;
+
+    if (gHMD) {
+        const auto& [lw, lh] = GetRenderResolution(LeftEye);
+        const auto& [rw, rh] = GetRenderResolution(RightEye);
+        renderResolution = { std::format("Render resolution: {}x{} (left), {}x{} (right)", lw, lh, rw, rh) };
+    } else {
+        renderResolution = { "VR mode not initialized" };
+    }
 
     switch (menuPage) {
         case 0: {
@@ -609,12 +630,13 @@ void openRBRVR::DrawFrontEndPage()
                 {std::format("Draw loading screen: {}", gCfg.drawLoadingScreen ? "ON" : "OFF")},
                 {std::format("Lock horizon: {}", GetHorizonLockStr())},
                 {"Licenses"},
+                {.text = "Save the current config to openRBRVR.ini", .color = (gCfg == gSavedCfg) ? std::make_tuple(0.5f, 0.5f, 0.5f, 1.0f) : std::make_tuple(1.0f, 1.0f, 1.0f, 1.0f)},
                 {""},
-                {"Configuration:"},
-                {std::format("Menu size: {:.2f}", gCfg.menuSize), IRBRGame::EFonts::FONT_SMALL, std::nullopt, configurationTextColor, std::nullopt},
+                {"Configuration:", IRBRGame::EFonts::FONT_BIG, std::nullopt, configurationTextColor},
+                {std::format("Menu size: {:.2f}", gCfg.menuSize), IRBRGame::EFonts::FONT_SMALL},
                 {std::format("Overlay size: {:.2f}", gCfg.overlaySize)},
                 {std::format("Supersampling: {:.2f}", gCfg.superSampling)},
-                {std::format("Render resolution: {}x{} (left), {}x{} (right)", lw, lh, rw, rh)},
+                renderResolution,
                 {"https://github.com/Detegr/openRBRVR", std::nullopt, std::nullopt, std::nullopt, std::make_tuple(10.0f, 500.0f - rowHeight*2)},
             }));
             //clang-format on

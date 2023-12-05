@@ -7,7 +7,7 @@
 class openRBRVR : public IPlugin {
     IRBRGame* game;
 
-    uint32_t menuIdx;
+    int32_t menuIdx;
     uint32_t menuPage;
     uint32_t menuScroll;
 

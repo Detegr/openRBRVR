@@ -46,6 +46,44 @@ struct Config {
     bool drawLoadingScreen;
     bool debug;
 
+    auto operator<=>(const Config&) const = default;
+
+    std::string ToString() const
+    {
+        return std::format(
+            "superSampling = {:.2f}\n"
+            "menuSize = {:.2f}\n"
+            "overlaySize = {:.2f}\n"
+            "overlayTranslateX = {:.2f}\n"
+            "overlayTranslateY = {:.2f}\n"
+            "overlayTranslateZ = {:.2f}\n"
+            "lockToHorizon = {}\n"
+            "drawDesktopWindow = {}\n"
+            "drawLoadingScreen = {}\n"
+            "debug = {}",
+            superSampling,
+            menuSize,
+            overlaySize,
+            overlayTranslation.x,
+            overlayTranslation.y,
+            overlayTranslation.z,
+            (int)lockToHorizon,
+            drawCompanionWindow,
+            drawLoadingScreen,
+            debug);
+    }
+
+    bool Write(const std::filesystem::path& path) const
+    {
+        std::ofstream f(path);
+        if (!f.good()) {
+            return false;
+        }
+        f << ToString();
+        f.close();
+        return f.good();
+    }
+
     static Config fromFile(const std::filesystem::path& path)
     {
         auto cfg = Config {
@@ -60,20 +98,7 @@ struct Config {
         };
 
         if (!std::filesystem::exists(path)) {
-            std::ofstream f(path);
-            f << "superSampling = 1.0\n";
-            f << "menuSize = 1.0\n";
-            f << "overlaySize = 1.0\n";
-            f << "overlayTranslateX = 0.0\n";
-            f << "overlayTranslateY = 0.0\n";
-            f << "overlayTranslateZ = 0.0\n";
-            f << "lockToHorizon = 0\n";
-            f << "drawDesktopWindow = true\n";
-            f << "drawLoadingScreen = true\n";
-            f << "debug = false\n";
-
-            f.close();
-
+            cfg.Write(path);
             return cfg;
         }
 
