@@ -1,3 +1,10 @@
+## 0.1.0
+
+- Loading screen can now be toggled off
+- `openRBRVR.ini` can now be written from the in-game options menu
+- Overlay (digidash etc.) is now fixed to the car's rotation also in
+  lock-to-horizon mode
+
 ## beta9
 
 - Fix RBRHUD + BTB stage rendering issue
