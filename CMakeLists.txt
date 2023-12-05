@@ -28,10 +28,10 @@ set(HEADERS
 )
 
 set(openRBRVR_Major 0)
-set(openRBRVR_Minor 1)
+set(openRBRVR_Minor 2)
 set(openRBRVR_Patch 0)
-set(openRBRVR_Tweak 9)
-set(openRBRVR_TweakStr "-beta${openRBRVR_Tweak}")
+set(openRBRVR_Tweak 0)
+# set(openRBRVR_TweakStr "-beta${openRBRVR_Tweak}")
 
 configure_file(
   ${CMAKE_CURRENT_SOURCE_DIR}/version.rc.in
