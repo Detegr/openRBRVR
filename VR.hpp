@@ -53,7 +53,7 @@ bool UpdateVRPoses(Quaternion* carQuat, Config::HorizonLock lockSetting, M4* hor
 IDirect3DSurface9* PrepareVRRendering(IDirect3DDevice9* dev, RenderTarget tgt, bool clear = true);
 void FinishVRRendering(IDirect3DDevice9* dev, RenderTarget tgt);
 void SubmitFramesToHMD(IDirect3DDevice9* dev);
-void RenderMenuQuad(IDirect3DDevice9* dev, RenderTarget renderTarget3D, RenderTarget renderTarget2D, float size, glm::vec3 translation);
+void RenderMenuQuad(IDirect3DDevice9* dev, RenderTarget renderTarget3D, RenderTarget renderTarget2D, float size, glm::vec3 translation, std::optional<M4> horizonLock);
 std::tuple<uint32_t, uint32_t> GetRenderResolution(RenderTarget tgt);
 void RenderCompanionWindowFromRenderTarget(IDirect3DDevice9* dev, RenderTarget tgt);
 FrameTimingInfo GetFrameTiming();

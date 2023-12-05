@@ -137,12 +137,16 @@ void RenderVREye(void* p, RenderTarget eye, bool clear = true)
 // Render `renderTarget2d` on a plane for both eyes
 void RenderVROverlay(RenderTarget renderTarget2D, bool clear)
 {
+    auto size = renderTarget2D == Menu ? gCfg.menuSize : gCfg.overlaySize;
+    auto translation = renderTarget2D == Overlay ? gCfg.overlayTranslation : glm::vec3 { 0.0f, 0.0f, 0.0f };
+    auto horizLock = renderTarget2D == Overlay ? std::make_optional(gLockToHorizonMatrix) : std::nullopt;
+
     PrepareVRRendering(gD3Ddev, LeftEye, clear);
-    RenderMenuQuad(gD3Ddev, LeftEye, renderTarget2D, renderTarget2D == Menu ? gCfg.menuSize : gCfg.overlaySize, renderTarget2D == Overlay ? gCfg.overlayTranslation : glm::vec3 { 0.0f, 0.0f, 0.0f });
+    RenderMenuQuad(gD3Ddev, LeftEye, renderTarget2D, size, translation, horizLock);
     FinishVRRendering(gD3Ddev, LeftEye);
 
     PrepareVRRendering(gD3Ddev, RightEye, clear);
-    RenderMenuQuad(gD3Ddev, RightEye, renderTarget2D, renderTarget2D == Menu ? gCfg.menuSize : gCfg.overlaySize, renderTarget2D == Overlay ? gCfg.overlayTranslation : glm::vec3 { 0.0f, 0.0f, 0.0f });
+    RenderMenuQuad(gD3Ddev, RightEye, renderTarget2D, size, translation, horizLock);
     FinishVRRendering(gD3Ddev, RightEye);
 }
 
