@@ -20,11 +20,7 @@
 IRBRGame* gGame;
 
 static IDirect3DDevice9* gD3Ddev = nullptr;
-static Config gCfg;
-
-bool gDebug;
-static bool gDrawCompanionWindow;
-static Config::HorizonLock gHorizonLockSetting;
+Config gCfg;
 
 namespace shader {
     static M4 gCurrentProjectionMatrix;
@@ -165,7 +161,7 @@ void __fastcall RBRHook_Render(void* p)
     }
 
     if (gHMD) [[likely]] {
-        if (gDriving && (gHorizonLockSetting != Config::HorizonLock::LOCK_NONE) && !gCarQuat) [[unlikely]] {
+        if (gDriving && (gCfg.lockToHorizon != Config::HorizonLock::LOCK_NONE) && !gCarQuat) [[unlikely]] {
             uintptr_t p = *reinterpret_cast<uintptr_t*>(RBRCarQuatPtrAddr) + 0x100;
             gCarQuat = reinterpret_cast<Quaternion*>(p);
         } else if (gCarQuat && !gDriving) [[unlikely]] {
@@ -174,25 +170,28 @@ void __fastcall RBRHook_Render(void* p)
         }
 
         // UpdateVRPoses should be called as close to rendering as possible
-        UpdateVRPoses(gCarQuat, gHorizonLockSetting, &gLockToHorizonMatrix);
+        UpdateVRPoses(gCarQuat, gCfg.lockToHorizon, &gLockToHorizonMatrix);
 
-        if (gDebug) [[unlikely]] {
+        if (gCfg.debug) [[unlikely]] {
             gFrameStart = std::chrono::steady_clock::now();
         }
 
-        if (gDriving) {
+        if (gDriving) [[likely]] {
             RenderVREye(p, LeftEye);
             RenderVREye(p, RightEye);
             PrepareVRRendering(gD3Ddev, Overlay);
         } else {
             // We are not driving, render the scene into a plane
             gVRRenderTarget = std::nullopt;
-            if (!IsLoadingBTBStage()) {
-                // We cannot render the menu while BTB stage is loading
-                // Otherwise it will go into a deadlock of some sort and won't ever finish loading
+            auto shouldSwapRenderTarget = !(IsLoadingBTBStage() && !gCfg.drawLoadingScreen);
+            if (shouldSwapRenderTarget) {
                 PrepareVRRendering(gD3Ddev, Menu);
             }
-            hooks::render.call(p);
+
+            auto shouldRender = !(gGameMode == 5 && !gCfg.drawLoadingScreen);
+            if (shouldRender) {
+                hooks::render.call(p);
+            }
         }
     } else {
         hooks::render.call(p);
@@ -207,7 +206,8 @@ HRESULT __stdcall DXHook_Present(IDirect3DDevice9* This, const RECT* pSourceRect
 {
     if (gHMD) [[likely]] {
         auto current2DRenderTarget = gDriving ? Overlay : Menu;
-        if (!IsLoadingBTBStage() || gDriving) [[likely]] {
+        auto shouldRender = !(IsLoadingBTBStage() && !gCfg.drawLoadingScreen);
+        if (shouldRender) [[likely]] {
             FinishVRRendering(gD3Ddev, current2DRenderTarget);
             RenderVROverlay(current2DRenderTarget, !gDriving);
         }
@@ -219,13 +219,13 @@ HRESULT __stdcall DXHook_Present(IDirect3DDevice9* This, const RECT* pSourceRect
     gOriginalScreenTgt->Release();
     gOriginalDepthStencil->Release();
 
-    if (gHMD && gDrawCompanionWindow) {
+    if (gHMD && gCfg.drawCompanionWindow) {
         RenderCompanionWindowFromRenderTarget(This, gDriving ? LeftEye : Menu);
     }
 
     auto ret = hooks::present.call(This, pSourceRect, pDestRect, hDestWindowOverride, pDirtyRegion);
 
-    if (gDebug && gHMD) [[unlikely]] {
+    if (gCfg.debug && gHMD) [[unlikely]] {
         auto frameEnd = std::chrono::steady_clock::now();
         auto frameTime = std::chrono::duration_cast<std::chrono::microseconds>(frameEnd - gFrameStart);
 
@@ -413,9 +413,6 @@ openRBRVR::openRBRVR(IRBRGame* g)
     hooks::render = Hook(*reinterpret_cast<decltype(RBRHook_Render)*>(RBRRenderFunctionAddr), RBRHook_Render);
 
     gCfg = Config::fromFile("Plugins\\openRBRVR.ini");
-    gDrawCompanionWindow = gCfg.drawDesktopWindow;
-    gDebug = gCfg.debug;
-    gHorizonLockSetting = gCfg.lockToHorizon;
 }
 
 openRBRVR::~openRBRVR()
@@ -443,9 +440,10 @@ enum MenuItems {
     RECENTER_VIEW = 0,
     TOGGLE_DEBUG = 1,
     COMPANION_WINDOW = 2,
-    HORIZON = 3,
-    LICENSES = 4,
-    MENU_ITEM_COUNT = 5,
+    LOADING_SCREEN = 3,
+    HORIZON = 4,
+    LICENSES = 5,
+    MENU_ITEM_COUNT = 6,
 };
 
 void openRBRVR::HandleFrontEndEvents(char txtKeyboard, bool bUp, bool bDown, bool bLeft, bool bRight, bool bSelect)
@@ -462,15 +460,19 @@ void openRBRVR::HandleFrontEndEvents(char txtKeyboard, bool bUp, bool bDown, boo
                     break;
                 }
                 case TOGGLE_DEBUG: {
-                    gDebug = !gDebug;
+                    gCfg.debug = !gCfg.debug;
                     break;
                 }
                 case COMPANION_WINDOW: {
-                    gDrawCompanionWindow = !gDrawCompanionWindow;
+                    gCfg.drawCompanionWindow = !gCfg.drawCompanionWindow;
+                    break;
+                }
+                case LOADING_SCREEN: {
+                    gCfg.drawLoadingScreen = !gCfg.drawLoadingScreen;
                     break;
                 }
                 case HORIZON: {
-                    gHorizonLockSetting = ChangeHorizonLock(gHorizonLockSetting, true);
+                    gCfg.lockToHorizon = ChangeHorizonLock(gCfg.lockToHorizon, true);
                     break;
                 }
                 case LICENSES: {
@@ -483,30 +485,38 @@ void openRBRVR::HandleFrontEndEvents(char txtKeyboard, bool bUp, bool bDown, boo
         } else if (bLeft) {
             switch (menuIdx) {
                 case TOGGLE_DEBUG: {
-                    gDebug = !gDebug;
+                    gCfg.debug = !gCfg.debug;
                     break;
                 }
                 case COMPANION_WINDOW: {
-                    gDrawCompanionWindow = !gDrawCompanionWindow;
+                    gCfg.drawCompanionWindow = !gCfg.drawCompanionWindow;
+                    break;
+                }
+                case LOADING_SCREEN: {
+                    gCfg.drawLoadingScreen = !gCfg.drawLoadingScreen;
                     break;
                 }
                 case HORIZON: {
-                    gHorizonLockSetting = ChangeHorizonLock(gHorizonLockSetting, false);
+                    gCfg.lockToHorizon = ChangeHorizonLock(gCfg.lockToHorizon, false);
                     break;
                 }
             }
         } else if (bRight) {
             switch (menuIdx) {
                 case TOGGLE_DEBUG: {
-                    gDebug = !gDebug;
+                    gCfg.debug = !gCfg.debug;
                     break;
                 }
                 case COMPANION_WINDOW: {
-                    gDrawCompanionWindow = !gDrawCompanionWindow;
+                    gCfg.drawCompanionWindow = !gCfg.drawCompanionWindow;
+                    break;
+                }
+                case LOADING_SCREEN: {
+                    gCfg.drawLoadingScreen = !gCfg.drawLoadingScreen;
                     break;
                 }
                 case HORIZON: {
-                    gHorizonLockSetting = ChangeHorizonLock(gHorizonLockSetting, true);
+                    gCfg.lockToHorizon = ChangeHorizonLock(gCfg.lockToHorizon, true);
                     break;
                 }
             }
@@ -528,7 +538,7 @@ void openRBRVR::HandleFrontEndEvents(char txtKeyboard, bool bUp, bool bDown, boo
 
 static std::string GetHorizonLockStr()
 {
-    switch (gHorizonLockSetting) {
+    switch (gCfg.lockToHorizon) {
         case Config::HorizonLock::LOCK_NONE:
             return "Off";
         case Config::HorizonLock::LOCK_ROLL:
@@ -594,8 +604,9 @@ void openRBRVR::DrawFrontEndPage()
             DrawMenuEntries(std::to_array<MenuEntry>({
                 {"openRBRVR", IRBRGame::EFonts::FONT_BIG, IRBRGame::EMenuColors::MENU_HEADING, std::nullopt, std::make_tuple(65.0f, 49.0f)},
                 {"Recenter view", std::nullopt, IRBRGame::EMenuColors::MENU_TEXT, std::nullopt, std::make_tuple(65.0f, menuItemsStartPos)},
-                {std::format("Debug information: {}", gDebug ? "ON" : "OFF")},
-                {std::format("Draw desktop window: {}", gDrawCompanionWindow ? "ON" : "OFF")},
+                {std::format("Debug information: {}", gCfg.debug ? "ON" : "OFF")},
+                {std::format("Draw desktop window: {}", gCfg.drawCompanionWindow ? "ON" : "OFF")},
+                {std::format("Draw loading screen: {}", gCfg.drawLoadingScreen ? "ON" : "OFF")},
                 {std::format("Lock horizon: {}", GetHorizonLockStr())},
                 {"Licenses"},
                 {""},

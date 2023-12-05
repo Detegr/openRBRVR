@@ -4,7 +4,7 @@
 #include "VR.hpp"
 #include "openRBRVR.hpp"
 
-extern bool gDebug;
+extern Config gCfg;
 static openRBRVR* gPlugin;
 
 extern "C" __declspec(dllexport) IPlugin* RBR_CreatePlugin(IRBRGame* game)
@@ -30,7 +30,7 @@ extern "C" __declspec(dllexport) int32_t openRBRVR_Exec(ApiOperations ops, uint6
         vr::VRChaperone()->ResetZeroPose(vr::ETrackingUniverseOrigin::TrackingUniverseSeated);
     }
     if (ops & TOGGLE_DEBUG_INFO) {
-        gDebug = !gDebug;
+        gCfg.debug = !gCfg.debug;
     }
     return 0;
 }

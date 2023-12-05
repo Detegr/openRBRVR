@@ -42,7 +42,8 @@ struct Config {
     glm::vec3 overlayTranslation;
     float superSampling;
     HorizonLock lockToHorizon;
-    bool drawDesktopWindow;
+    bool drawCompanionWindow;
+    bool drawLoadingScreen;
     bool debug;
 
     static Config fromFile(const std::filesystem::path& path)
@@ -53,7 +54,8 @@ struct Config {
             .overlayTranslation = glm::vec3 { 0.0f, 0.0f, 0.0f },
             .superSampling = 1.0,
             .lockToHorizon = LOCK_NONE,
-            .drawDesktopWindow = true,
+            .drawCompanionWindow = true,
+            .drawLoadingScreen = true,
             .debug = false,
         };
 
@@ -67,6 +69,7 @@ struct Config {
             f << "overlayTranslateZ = 0.0\n";
             f << "lockToHorizon = 0\n";
             f << "drawDesktopWindow = true\n";
+            f << "drawLoadingScreen = true\n";
             f << "debug = false\n";
 
             f.close();
@@ -113,7 +116,9 @@ struct Config {
             } else if (key == "lockToHorizon") {
                 cfg.lockToHorizon = static_cast<HorizonLock>(intOrDefault(value, 0));
             } else if (key == "drawDesktopWindow") {
-                cfg.drawDesktopWindow = (value == "true");
+                cfg.drawCompanionWindow = (value == "true");
+            } else if (key == "drawLoadingScreen") {
+                cfg.drawLoadingScreen = (value == "true");
             } else if (key == "debug") {
                 cfg.debug = (value == "true");
             }
