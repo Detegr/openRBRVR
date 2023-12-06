@@ -60,7 +60,6 @@ Le plugin openRBRVR n’est pas supporté par RSF. Il va écrire par-dessus dd9.
 
 ## Les bugs connus et les limites
 
-- Si le plugin PaceNote n'est pas chargé, il y a un écran noir devant le pare-brise.
 - La position du siège ne peut pas être modifié via le clavier. Le plugin PaceNote doit être utilisé à la place. L’UI fonctionne correctement.
 - La vue en VR ne peut être recentrer que part Options -> Plugins -> openRBRVR -> Reset view. Le plugin RBRControls (inclu dans RSF install) aura une option pour recentrer la vue à partir d'une touche du volant dans une prochaine mise à jour.
 

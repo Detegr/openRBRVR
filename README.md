@@ -79,8 +79,6 @@ launcher). To set the FoV override, do the following steps:
 
 ## Known bugs and limitations
 
-- If PaceNote plugin is not loaded, there is a black screen in front of the
-  windshield.
 - The seat position cannot be changed via keyboard. PaceNote plugin can and
   should be used instead. The UI works as expected.
 - The VR view can only be recentered from Options -> Plugins -> openRBRVR ->

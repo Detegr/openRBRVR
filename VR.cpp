@@ -315,6 +315,10 @@ static void RenderTexture(
     IDirect3DBaseTexture9* origTex;
     dev->GetTexture(0, &origTex);
 
+    dev->SetRenderState(D3DRS_ALPHABLENDENABLE, TRUE);
+    dev->SetRenderState(D3DRS_SRCBLEND, D3DBLEND_SRCALPHA);
+    dev->SetRenderState(D3DRS_DESTBLEND, D3DBLEND_INVSRCALPHA);
+
     dev->SetTextureStageState(0, D3DTSS_COLOROP, D3DTOP_SELECTARG1);
     dev->SetTextureStageState(0, D3DTSS_COLORARG1, D3DTA_TEXTURE);
     dev->SetTextureStageState(0, D3DTSS_ALPHAOP, D3DTOP_SELECTARG1);
