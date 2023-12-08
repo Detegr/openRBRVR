@@ -8,3 +8,6 @@ overlayTranslateZ = 0.0
 ; 1 = roll, 2 = pitch, 3 = pitch+roll
 lockToHorizon = 0
 debug = false
+renderMainMenu3d = false
+renderPauseMenu3d = true
+renderPreStage3d = false

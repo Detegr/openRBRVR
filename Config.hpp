@@ -45,6 +45,9 @@ struct Config {
     bool drawCompanionWindow;
     bool drawLoadingScreen;
     bool debug;
+    bool renderMainMenu3d;
+    bool renderPauseMenu3d;
+    bool renderPreStage3d;
 
     auto operator<=>(const Config&) const = default;
 
@@ -60,7 +63,10 @@ struct Config {
             "lockToHorizon = {}\n"
             "drawDesktopWindow = {}\n"
             "drawLoadingScreen = {}\n"
-            "debug = {}",
+            "debug = {}\n"
+            "renderMainMenu3d = {}\n"
+            "renderPauseMenu3d = {}\n"
+            "renderPreStage3d = {}",
             superSampling,
             menuSize,
             overlaySize,
@@ -70,7 +76,10 @@ struct Config {
             (int)lockToHorizon,
             drawCompanionWindow,
             drawLoadingScreen,
-            debug);
+            debug,
+            renderMainMenu3d,
+            renderPauseMenu3d,
+            renderPreStage3d);
     }
 
     bool Write(const std::filesystem::path& path) const
@@ -86,7 +95,8 @@ struct Config {
 
     static Config fromFile(const std::filesystem::path& path)
     {
-        auto cfg = Config {
+        auto cfg = Config
+        {
             .menuSize = 1.0,
             .overlaySize = 1.0,
             .overlayTranslation = glm::vec3 { 0.0f, 0.0f, 0.0f },
@@ -95,6 +105,9 @@ struct Config {
             .drawCompanionWindow = true,
             .drawLoadingScreen = true,
             .debug = false,
+            .renderMainMenu3d = false,
+            .renderPauseMenu3d = true,
+            .renderPreStage3d = false,
         };
 
         if (!std::filesystem::exists(path)) {
@@ -146,6 +159,12 @@ struct Config {
                 cfg.drawLoadingScreen = (value == "true");
             } else if (key == "debug") {
                 cfg.debug = (value == "true");
+            } else if (key == "renderMainMenu3d") {
+                cfg.renderMainMenu3d = (value == "true");
+            } else if (key == "renderPauseMenu3d") {
+                cfg.renderPauseMenu3d = (value == "true");
+            } else if (key == "renderPreStage3d") {
+                cfg.renderPreStage3d = (value == "true");
             }
         }
         return cfg;
