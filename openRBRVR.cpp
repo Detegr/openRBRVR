@@ -78,6 +78,7 @@ BOOL APIENTRY DllMain(HANDLE hModule, DWORD ul_reason_for_call, LPVOID lpReserve
 static std::optional<RenderTarget> gVRRenderTarget;
 static IDirect3DSurface9 *gOriginalScreenTgt, *gOriginalDepthStencil;
 static bool gDriving;
+static bool gRender3d;
 static uint32_t gGameMode;
 static std::vector<IDirect3DVertexShader9*> gOriginalShaders;
 static std::vector<IDirect3DVertexShader9*> gCockpitShaders;
@@ -171,6 +172,7 @@ void __fastcall RBRHook_Render(void* p)
     auto doRendering = *reinterpret_cast<uint32_t*>(ptr + 0x720) == 0;
     gGameMode = *reinterpret_cast<uint32_t*>(ptr + 0x728);
     gDriving = gGameMode == 1;
+    gRender3d = gDriving || (gCfg.renderMainMenu3d && gGameMode == 3) || (gCfg.renderPauseMenu3d && gGameMode == 2) || (gCfg.renderPreStage3d && gGameMode == 10);
 
     gD3Ddev->GetRenderTarget(0, &gOriginalScreenTgt);
     gD3Ddev->GetDepthStencilSurface(&gOriginalDepthStencil);
@@ -195,7 +197,7 @@ void __fastcall RBRHook_Render(void* p)
             gFrameStart = std::chrono::steady_clock::now();
         }
 
-        if (gDriving) [[likely]] {
+        if (gRender3d) [[likely]] {
             RenderVREye(p, LeftEye);
             RenderVREye(p, RightEye);
             PrepareVRRendering(gD3Ddev, Overlay);
@@ -224,11 +226,11 @@ void __fastcall RBRHook_Render(void* p)
 HRESULT __stdcall DXHook_Present(IDirect3DDevice9* This, const RECT* pSourceRect, const RECT* pDestRect, HWND hDestWindowOverride, const RGNDATA* pDirtyRegion)
 {
     if (gHMD) [[likely]] {
-        auto current2DRenderTarget = gDriving ? Overlay : Menu;
+        auto current2DRenderTarget = gRender3d ? Overlay : Menu;
         auto shouldRender = !(IsLoadingBTBStage() && !gCfg.drawLoadingScreen);
         if (shouldRender) [[likely]] {
             FinishVRRendering(gD3Ddev, current2DRenderTarget);
-            RenderVROverlay(current2DRenderTarget, !gDriving);
+            RenderVROverlay(current2DRenderTarget, !gRender3d);
         }
         SubmitFramesToHMD(gD3Ddev);
     }
@@ -239,7 +241,7 @@ HRESULT __stdcall DXHook_Present(IDirect3DDevice9* This, const RECT* pSourceRect
     gOriginalDepthStencil->Release();
 
     if (gHMD && gCfg.drawCompanionWindow) {
-        RenderCompanionWindowFromRenderTarget(This, gDriving ? LeftEye : Menu);
+        RenderCompanionWindowFromRenderTarget(This, gRender3d ? LeftEye : Menu);
     }
 
     auto ret = hooks::present.call(This, pSourceRect, pDestRect, hDestWindowOverride, pDirtyRegion);
@@ -486,10 +488,27 @@ enum MenuItems {
     COMPANION_WINDOW = 2,
     LOADING_SCREEN = 3,
     HORIZON = 4,
-    LICENSES = 5,
-    SAVE = 6,
-    MENU_ITEM_COUNT = 7,
+    RENDER_3D = 5,
+    LICENSES = 6,
+    SAVE = 7,
+    MENU_ITEM_COUNT = 8,
 };
+
+void ChangeRenderIn3dSettings(bool forward) {
+    if (forward && gCfg.renderMainMenu3d) {
+        gCfg.renderMainMenu3d = false;
+        gCfg.renderPreStage3d = false;
+        gCfg.renderPauseMenu3d = false;
+    } else if (forward) {
+        gCfg.renderMainMenu3d = gCfg.renderPreStage3d;
+        gCfg.renderPreStage3d = gCfg.renderPauseMenu3d;
+        gCfg.renderPauseMenu3d = true;
+    } else {
+        gCfg.renderPauseMenu3d = gCfg.renderPreStage3d;
+        gCfg.renderPreStage3d = gCfg.renderMainMenu3d;
+        gCfg.renderMainMenu3d = false;
+    }
+}
 
 void openRBRVR::HandleFrontEndEvents(char txtKeyboard, bool bUp, bool bDown, bool bLeft, bool bRight, bool bSelect)
 {
@@ -525,6 +544,10 @@ void openRBRVR::HandleFrontEndEvents(char txtKeyboard, bool bUp, bool bDown, boo
                     gCfg.lockToHorizon = ChangeHorizonLock(gCfg.lockToHorizon, true);
                     break;
                 }
+                case RENDER_3D: {
+                    ChangeRenderIn3dSettings(true);
+                    break;
+                }
                 case LICENSES: {
                     menuPage = 1;
                     break;
@@ -556,6 +579,10 @@ void openRBRVR::HandleFrontEndEvents(char txtKeyboard, bool bUp, bool bDown, boo
                     gCfg.lockToHorizon = ChangeHorizonLock(gCfg.lockToHorizon, false);
                     break;
                 }
+                case RENDER_3D: {
+                    ChangeRenderIn3dSettings(false);
+                    break;
+                }
             }
         } else if (bRight) {
             switch (menuIdx) {
@@ -573,6 +600,10 @@ void openRBRVR::HandleFrontEndEvents(char txtKeyboard, bool bUp, bool bDown, boo
                 }
                 case HORIZON: {
                     gCfg.lockToHorizon = ChangeHorizonLock(gCfg.lockToHorizon, true);
+                    break;
+                }
+                case RENDER_3D: {
+                    ChangeRenderIn3dSettings(true);
                     break;
                 }
             }
@@ -671,6 +702,10 @@ void openRBRVR::DrawFrontEndPage()
                 {std::format("Draw desktop window: {}", gCfg.drawCompanionWindow ? "ON" : "OFF")},
                 {std::format("Draw loading screen: {}", gCfg.drawLoadingScreen ? "ON" : "OFF")},
                 {std::format("Lock horizon: {}", GetHorizonLockStr())},
+                {std::format("Render in 3D: [{}] pause menu, [{}] pre-stage, [{}] main menu",
+                    gCfg.renderPauseMenu3d ? "x" : " ",
+                    gCfg.renderPreStage3d ? "x" : " ",
+                    gCfg.renderMainMenu3d ? "x" : " ")},
                 {"Licenses"},
                 {.text = "Save the current config to openRBRVR.ini", .color = (gCfg == gSavedCfg) ? std::make_tuple(0.5f, 0.5f, 0.5f, 1.0f) : std::make_tuple(1.0f, 1.0f, 1.0f, 1.0f)},
                 {""},
