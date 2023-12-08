@@ -65,7 +65,7 @@ target_link_libraries(${PROJECT_NAME} PUBLIC
 
 set_target_properties(${PROJECT_NAME}
 PROPERTIES
-	VS_DEBUGGER_COMMAND "i:\\RBR\\RichardBurnsRally_SSE.exe"
+	VS_DEBUGGER_COMMAND "${CMAKE_INSTALL_PREFIX}\\RichardBurnsRally_SSE.exe"
 	VS_DEBUGGER_COMMAND_ARGUMENTS "$<TARGET_FILE:${PROJECT_NAME}>"
 )
 
@@ -85,7 +85,7 @@ add_custom_target(fmt
 )
 
 add_custom_target(build_and_copy
-    COMMAND copy ${CMAKE_BUILD_TYPE}\\openRBRVR.dll I:\\RBR\\Plugins
+    COMMAND copy ${CMAKE_BUILD_TYPE}\\openRBRVR.dll ${CMAKE_INSTALL_PREFIX}\\Plugins
     WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
 )
 add_dependencies(build_and_copy ${PROJECT_NAME})
