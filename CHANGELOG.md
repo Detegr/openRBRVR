@@ -1,4 +1,4 @@
-## 0.1.0
+## 0.2.0
 
 - Loading screen can now be toggled off
 - `openRBRVR.ini` can now be written from the in-game options menu
