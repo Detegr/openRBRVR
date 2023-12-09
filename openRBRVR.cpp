@@ -179,11 +179,11 @@ void __fastcall RBRHook_Render(void* p)
         // UpdateVRPoses should be called as close to rendering as possible
         UpdateVRPoses(gCarQuat, gCfg.lockToHorizon, &gLockToHorizonMatrix);
 
-        if (gCfg.debug) [[unlikely]] {
+        if (gCfg.debug) {
             gFrameStart = std::chrono::steady_clock::now();
         }
 
-        if (gRender3d) [[likely]] {
+        if (gRender3d) {
             RenderVREye(p, LeftEye);
             RenderVREye(p, RightEye);
             PrepareVRRendering(gD3Ddev, Overlay);
@@ -214,7 +214,7 @@ HRESULT __stdcall DXHook_Present(IDirect3DDevice9* This, const RECT* pSourceRect
     if (gHMD) [[likely]] {
         auto current2DRenderTarget = gRender3d ? Overlay : Menu;
         auto shouldRender = !(IsLoadingBTBStage() && !gCfg.drawLoadingScreen);
-        if (shouldRender) [[likely]] {
+        if (shouldRender) {
             FinishVRRendering(gD3Ddev, current2DRenderTarget);
             RenderVROverlay(current2DRenderTarget, !gRender3d);
         }
