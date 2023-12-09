@@ -11,6 +11,7 @@ vr::IVRCompositor* gCompositor = nullptr;
 M4 gHMDPose;
 M4 gEyePos[2];
 M4 gProjection[2];
+M4 gCockpitProjection[2];
 
 static IDirect3DTexture9* dxTexture[4];
 static IDirect3DSurface9* dxSurface[4];
@@ -22,12 +23,8 @@ static IDirect3DVertexBuffer9* quadVertexBuf[2];
 static IDirect3DVertexBuffer9* companionWindowVertexBuf;
 static constexpr D3DMATRIX identityMatrix = D3DFromM4(glm::identity<glm::mat4x4>());
 
-constexpr static M4 GetProjectionMatrix(RenderTarget eye)
+constexpr static M4 GetProjectionMatrix(RenderTarget eye, float zNear, float zFar)
 {
-    // Just guesses, seem to work okay
-    constexpr auto zNear = 0.15f;
-    constexpr auto zFar = 12000.0f;
-
     vr::HmdMatrix44_t mat = gHMD->GetProjectionMatrix(static_cast<vr::EVREye>(eye), zNear, zFar);
 
     return M4(
@@ -66,7 +63,7 @@ bool CreateCompanionWindowBuffer(IDirect3DDevice9* dev)
 static bool CreateTexture(IDirect3DDevice9* dev, RenderTarget tgt, D3DFORMAT fmt, uint32_t w, uint32_t h)
 {
     auto ret = dev->CreateTexture(w, h, 1, D3DUSAGE_RENDERTARGET, fmt, D3DPOOL_DEFAULT, &dxTexture[tgt], nullptr);
-    ret |= dev->CreateDepthStencilSurface(w, h, D3DFMT_D24S8, D3DMULTISAMPLE_NONE, 0, TRUE, &dxDepthStencilSurface[tgt], nullptr);
+    ret |= dev->CreateDepthStencilSurface(w, h, D3DFMT_D16, D3DMULTISAMPLE_NONE, 0, TRUE, &dxDepthStencilSurface[tgt], nullptr);
     if (FAILED(ret)) {
         Dbg("D3D initialization failed: CreateTexture");
         return false;
@@ -127,8 +124,15 @@ bool InitVR(IDirect3DDevice9* dev, const Config& cfg, IDirect3DVR9** vrdev, uint
     }
     gCompositor->SetTrackingSpace(vr::ETrackingUniverseOrigin::TrackingUniverseSeated);
 
-    gProjection[LeftEye] = GetProjectionMatrix(LeftEye);
-    gProjection[RightEye] = GetProjectionMatrix(RightEye);
+    constexpr auto zNearStage = 0.5f;
+    constexpr auto zFarStage = 6000.0f;
+    constexpr auto zNearCockpit = 0.01f;
+    constexpr auto zFarCockpit = 6000.0f; // We need to render the cockpit far as well, otherwise the skybox will be buggy
+    gProjection[LeftEye] = GetProjectionMatrix(LeftEye, zNearStage, zFarStage);
+    gProjection[RightEye] = GetProjectionMatrix(RightEye, zNearStage, zFarStage);
+    gCockpitProjection[LeftEye] = GetProjectionMatrix(LeftEye, zNearCockpit, zFarCockpit);
+    gCockpitProjection[RightEye] = GetProjectionMatrix(RightEye, zNearCockpit, zFarCockpit);
+
     gEyePos[LeftEye] = glm::inverse(M4FromSteamVRMatrix(gHMD->GetEyeToHeadTransform(static_cast<vr::EVREye>(LeftEye))));
     gEyePos[RightEye] = glm::inverse(M4FromSteamVRMatrix(gHMD->GetEyeToHeadTransform(static_cast<vr::EVREye>(RightEye))));
 
@@ -342,7 +346,7 @@ static void RenderTexture(
 
 void RenderMenuQuad(IDirect3DDevice9* dev, RenderTarget renderTarget3D, RenderTarget renderTarget2D, float size, glm::vec3 translation, std::optional<M4> horizonLock)
 {
-    const D3DMATRIX vr = D3DFromM4(gProjection[renderTarget3D] * glm::translate(glm::scale(gEyePos[renderTarget3D] * gHMDPose * gFlipZMatrix * horizonLock.value_or(glm::identity<M4>()), { size, size, 1.0f }), translation));
+    const D3DMATRIX vr = D3DFromM4(gCockpitProjection[renderTarget3D] * glm::translate(glm::scale(gEyePos[renderTarget3D] * gHMDPose * gFlipZMatrix * horizonLock.value_or(glm::identity<M4>()), { size, size, 1.0f }), translation));
     RenderTexture(dev, &vr, &identityMatrix, &identityMatrix, dxTexture[renderTarget2D], quadVertexBuf[renderTarget2D == Menu ? 0 : 1]);
 }
 

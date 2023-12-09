@@ -29,6 +29,7 @@ extern D3DVIEWPORT9 gVRViewPort;
 extern M4 gHMDPose;
 extern M4 gEyePos[2];
 extern M4 gProjection[2];
+extern M4 gCockpitProjection[2];
 extern M4 gLockToHorizon;
 
 struct FrameTimingInfo {

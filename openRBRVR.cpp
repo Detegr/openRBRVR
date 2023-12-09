@@ -31,8 +31,9 @@ namespace shader {
 }
 
 namespace fixedfunction {
-    D3DMATRIX gCurrentProjectionMatrix;
-    D3DMATRIX gCurrentViewMatrix;
+    static D3DMATRIX gCurrentProjectionMatrix;
+    static M4 gCurrentProjectionMatrixInverse;
+    static D3DMATRIX gCurrentViewMatrix;
 }
 
 static uintptr_t GetRBRBaseAddress()
@@ -79,6 +80,7 @@ static IDirect3DSurface9 *gOriginalScreenTgt, *gOriginalDepthStencil;
 static bool gDriving;
 static uint32_t gGameMode;
 static std::vector<IDirect3DVertexShader9*> gOriginalShaders;
+static std::vector<IDirect3DVertexShader9*> gCockpitShaders;
 static Quaternion* gCarQuat;
 static M4 gLockToHorizonMatrix = glm::identity<M4>();
 
@@ -114,9 +116,21 @@ HRESULT __stdcall DXHook_CreateVertexShader(IDirect3DDevice9* This, const DWORD*
     static int i = 0;
     auto ret = hooks::createvertexshader.call(This, pFunction, ppShader);
     if (i < 40) {
-        // These are the original shaders for RBR that need
-        // to be patched with the VR projection.
-        gOriginalShaders.push_back(*ppShader);
+        switch (i) {
+            case 2:
+            case 5:
+            case 6:
+            case 7:
+                // These shaders are used to draw the cockpit of the car
+                // We'll save them to draw them with different Z plane
+                // clipping values
+                gCockpitShaders.push_back(*ppShader);
+                [[fallthrough]];
+            default:
+                // These are the original shaders for RBR that need
+                // to be patched with the VR projection.
+                gOriginalShaders.push_back(*ppShader);
+        }
     }
     i++;
     return ret;
@@ -278,40 +292,61 @@ HRESULT __stdcall DXHook_Present(IDirect3DDevice9* This, const RECT* pSourceRect
 
 HRESULT __stdcall DXHook_SetVertexShaderConstantF(IDirect3DDevice9* This, UINT StartRegister, const float* pConstantData, UINT Vector4fCount)
 {
-    auto shouldPatchShader = true;
+    IDirect3DVertexShader9* shader;
+    This->GetVertexShader(&shader);
+
+    auto isOriginalShader = true;
     if (gBTBTrackStatus && *gBTBTrackStatus == 1) {
-        // While rendering a BTB stage, patch only the original shaders.
-        // If we touch BTB shaders, bad things will happen.
-        IDirect3DVertexShader9* shader;
-        This->GetVertexShader(&shader);
-        shouldPatchShader = std::find(gOriginalShaders.cbegin(), gOriginalShaders.cend(), shader) != gOriginalShaders.end();
+        isOriginalShader = std::find(gOriginalShaders.cbegin(), gOriginalShaders.cend(), shader) != gOriginalShaders.end();
     }
 
-    if (shouldPatchShader && gVRRenderTarget && Vector4fCount == 4) {
-        if (StartRegister == 0) {
-            // MVP matrix
-            // MV = P^-1 * MVP
-            // MVP[VRRenderTarget] = P[VRRenderTarget] * MV
-            // For some reason the Z-axis is pointing to the wrong direction, so it is flipped here as well
+    if (gVRRenderTarget && Vector4fCount == 4) {
+        // The cockpit of the car is drawn with a projection matrix that has smaller near Z value
+        // Otherwise with wide FoV headsets part of the car will be clipped out.
+        // Separate projection matrix is used because if the small near Z value is used for all shaders
+        // it will cause Z fighting (flickering) in the trackside objects. With this we get best of both worlds.
+        auto isDrawingCockpit = std::find(gCockpitShaders.cbegin(), gCockpitShaders.cend(), shader) != gCockpitShaders.end();
 
-            auto orig = glm::transpose(M4FromShaderConstantPtr(pConstantData));
-            auto mv = shader::gCurrentProjectionMatrixInverse * orig;
-            auto mvp = glm::transpose(gProjection[gVRRenderTarget.value()] * gEyePos[gVRRenderTarget.value()] * gHMDPose * gFlipZMatrix * gLockToHorizonMatrix * mv);
-            return hooks::setvertexshaderconstantf.call(This, StartRegister, glm::value_ptr(mvp), Vector4fCount);
-        } else if (StartRegister == 20) {
+        if (StartRegister == 0) {
+            const auto orig = glm::transpose(M4FromShaderConstantPtr(pConstantData));
+
+            if (isOriginalShader) {
+                const auto& projection = isDrawingCockpit ? gCockpitProjection : gProjection;
+
+                // MVP matrix
+                // MV = P^-1 * MVP
+                // MVP[VRRenderTarget] = P[VRRenderTarget] * MV
+                const auto mv = shader::gCurrentProjectionMatrixInverse * orig;
+
+                // For some reason the Z-axis is pointing to the wrong direction, so it is flipped here as well
+                const auto mvp = glm::transpose(projection[gVRRenderTarget.value()] * gEyePos[gVRRenderTarget.value()] * gHMDPose * gFlipZMatrix * gLockToHorizonMatrix * mv);
+                return hooks::setvertexshaderconstantf.call(This, StartRegister, glm::value_ptr(mvp), Vector4fCount);
+            } else {
+                // We're drawing BTB stage geometry. Here we want to use the gProjection instead of gCockpitProjection. The shader
+                // gets this value from the fixed function projection matrix, which is set to gCockpitProjection in order to draw
+                // some of the car's internal geometry with correct Z-values. This is done this way because we can't detect when
+                // we're drawing those car parts, so it needs to be the default. We can detect BTB stage drawing (that is now),
+                // so we're patching the projection matrix here from gCockpitProjection to gProjection.
+                // Everything else apart from the projection is already correct in the matrix that is supplied to this function,
+                // so the calculation here is simpler than in the case above.
+                const auto mv = fixedfunction::gCurrentProjectionMatrixInverse * orig;
+                const auto mvp = glm::transpose(gProjection[gVRRenderTarget.value()] * mv);
+                return hooks::setvertexshaderconstantf.call(This, StartRegister, glm::value_ptr(mvp), Vector4fCount);
+            }
+        } else if (isOriginalShader && StartRegister == 20) {
             // Sky/fog
             // It seems this parameter contains the orientation of the car and the
             // skybox and fog is rendered correctly only in the direction where the car
             // points at. By rotating this with the HMD's rotation, the skybox and possible
             // fog is rendered correctly.
-            auto orig = glm::transpose(M4FromShaderConstantPtr(pConstantData));
+            const auto orig = glm::transpose(M4FromShaderConstantPtr(pConstantData));
             glm::vec4 perspective;
             glm::vec3 scale, translation, skew;
             glm::quat orientation;
             glm::decompose(gHMDPose, scale, orientation, translation, skew, perspective);
-            auto rotation = glm::mat4_cast(glm::conjugate(orientation));
+            const auto rotation = glm::mat4_cast(glm::conjugate(orientation));
 
-            auto m = glm::transpose(rotation * orig);
+            const auto m = glm::transpose(rotation * orig);
             return hooks::setvertexshaderconstantf.call(This, StartRegister, glm::value_ptr(m), Vector4fCount);
         }
     }
@@ -323,7 +358,10 @@ HRESULT __stdcall DXHook_SetTransform(IDirect3DDevice9* This, D3DTRANSFORMSTATET
     if (gVRRenderTarget && State == D3DTS_PROJECTION) {
         shader::gCurrentProjectionMatrix = M4FromD3D(*pMatrix);
         shader::gCurrentProjectionMatrixInverse = glm::inverse(shader::gCurrentProjectionMatrix);
-        fixedfunction::gCurrentProjectionMatrix = D3DFromM4(gProjection[gVRRenderTarget.value()]);
+        // Use cockpit Z-values here, as fixed function stuff is used for some parts of the car internals only.
+        // BTB also uses this matrix, but it is patched to use the stage Z-values later
+        fixedfunction::gCurrentProjectionMatrix = D3DFromM4(gCockpitProjection[gVRRenderTarget.value()]);
+        fixedfunction::gCurrentProjectionMatrixInverse = glm::inverse(gCockpitProjection[gVRRenderTarget.value()]);
         return hooks::settransform.call(This, State, &fixedfunction::gCurrentProjectionMatrix);
     } else if (gVRRenderTarget && State == D3DTS_VIEW) {
         fixedfunction::gCurrentViewMatrix = D3DFromM4(gEyePos[gVRRenderTarget.value()] * gHMDPose * gFlipZMatrix * gLockToHorizonMatrix * M4FromD3D(*pMatrix));
