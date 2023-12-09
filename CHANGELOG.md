@@ -1,3 +1,9 @@
+## Unreleased
+
+- Fix black screen in front of the windshield if Pacenote plugin is not active
+- Fix car interior clipping too early when getting close to it
+- Fix trackside object flickering (in Antaramanana II for example)
+
 ## 0.2.0
 
 - Loading screen can now be toggled off
