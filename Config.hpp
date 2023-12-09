@@ -95,8 +95,7 @@ struct Config {
 
     static Config fromFile(const std::filesystem::path& path)
     {
-        auto cfg = Config
-        {
+        auto cfg = Config {
             .menuSize = 1.0,
             .overlaySize = 1.0,
             .overlayTranslation = glm::vec3 { 0.0f, 0.0f, 0.0f },

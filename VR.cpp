@@ -373,7 +373,7 @@ static void RenderTexture(
 }
 
 void RenderMenuQuad(IDirect3DDevice9* dev, RenderTarget renderTarget3D, RenderTarget renderTarget2D, float size, const M4& projection, const glm::vec3& translation, const std::optional<M4>& horizonLock)
-{// TODO: Arguments to this function are a bit silly already
+{ // TODO: Arguments to this function are a bit silly already
     const D3DMATRIX vr = D3DFromM4(projection * glm::translate(glm::scale(gEyePos[renderTarget3D] * gHMDPose * gFlipZMatrix * horizonLock.value_or(glm::identity<M4>()), { size, size, 1.0f }), translation));
     RenderTexture(dev, &vr, &identityMatrix, &identityMatrix, dxTexture[renderTarget2D], quadVertexBuf[renderTarget2D == Menu ? 0 : 1]);
 }

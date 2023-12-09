@@ -555,7 +555,8 @@ enum MenuItems {
     MENU_ITEM_COUNT = 8,
 };
 
-void ChangeRenderIn3dSettings(bool forward) {
+void ChangeRenderIn3dSettings(bool forward)
+{
     if (forward && gCfg.renderMainMenu3d) {
         gCfg.renderMainMenu3d = false;
         gCfg.renderPreStage3d = false;
