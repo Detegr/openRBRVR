@@ -66,7 +66,32 @@ bool CreateCompanionWindowBuffer(IDirect3DDevice9* dev)
 static bool CreateTexture(IDirect3DDevice9* dev, RenderTarget tgt, D3DFORMAT fmt, uint32_t w, uint32_t h)
 {
     auto ret = dev->CreateTexture(w, h, 1, D3DUSAGE_RENDERTARGET, fmt, D3DPOOL_DEFAULT, &dxTexture[tgt], nullptr);
-    ret |= dev->CreateDepthStencilSurface(w, h, D3DFMT_D24S8, D3DMULTISAMPLE_NONE, 0, TRUE, &dxDepthStencilSurface[tgt], nullptr);
+    static D3DFORMAT depthStencilFormat;
+    if (depthStencilFormat == D3DFMT_UNKNOWN) {
+        D3DFORMAT wantedFormats[] = {
+            D3DFMT_D32F_LOCKABLE,
+            D3DFMT_D24S8,
+            D3DFMT_D24X8,
+            D3DFMT_D16,
+        };
+        IDirect3D9* d3d;
+        if (dev->GetDirect3D(&d3d) != D3D_OK) {
+            Dbg("Could not get Direct3D adapter");
+            depthStencilFormat = D3DFMT_D16;
+        } else {
+            for (const auto& format : wantedFormats) {
+                if (d3d->CheckDepthStencilMatch(D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL, fmt, fmt, format) == D3D_OK) {
+                    depthStencilFormat = format;
+                    Dbg(std::format("Using {} as depthstencil format", (int)format));
+                    break;
+                }
+            }
+            if (depthStencilFormat == D3DFMT_UNKNOWN) {
+                Dbg("No depth stencil format found?? Using D3DFMT_D16");
+            }
+        }
+    }
+    ret |= dev->CreateDepthStencilSurface(w, h, depthStencilFormat, D3DMULTISAMPLE_NONE, 0, TRUE, &dxDepthStencilSurface[tgt], nullptr);
     if (FAILED(ret)) {
         Dbg("D3D initialization failed: CreateTexture");
         return false;
