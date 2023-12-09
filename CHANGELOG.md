@@ -1,3 +1,12 @@
+## Unreleased
+
+- Fix black screen in front of the windshield if Pacenote plugin is not active
+- Fix car interior clipping too early when getting close to it
+- Fix trackside object flickering (in Antaramanana II for example)
+- Pause menu is now rendered over 3D content by default. 3D rendering can also
+  be toggled on for the spinning camera and main menu. Thanks for @dancek for
+  the contribution.
+
 ## 0.2.0
 
 - Loading screen can now be toggled off
