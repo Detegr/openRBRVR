@@ -11,6 +11,8 @@ vr::IVRCompositor* gCompositor = nullptr;
 M4 gHMDPose;
 M4 gEyePos[2];
 M4 gProjection[2];
+M4 gCockpitProjection[2];
+M4 gMainMenu3dProjection[2];
 
 static IDirect3DTexture9* dxTexture[4];
 static IDirect3DSurface9* dxSurface[4];
@@ -22,12 +24,8 @@ static IDirect3DVertexBuffer9* quadVertexBuf[2];
 static IDirect3DVertexBuffer9* companionWindowVertexBuf;
 static constexpr D3DMATRIX identityMatrix = D3DFromM4(glm::identity<glm::mat4x4>());
 
-constexpr static M4 GetProjectionMatrix(RenderTarget eye)
+constexpr static M4 GetProjectionMatrix(RenderTarget eye, float zNear, float zFar)
 {
-    // Just guesses, seem to work okay
-    constexpr auto zNear = 0.15f;
-    constexpr auto zFar = 12000.0f;
-
     vr::HmdMatrix44_t mat = gHMD->GetProjectionMatrix(static_cast<vr::EVREye>(eye), zNear, zFar);
 
     return M4(
@@ -152,8 +150,17 @@ bool InitVR(IDirect3DDevice9* dev, const Config& cfg, IDirect3DVR9** vrdev, uint
     }
     gCompositor->SetTrackingSpace(vr::ETrackingUniverseOrigin::TrackingUniverseSeated);
 
-    gProjection[LeftEye] = GetProjectionMatrix(LeftEye);
-    gProjection[RightEye] = GetProjectionMatrix(RightEye);
+    constexpr auto zFar = 10000.0f;
+    constexpr auto zNearStage = 1.0f;
+    constexpr auto zNearCockpit = 0.01f;
+    constexpr auto zNearMainMenu = 0.7f;
+    gProjection[LeftEye] = GetProjectionMatrix(LeftEye, zNearStage, zFar);
+    gProjection[RightEye] = GetProjectionMatrix(RightEye, zNearStage, zFar);
+    gCockpitProjection[LeftEye] = GetProjectionMatrix(LeftEye, zNearCockpit, zFar);
+    gCockpitProjection[RightEye] = GetProjectionMatrix(RightEye, zNearCockpit, zFar);
+    gMainMenu3dProjection[LeftEye] = GetProjectionMatrix(LeftEye, zNearMainMenu, zFar);
+    gMainMenu3dProjection[RightEye] = GetProjectionMatrix(RightEye, zNearMainMenu, zFar);
+
     gEyePos[LeftEye] = glm::inverse(M4FromSteamVRMatrix(gHMD->GetEyeToHeadTransform(static_cast<vr::EVREye>(LeftEye))));
     gEyePos[RightEye] = glm::inverse(M4FromSteamVRMatrix(gHMD->GetEyeToHeadTransform(static_cast<vr::EVREye>(RightEye))));
 
@@ -365,9 +372,9 @@ static void RenderTexture(
     dev->SetTransform(D3DTS_WORLD, &origWorld);
 }
 
-void RenderMenuQuad(IDirect3DDevice9* dev, RenderTarget renderTarget3D, RenderTarget renderTarget2D, float size, glm::vec3 translation, std::optional<M4> horizonLock)
-{
-    const D3DMATRIX vr = D3DFromM4(gProjection[renderTarget3D] * glm::translate(glm::scale(gEyePos[renderTarget3D] * gHMDPose * gFlipZMatrix * horizonLock.value_or(glm::identity<M4>()), { size, size, 1.0f }), translation));
+void RenderMenuQuad(IDirect3DDevice9* dev, RenderTarget renderTarget3D, RenderTarget renderTarget2D, float size, const M4& projection, const glm::vec3& translation, const std::optional<M4>& horizonLock)
+{// TODO: Arguments to this function are a bit silly already
+    const D3DMATRIX vr = D3DFromM4(projection * glm::translate(glm::scale(gEyePos[renderTarget3D] * gHMDPose * gFlipZMatrix * horizonLock.value_or(glm::identity<M4>()), { size, size, 1.0f }), translation));
     RenderTexture(dev, &vr, &identityMatrix, &identityMatrix, dxTexture[renderTarget2D], quadVertexBuf[renderTarget2D == Menu ? 0 : 1]);
 }
 

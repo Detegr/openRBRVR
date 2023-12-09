@@ -3,6 +3,7 @@
 #include <format>
 #include <optional>
 #include <ranges>
+#include <unordered_map>
 #include <vector>
 
 #include "Config.hpp"
@@ -31,8 +32,9 @@ namespace shader {
 }
 
 namespace fixedfunction {
-    D3DMATRIX gCurrentProjectionMatrix;
-    D3DMATRIX gCurrentViewMatrix;
+    static D3DMATRIX gCurrentProjectionMatrix;
+    static M4 gCurrentProjectionMatrixInverse;
+    static D3DMATRIX gCurrentViewMatrix;
 }
 
 static uintptr_t GetRBRBaseAddress()
@@ -55,7 +57,9 @@ static uintptr_t GetRBRAddress(uintptr_t target)
 static uintptr_t RBRTrackIdAddr = GetRBRAddress(0x1660804);
 static uintptr_t RBRRenderFunctionAddr = GetRBRAddress(0x47E1E0);
 static uintptr_t RBRCarQuatPtrAddr = GetRBRAddress(0x8EF660);
+static uintptr_t RBRCarInfoAddr = GetRBRAddress(0x165FC68);
 void __fastcall RBRHook_Render(void* p);
+uint32_t __stdcall RBRHook_LoadTexture(void* p, const char* texName, uint32_t a, uint32_t b, uint32_t c, uint32_t d, uint32_t e, uint32_t f, uint32_t g, uint32_t h, uint32_t i, uint32_t j, uint32_t k, IDirect3DTexture9** ppTexture);
 
 namespace hooks {
     Hook<decltype(&Direct3DCreate9)> create;
@@ -66,6 +70,8 @@ namespace hooks {
     Hook<decltype(&RBRHook_Render)> render;
     Hook<decltype(IDirect3DDevice9Vtbl::CreateVertexShader)> createvertexshader;
     Hook<decltype(IDirect3DDevice9Vtbl::SetRenderTarget)> btbsetrendertarget;
+    Hook<decltype(&RBRHook_LoadTexture)> loadtexture;
+    Hook<decltype(IDirect3DDevice9Vtbl::DrawIndexedPrimitive)> drawindexedprimitive;
 }
 
 BOOL APIENTRY DllMain(HANDLE hModule, DWORD ul_reason_for_call, LPVOID lpReserved)
@@ -80,7 +86,9 @@ static bool gDriving;
 static bool gRender3d;
 static uint32_t gGameMode;
 static std::vector<IDirect3DVertexShader9*> gOriginalShaders;
+static std::unordered_map<std::string, IDirect3DTexture9*> gCarTextures;
 static Quaternion* gCarQuat;
+static uint32_t* gCameraType;
 static M4 gLockToHorizonMatrix = glm::identity<M4>();
 
 constexpr uintptr_t RBRRXDeviceVtblOffset = 0x4f56c;
@@ -108,6 +116,24 @@ static std::chrono::steady_clock::time_point gFrameStart;
 static bool IsLoadingBTBStage()
 {
     return gBTBTrackStatus && *gBTBTrackStatus == 1 && gGameMode == 5;
+}
+
+constexpr static bool IsUsingCockpitCamera()
+{
+    if (!gCameraType) {
+        return false;
+    }
+    return (*gCameraType >= 3) && (*gCameraType <= 6);
+}
+
+static bool IsCarTexture(IDirect3DBaseTexture9* tex)
+{
+    for (const auto& entry : gCarTextures) {
+        if (std::get<1>(entry) == tex) {
+            return true;
+        }
+    }
+    return false;
 }
 
 HRESULT __stdcall DXHook_CreateVertexShader(IDirect3DDevice9* This, const DWORD* pFunction, IDirect3DVertexShader9** ppShader)
@@ -138,22 +164,28 @@ void RenderVREye(void* p, RenderTarget eye, bool clear = true)
 // Render `renderTarget2d` on a plane for both eyes
 void RenderVROverlay(RenderTarget renderTarget2D, bool clear)
 {
-    auto size = renderTarget2D == Menu ? gCfg.menuSize : gCfg.overlaySize;
-    auto translation = renderTarget2D == Overlay ? gCfg.overlayTranslation : glm::vec3 { 0.0f, 0.0f, 0.0f };
-    auto horizLock = renderTarget2D == Overlay ? std::make_optional(gLockToHorizonMatrix) : std::nullopt;
+    const auto& size = renderTarget2D == Menu ? gCfg.menuSize : gCfg.overlaySize;
+    const auto& translation = renderTarget2D == Overlay ? gCfg.overlayTranslation : glm::vec3 { 0.0f, 0.0f, 0.0f };
+    const auto& horizLock = renderTarget2D == Overlay ? std::make_optional(gLockToHorizonMatrix) : std::nullopt;
+    const auto& projection = gGameMode == 3 ? gMainMenu3dProjection : gCockpitProjection;
 
     PrepareVRRendering(gD3Ddev, LeftEye, clear);
-    RenderMenuQuad(gD3Ddev, LeftEye, renderTarget2D, size, translation, horizLock);
+    RenderMenuQuad(gD3Ddev, LeftEye, renderTarget2D, size, projection[LeftEye], translation, horizLock);
     FinishVRRendering(gD3Ddev, LeftEye);
 
     PrepareVRRendering(gD3Ddev, RightEye, clear);
-    RenderMenuQuad(gD3Ddev, RightEye, renderTarget2D, size, translation, horizLock);
+    RenderMenuQuad(gD3Ddev, RightEye, renderTarget2D, size, projection[RightEye], translation, horizLock);
     FinishVRRendering(gD3Ddev, RightEye);
 }
 
 // RBR 3D scene draw function is rerouted here
 void __fastcall RBRHook_Render(void* p)
 {
+    if (!hooks::loadtexture.call) [[unlikely]] {
+        auto hedgehoghandle = reinterpret_cast<uintptr_t>(GetModuleHandle("HedgeHog3D.dll"));
+        hooks::loadtexture = Hook(*reinterpret_cast<decltype(RBRHook_LoadTexture)*>(hedgehoghandle + 0xAEC15), RBRHook_LoadTexture);
+    }
+
     auto ptr = reinterpret_cast<uintptr_t>(p);
     auto doRendering = *reinterpret_cast<uint32_t*>(ptr + 0x720) == 0;
     gGameMode = *reinterpret_cast<uint32_t*>(ptr + 0x728);
@@ -165,6 +197,19 @@ void __fastcall RBRHook_Render(void* p)
 
     if (!doRendering) [[unlikely]] {
         return;
+    }
+
+    if (gGameMode == 3 && !gCarTextures.empty()) [[unlikely]] {
+        // Clear saved car textures if we're in the menu
+        // Not sure if this is needed, but better be safe than sorry,
+        // the car textures will be reloaded when loading the stage.
+        gCarTextures.clear();
+    }
+
+    if (!gCameraType) [[unlikely]] {
+        uintptr_t cameraData = *reinterpret_cast<uintptr_t*>(*reinterpret_cast<uintptr_t*>(RBRCarInfoAddr) + 0x758);
+        uintptr_t cameraInfo = *reinterpret_cast<uintptr_t*>(cameraData + 0x10);
+        gCameraType = reinterpret_cast<uint32_t*>(cameraInfo);
     }
 
     if (gHMD) [[likely]] {
@@ -280,25 +325,39 @@ HRESULT __stdcall DXHook_Present(IDirect3DDevice9* This, const RECT* pSourceRect
 
 HRESULT __stdcall DXHook_SetVertexShaderConstantF(IDirect3DDevice9* This, UINT StartRegister, const float* pConstantData, UINT Vector4fCount)
 {
-    auto shouldPatchShader = true;
-    if (gBTBTrackStatus && *gBTBTrackStatus == 1) {
-        // While rendering a BTB stage, patch only the original shaders.
-        // If we touch BTB shaders, bad things will happen.
-        IDirect3DVertexShader9* shader;
-        This->GetVertexShader(&shader);
-        shouldPatchShader = std::find(gOriginalShaders.cbegin(), gOriginalShaders.cend(), shader) != gOriginalShaders.end();
-    }
+    IDirect3DVertexShader9* shader;
+    This->GetVertexShader(&shader);
 
-    if (shouldPatchShader && gVRRenderTarget && Vector4fCount == 4) {
+    auto isOriginalShader = true;
+    if (gBTBTrackStatus && *gBTBTrackStatus == 1) {
+        isOriginalShader = std::find(gOriginalShaders.cbegin(), gOriginalShaders.cend(), shader) != gOriginalShaders.end();
+    }
+    if (shader)
+        shader->Release();
+
+    if (isOriginalShader && gVRRenderTarget && Vector4fCount == 4) {
+        // The cockpit of the car is drawn with a projection matrix that has smaller near Z value
+        // Otherwise with wide FoV headsets part of the car will be clipped out.
+        // Separate projection matrix is used because if the small near Z value is used for all shaders
+        // it will cause Z fighting (flickering) in the trackside objects. With this we get best of both worlds.
+        IDirect3DBaseTexture9* texture;
+        This->GetTexture(0, &texture);
+        auto isDrawingCockpit = IsUsingCockpitCamera() && IsCarTexture(texture);
+        if (texture) {
+            texture->Release();
+        }
+
         if (StartRegister == 0) {
+            const auto orig = glm::transpose(M4FromShaderConstantPtr(pConstantData));
+            const auto& projection = isDrawingCockpit ? gCockpitProjection : gProjection;
+
             // MVP matrix
             // MV = P^-1 * MVP
             // MVP[VRRenderTarget] = P[VRRenderTarget] * MV
-            // For some reason the Z-axis is pointing to the wrong direction, so it is flipped here as well
+            const auto mv = shader::gCurrentProjectionMatrixInverse * orig;
 
-            auto orig = glm::transpose(M4FromShaderConstantPtr(pConstantData));
-            auto mv = shader::gCurrentProjectionMatrixInverse * orig;
-            auto mvp = glm::transpose(gProjection[gVRRenderTarget.value()] * gEyePos[gVRRenderTarget.value()] * gHMDPose * gFlipZMatrix * gLockToHorizonMatrix * mv);
+            // For some reason the Z-axis is pointing to the wrong direction, so it is flipped here as well
+            const auto mvp = glm::transpose(projection[gVRRenderTarget.value()] * gEyePos[gVRRenderTarget.value()] * gHMDPose * gFlipZMatrix * gLockToHorizonMatrix * mv);
             return hooks::setvertexshaderconstantf.call(This, StartRegister, glm::value_ptr(mvp), Vector4fCount);
         } else if (StartRegister == 20) {
             // Sky/fog
@@ -306,14 +365,14 @@ HRESULT __stdcall DXHook_SetVertexShaderConstantF(IDirect3DDevice9* This, UINT S
             // skybox and fog is rendered correctly only in the direction where the car
             // points at. By rotating this with the HMD's rotation, the skybox and possible
             // fog is rendered correctly.
-            auto orig = glm::transpose(M4FromShaderConstantPtr(pConstantData));
+            const auto orig = glm::transpose(M4FromShaderConstantPtr(pConstantData));
             glm::vec4 perspective;
             glm::vec3 scale, translation, skew;
             glm::quat orientation;
             glm::decompose(gHMDPose, scale, orientation, translation, skew, perspective);
-            auto rotation = glm::mat4_cast(glm::conjugate(orientation));
+            const auto rotation = glm::mat4_cast(glm::conjugate(orientation));
 
-            auto m = glm::transpose(rotation * orig);
+            const auto m = glm::transpose(rotation * orig);
             return hooks::setvertexshaderconstantf.call(This, StartRegister, glm::value_ptr(m), Vector4fCount);
         }
     }
@@ -325,7 +384,12 @@ HRESULT __stdcall DXHook_SetTransform(IDirect3DDevice9* This, D3DTRANSFORMSTATET
     if (gVRRenderTarget && State == D3DTS_PROJECTION) {
         shader::gCurrentProjectionMatrix = M4FromD3D(*pMatrix);
         shader::gCurrentProjectionMatrixInverse = glm::inverse(shader::gCurrentProjectionMatrix);
-        fixedfunction::gCurrentProjectionMatrix = D3DFromM4(gProjection[gVRRenderTarget.value()]);
+
+        // Use the large space z-value projection matrix by default. The car specific parts
+        // are patched to be rendered in gCockpitProjection in DXHook_DrawIndexedPrimitive.
+        const auto& projection = gProjection[gVRRenderTarget.value()];
+        fixedfunction::gCurrentProjectionMatrix = D3DFromM4(projection);
+        fixedfunction::gCurrentProjectionMatrixInverse = glm::inverse(projection);
         return hooks::settransform.call(This, State, &fixedfunction::gCurrentProjectionMatrix);
     } else if (gVRRenderTarget && State == D3DTS_VIEW) {
         fixedfunction::gCurrentViewMatrix = D3DFromM4(gEyePos[gVRRenderTarget.value()] * gHMDPose * gFlipZMatrix * gLockToHorizonMatrix * M4FromD3D(*pMatrix));
@@ -343,6 +407,40 @@ HRESULT __stdcall BTB_SetRenderTarget(IDirect3DDevice9* This, DWORD RenderTarget
     // to not be rendered at all. Routing the call to the D3D device created by openRBRVR,
     // it seems to work correctly.
     return gD3Ddev->SetRenderTarget(RenderTargetIndex, pRenderTarget);
+}
+
+uint32_t __stdcall RBRHook_LoadTexture(void* p, const char* texName, uint32_t a, uint32_t b, uint32_t c, uint32_t d, uint32_t e, uint32_t f, uint32_t g, uint32_t h, uint32_t i, uint32_t j, uint32_t k, IDirect3DTexture9** ppTexture)
+{
+    auto ret = hooks::loadtexture.call(p, texName, a, b, c, d, e, f, g, h, i, j, k, ppTexture);
+    std::string tex(texName);
+    if (tex.starts_with("cars\\") || tex.starts_with("cars/")) {
+        gCarTextures[tex] = *ppTexture;
+    }
+    return ret;
+}
+
+HRESULT __stdcall DXHook_DrawIndexedPrimitive(IDirect3DDevice9* This, D3DPRIMITIVETYPE PrimitiveType, INT BaseVertexIndex, UINT MinVertexIndex, UINT NumVertices, UINT startIndex, UINT primCount)
+{
+    IDirect3DVertexShader9* shader;
+    IDirect3DBaseTexture9* texture;
+    This->GetVertexShader(&shader);
+    This->GetTexture(0, &texture);
+    if (gVRRenderTarget && !shader && !texture) {
+        // Some parts of the car are drawn without a shader and without a texture (just black meshes)
+        // We need to render these with the cockpit Z clipping values in order for them to look correct
+        const auto projection = fixedfunction::gCurrentProjectionMatrix;
+        const auto cockpitProjection = D3DFromM4(gCockpitProjection[gVRRenderTarget.value()]);
+        hooks::settransform.call(This, D3DTS_PROJECTION, &cockpitProjection);
+        auto ret = hooks::drawindexedprimitive.call(This, PrimitiveType, BaseVertexIndex, MinVertexIndex, NumVertices, startIndex, primCount);
+        hooks::settransform.call(This, D3DTS_PROJECTION, &fixedfunction::gCurrentProjectionMatrix);
+        return ret;
+    } else {
+        if (shader)
+            shader->Release();
+        if (texture)
+            texture->Release();
+        return hooks::drawindexedprimitive.call(This, PrimitiveType, BaseVertexIndex, MinVertexIndex, NumVertices, startIndex, primCount);
+    }
 }
 
 HRESULT __stdcall DXHook_CreateDevice(
@@ -367,6 +465,7 @@ HRESULT __stdcall DXHook_CreateDevice(
     hooks::settransform = Hook(devvtbl->SetTransform, DXHook_SetTransform);
     hooks::present = Hook(devvtbl->Present, DXHook_Present);
     hooks::createvertexshader = Hook(devvtbl->CreateVertexShader, DXHook_CreateVertexShader);
+    hooks::drawindexedprimitive = Hook(devvtbl->DrawIndexedPrimitive, DXHook_DrawIndexedPrimitive);
 
     gD3Ddev = dev;
 

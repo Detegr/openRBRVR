@@ -29,6 +29,8 @@ extern D3DVIEWPORT9 gVRViewPort;
 extern M4 gHMDPose;
 extern M4 gEyePos[2];
 extern M4 gProjection[2];
+extern M4 gCockpitProjection[2];
+extern M4 gMainMenu3dProjection[2];
 extern M4 gLockToHorizon;
 
 struct FrameTimingInfo {
@@ -53,7 +55,7 @@ bool UpdateVRPoses(Quaternion* carQuat, Config::HorizonLock lockSetting, M4* hor
 IDirect3DSurface9* PrepareVRRendering(IDirect3DDevice9* dev, RenderTarget tgt, bool clear = true);
 void FinishVRRendering(IDirect3DDevice9* dev, RenderTarget tgt);
 void SubmitFramesToHMD(IDirect3DDevice9* dev);
-void RenderMenuQuad(IDirect3DDevice9* dev, RenderTarget renderTarget3D, RenderTarget renderTarget2D, float size, glm::vec3 translation, std::optional<M4> horizonLock);
+void RenderMenuQuad(IDirect3DDevice9* dev, RenderTarget renderTarget3D, RenderTarget renderTarget2D, float size, const M4& projection, const glm::vec3& translation, const std::optional<M4>& horizonLock);
 std::tuple<uint32_t, uint32_t> GetRenderResolution(RenderTarget tgt);
 void RenderCompanionWindowFromRenderTarget(IDirect3DDevice9* dev, RenderTarget tgt);
 FrameTimingInfo GetFrameTiming();
