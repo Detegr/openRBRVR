@@ -99,7 +99,7 @@ static bool CreateTexture(IDirect3DDevice9* dev, RenderTarget tgt, D3DFORMAT fmt
 
 static bool CreateVRTexture(IDirect3DDevice9* dev, RenderTarget eye, uint32_t w, uint32_t h)
 {
-    CreateTexture(dev, eye, D3DFMT_A8R8G8B8, w, h);
+    CreateTexture(dev, eye, D3DFMT_X8R8G8B8, w, h);
     openvrTexture[eye].handle = reinterpret_cast<void*>(&dxvkTexture[eye]);
     openvrTexture[eye].eType = vr::TextureType_Vulkan;
     openvrTexture[eye].eColorSpace = vr::ColorSpace_Auto;
