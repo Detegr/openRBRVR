@@ -413,7 +413,7 @@ uint32_t __stdcall RBRHook_LoadTexture(void* p, const char* texName, uint32_t a,
 {
     auto ret = hooks::loadtexture.call(p, texName, a, b, c, d, e, f, g, h, i, j, k, ppTexture);
     std::string tex(texName);
-    if (tex.starts_with("cars\\") || tex.starts_with("cars/")) {
+    if (ret == 0 && (tex.starts_with("cars\\") || tex.starts_with("cars/"))) {
         gCarTextures[tex] = *ppTexture;
     }
     return ret;
