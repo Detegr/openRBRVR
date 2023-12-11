@@ -23,8 +23,18 @@ On a more detailed level, the following is done:
 - The `Present` DirectX call is rerouted to custom code. In this function the
   frame is ready and it is sent to the VR goggles.
 
-Dealing with menus in a VR environment is a bit funky, so in order to prevent
-issues with focusing to text and dealing with moving backgrounds etc. the
-content is rendered on a 2D plane in a 3D space. This is quite usual solution
-for menus in different VR games.
+## Dealing with Z-fighting
 
+Z-buffer near-far clipping range that's suitable for VR use is somewhere around
+0.01 near - 10000 far. 0.01 (1cm) seems to be a fine enough range for near
+value and some stages (like Sleeping Warrior 2019) render scenery FAR away, so
+the large value needs to be somewhere around 10000. If those values are used,
+the Z-buffer isn't precise enough even if the D32F precision is used due to the
+large range between near and far planes.
+
+To combat this, starting from version 0.3.0 openRBRVR renders the car geometry
+with 0.01 near-10000 far range and the stage with 1.0 near-10000 far. The far
+value has to be the same as for the other range, otherwise the skybox in some
+stages does not render correctly. The exact reason why this happens is
+currently unknown. When done this way both the car interior and the stage are
+rendered with higher precision, reducing z-fighting considerably.
