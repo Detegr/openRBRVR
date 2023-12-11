@@ -153,7 +153,7 @@ bool InitVR(IDirect3DDevice9* dev, const Config& cfg, IDirect3DVR9** vrdev, uint
     constexpr auto zFar = 10000.0f;
     constexpr auto zNearStage = 1.0f;
     constexpr auto zNearCockpit = 0.01f;
-    constexpr auto zNearMainMenu = 0.7f;
+    constexpr auto zNearMainMenu = 0.1f;
     gProjection[LeftEye] = GetProjectionMatrix(LeftEye, zNearStage, zFar);
     gProjection[RightEye] = GetProjectionMatrix(RightEye, zNearStage, zFar);
     gCockpitProjection[LeftEye] = GetProjectionMatrix(LeftEye, zNearCockpit, zFar);
