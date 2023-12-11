@@ -58,6 +58,9 @@ In `Plugins/openRBRVR.ini` you can change the following values:
   driver does not move with the car but the car moves around the driver's head.
   Values 1, 2 and 3 are supported where 1 locks the roll axis, 2 locks the
   pitch axis and 3 locks both.
+- `renderMainMenu3d` render the main menu in 3D
+- `renderPauseMenu3d` render the pause menu in 3D
+- `renderPreStage3d` render the pre-stage spinning animation in 3D
 - `debug` enable to see debug information on the screen
 
 With the desktop FoV, objects might disappear from your peripheral vision
