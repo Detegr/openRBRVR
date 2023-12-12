@@ -1,3 +1,8 @@
+## 0.3.1
+
+- Fix main menu clipping too early
+- Fix desktop window color rendering
+
 ## 0.3.0
 
 - Fix black screen in front of the windshield if Pacenote plugin is not active
