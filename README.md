@@ -88,6 +88,8 @@ launcher). To set the FoV override, do the following steps:
   Recenter view. There is no runtime keyboard capture implemented in the
   plugin. RBRControls plugin (included in RSF install) will have support for
   recentering the view from a wheel button in the upcoming release.
+- BTB stages can have a really poor performance if cubic env maps are enabled.
+  I suggest disabling them for openRBRVR.
 
 ## Build instructions
 
