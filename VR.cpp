@@ -275,11 +275,25 @@ static constexpr std::string VRCompositorErrorStr(vr::VRCompositorError e)
 
 IDirect3DSurface9* PrepareVRRendering(IDirect3DDevice9* dev, RenderTarget tgt, bool clear)
 {
-    dxTexture[tgt]->GetSurfaceLevel(0, &dxSurface[tgt]);
-    dev->SetRenderTarget(0, dxSurface[tgt]);
-    dev->SetDepthStencilSurface(dxDepthStencilSurface[tgt]);
+    if (dxTexture[tgt]->GetSurfaceLevel(0, &dxSurface[tgt]) != D3D_OK) {
+        Dbg("PrepareVRRendering: Failed to get surface level");
+        dxSurface[tgt] = nullptr;
+        return nullptr;
+    }
+    if (dev->SetRenderTarget(0, dxSurface[tgt]) != D3D_OK) {
+        Dbg("PrepareVRRendering: Failed to set render target");
+        dxSurface[tgt]->Release();
+        return nullptr;
+    }
+    if (dev->SetDepthStencilSurface(dxDepthStencilSurface[tgt]) != D3D_OK) {
+        Dbg("PrepareVRRendering: Failed to set depth stencil surface");
+        dxSurface[tgt]->Release();
+        return nullptr;
+    }
     if (clear) {
-        dev->Clear(0, nullptr, D3DCLEAR_STENCIL | D3DCLEAR_TARGET | D3DCLEAR_ZBUFFER, 0, 1.0, 0);
+        if (dev->Clear(0, nullptr, D3DCLEAR_STENCIL | D3DCLEAR_TARGET | D3DCLEAR_ZBUFFER, 0, 1.0, 0) != D3D_OK) {
+            Dbg("PrepareVRRendering: Failed to clear surface");
+        }
     }
     return dxSurface[tgt];
 }
@@ -296,22 +310,47 @@ void SubmitFramesToHMD(IDirect3DDevice9* dev)
 {
     IDirect3DSurface9 *leftEye, *rightEye;
 
-    dxTexture[LeftEye]->GetSurfaceLevel(0, &leftEye);
-    dxTexture[RightEye]->GetSurfaceLevel(0, &rightEye);
+    if (dxTexture[LeftEye]->GetSurfaceLevel(0, &leftEye) != D3D_OK) {
+        Dbg("Failed to get left eye surface");
+        return;
+    }
+    if (dxTexture[RightEye]->GetSurfaceLevel(0, &rightEye) != D3D_OK) {
+        Dbg("Failed to get right eye surface");
+        leftEye->Release();
+        return;
+    }
 
-    gD3DVR->TransferSurfaceForVR(leftEye);
-    gD3DVR->TransferSurfaceForVR(rightEye);
-    gD3DVR->GetVRDesc(leftEye, &dxvkTexture[LeftEye]);
-    gD3DVR->GetVRDesc(rightEye, &dxvkTexture[RightEye]);
-    gD3DVR->BeginVRSubmit();
+    if (gD3DVR->TransferSurfaceForVR(leftEye) != D3D_OK) {
+        Dbg("Failed to transfer left eye surface");
+        goto release;
+    }
+    if (gD3DVR->TransferSurfaceForVR(rightEye) != D3D_OK) {
+        Dbg("Failed to transfer right eye surface");
+        goto release;
+    }
+    if (gD3DVR->GetVRDesc(leftEye, &dxvkTexture[LeftEye]) != D3D_OK) {
+        Dbg("Failed to get left eye descriptor");
+        goto release;
+    }
+    if (gD3DVR->GetVRDesc(rightEye, &dxvkTexture[RightEye]) != D3D_OK) {
+        Dbg("Failed to get left eye descriptor");
+        goto release;
+    }
+    if (gD3DVR->BeginVRSubmit() != D3D_OK) {
+        Dbg("BeginVRSubmit failed");
+        goto release;
+    }
     if (auto e = gCompositor->Submit(static_cast<vr::EVREye>(LeftEye), &openvrTexture[LeftEye]); e != vr::VRCompositorError_None) [[unlikely]] {
         Dbg(std::format("Compositor error: {}", VRCompositorErrorStr(e)));
     }
     if (auto e = gCompositor->Submit(static_cast<vr::EVREye>(RightEye), &openvrTexture[RightEye]); e != vr::VRCompositorError_None) [[unlikely]] {
         Dbg(std::format("Compositor error: {}", VRCompositorErrorStr(e)));
     }
-    gD3DVR->EndVRSubmit();
+    if (gD3DVR->EndVRSubmit() != D3D_OK) {
+        Dbg("EndVRSubmit failed");
+    }
 
+release:
     leftEye->Release();
     rightEye->Release();
 }

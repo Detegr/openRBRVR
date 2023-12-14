@@ -81,6 +81,7 @@ BOOL APIENTRY DllMain(HANDLE hModule, DWORD ul_reason_for_call, LPVOID lpReserve
 }
 
 static std::optional<RenderTarget> gVRRenderTarget;
+static std::optional<RenderTarget> gCurrent2DRenderTarget;
 static IDirect3DSurface9 *gOriginalScreenTgt, *gOriginalDepthStencil;
 static bool gDriving;
 static bool gRender3d;
@@ -155,9 +156,14 @@ HRESULT __stdcall DXHook_CreateVertexShader(IDirect3DDevice9* This, const DWORD*
 void RenderVREye(void* p, RenderTarget eye, bool clear = true)
 {
     gVRRenderTarget = eye;
-    PrepareVRRendering(gD3Ddev, eye, clear);
-    hooks::render.call(p);
-    FinishVRRendering(gD3Ddev, eye);
+    if (PrepareVRRendering(gD3Ddev, eye, clear)) {
+        hooks::render.call(p);
+        FinishVRRendering(gD3Ddev, eye);
+    } else {
+        Dbg("Failed to set 3D render target");
+        gD3Ddev->SetRenderTarget(0, gOriginalScreenTgt);
+        gD3Ddev->SetDepthStencilSurface(gOriginalDepthStencil);
+    }
     gVRRenderTarget = std::nullopt;
 }
 
@@ -169,13 +175,19 @@ void RenderVROverlay(RenderTarget renderTarget2D, bool clear)
     const auto& horizLock = renderTarget2D == Overlay ? std::make_optional(gLockToHorizonMatrix) : std::nullopt;
     const auto& projection = gGameMode == 3 ? gMainMenu3dProjection : gCockpitProjection;
 
-    PrepareVRRendering(gD3Ddev, LeftEye, clear);
-    RenderMenuQuad(gD3Ddev, LeftEye, renderTarget2D, size, projection[LeftEye], translation, horizLock);
-    FinishVRRendering(gD3Ddev, LeftEye);
+    if (PrepareVRRendering(gD3Ddev, LeftEye, clear)) [[likely]] {
+        RenderMenuQuad(gD3Ddev, LeftEye, renderTarget2D, size, projection[LeftEye], translation, horizLock);
+        FinishVRRendering(gD3Ddev, LeftEye);
+    } else {
+        Dbg("Failed to render left eye overlay");
+    }
 
-    PrepareVRRendering(gD3Ddev, RightEye, clear);
-    RenderMenuQuad(gD3Ddev, RightEye, renderTarget2D, size, projection[RightEye], translation, horizLock);
-    FinishVRRendering(gD3Ddev, RightEye);
+    if (PrepareVRRendering(gD3Ddev, RightEye, clear)) [[likely]] {
+        RenderMenuQuad(gD3Ddev, RightEye, renderTarget2D, size, projection[RightEye], translation, horizLock);
+        FinishVRRendering(gD3Ddev, RightEye);
+    } else {
+        Dbg("Failed to render left eye overlay");
+    }
 }
 
 // RBR 3D scene draw function is rerouted here
@@ -183,7 +195,11 @@ void __fastcall RBRHook_Render(void* p)
 {
     if (!hooks::loadtexture.call) [[unlikely]] {
         auto hedgehoghandle = reinterpret_cast<uintptr_t>(GetModuleHandle("HedgeHog3D.dll"));
-        hooks::loadtexture = Hook(*reinterpret_cast<decltype(RBRHook_LoadTexture)*>(hedgehoghandle + 0xAEC15), RBRHook_LoadTexture);
+        if (!hedgehoghandle) {
+            Dbg("Could not get handle for HedgeHog3D");
+        } else {
+            hooks::loadtexture = Hook(*reinterpret_cast<decltype(RBRHook_LoadTexture)*>(hedgehoghandle + 0xAEC15), RBRHook_LoadTexture);
+        }
     }
 
     auto ptr = reinterpret_cast<uintptr_t>(p);
@@ -192,8 +208,12 @@ void __fastcall RBRHook_Render(void* p)
     gDriving = gGameMode == 1;
     gRender3d = gDriving || (gCfg.renderMainMenu3d && gGameMode == 3) || (gCfg.renderPauseMenu3d && gGameMode == 2) || (gCfg.renderPreStage3d && gGameMode == 10);
 
-    gD3Ddev->GetRenderTarget(0, &gOriginalScreenTgt);
-    gD3Ddev->GetDepthStencilSurface(&gOriginalDepthStencil);
+    if (gD3Ddev->GetRenderTarget(0, &gOriginalScreenTgt) != D3D_OK) [[unlikely]] {
+        Dbg("Could not get render original target");
+    }
+    if (gD3Ddev->GetDepthStencilSurface(&gOriginalDepthStencil) != D3D_OK) [[unlikely]] {
+        Dbg("Could not get render original depth stencil surface");
+    }
 
     if (!doRendering) [[unlikely]] {
         return;
@@ -231,13 +251,28 @@ void __fastcall RBRHook_Render(void* p)
         if (gRender3d) {
             RenderVREye(p, LeftEye);
             RenderVREye(p, RightEye);
-            PrepareVRRendering(gD3Ddev, Overlay);
+            if (PrepareVRRendering(gD3Ddev, Overlay)) {
+                gCurrent2DRenderTarget = Overlay;
+            } else {
+                Dbg("Failed to set 2D render target");
+                gCurrent2DRenderTarget = std::nullopt;
+                gD3Ddev->SetRenderTarget(0, gOriginalScreenTgt);
+                gD3Ddev->SetDepthStencilSurface(gOriginalDepthStencil);
+            }
         } else {
             // We are not driving, render the scene into a plane
             gVRRenderTarget = std::nullopt;
             auto shouldSwapRenderTarget = !(IsLoadingBTBStage() && !gCfg.drawLoadingScreen);
             if (shouldSwapRenderTarget) {
-                PrepareVRRendering(gD3Ddev, Menu);
+                if (PrepareVRRendering(gD3Ddev, Menu)) {
+                    gCurrent2DRenderTarget = Menu;
+                } else {
+                    Dbg("Failed to set 2D render target");
+                    gCurrent2DRenderTarget = std::nullopt;
+                    gD3Ddev->SetRenderTarget(0, gOriginalScreenTgt);
+                    gD3Ddev->SetDepthStencilSurface(gOriginalDepthStencil);
+                    return;
+                }
             }
 
             auto shouldRender = !(gGameMode == 5 && !gCfg.drawLoadingScreen);
@@ -248,34 +283,35 @@ void __fastcall RBRHook_Render(void* p)
     } else {
         hooks::render.call(p);
     }
-
-    // Reset VR eye information so that the rest of the shaders won't use the VR projection.
-    // It's necessary for rendering the menu elements correctly.
-    gVRRenderTarget = std::nullopt;
 }
 
 HRESULT __stdcall DXHook_Present(IDirect3DDevice9* This, const RECT* pSourceRect, const RECT* pDestRect, HWND hDestWindowOverride, const RGNDATA* pDirtyRegion)
 {
     if (gHMD) [[likely]] {
-        auto current2DRenderTarget = gRender3d ? Overlay : Menu;
-        auto shouldRender = !(IsLoadingBTBStage() && !gCfg.drawLoadingScreen);
+        auto shouldRender = gCurrent2DRenderTarget && !(IsLoadingBTBStage() && !gCfg.drawLoadingScreen);
         if (shouldRender) {
-            FinishVRRendering(gD3Ddev, current2DRenderTarget);
-            RenderVROverlay(current2DRenderTarget, !gRender3d);
+            FinishVRRendering(gD3Ddev, gCurrent2DRenderTarget.value());
+            RenderVROverlay(gCurrent2DRenderTarget.value(), !gRender3d);
         }
         SubmitFramesToHMD(gD3Ddev);
     }
 
-    gD3Ddev->SetRenderTarget(0, gOriginalScreenTgt);
-    gD3Ddev->SetDepthStencilSurface(gOriginalDepthStencil);
+    if (gD3Ddev->SetRenderTarget(0, gOriginalScreenTgt) != D3D_OK) {
+        Dbg("Failed to reset render target to original");
+    }
+    if (gD3Ddev->SetDepthStencilSurface(gOriginalDepthStencil) != D3D_OK) {
+        Dbg("Failed to reset depth stencil surface to original");
+    }
     gOriginalScreenTgt->Release();
     gOriginalDepthStencil->Release();
 
+    auto ret = 0;
     if (gHMD && gCfg.drawCompanionWindow) {
         RenderCompanionWindowFromRenderTarget(This, gRender3d ? LeftEye : Menu);
+        ret = hooks::present.call(This, pSourceRect, pDestRect, hDestWindowOverride, pDirtyRegion);
+    } else if (!gHMD) {
+        ret = hooks::present.call(This, pSourceRect, pDestRect, hDestWindowOverride, pDirtyRegion);
     }
-
-    auto ret = hooks::present.call(This, pSourceRect, pDestRect, hDestWindowOverride, pDirtyRegion);
 
     if (gCfg.debug && gHMD) [[unlikely]] {
         auto frameEnd = std::chrono::steady_clock::now();
@@ -326,7 +362,10 @@ HRESULT __stdcall DXHook_Present(IDirect3DDevice9* This, const RECT* pSourceRect
 HRESULT __stdcall DXHook_SetVertexShaderConstantF(IDirect3DDevice9* This, UINT StartRegister, const float* pConstantData, UINT Vector4fCount)
 {
     IDirect3DVertexShader9* shader;
-    This->GetVertexShader(&shader);
+    if (auto ret = This->GetVertexShader(&shader); ret != D3D_OK) {
+        Dbg("Could not get vertex shader");
+        return ret;
+    }
 
     auto isOriginalShader = true;
     if (gBTBTrackStatus && *gBTBTrackStatus == 1) {
@@ -341,7 +380,11 @@ HRESULT __stdcall DXHook_SetVertexShaderConstantF(IDirect3DDevice9* This, UINT S
         // Separate projection matrix is used because if the small near Z value is used for all shaders
         // it will cause Z fighting (flickering) in the trackside objects. With this we get best of both worlds.
         IDirect3DBaseTexture9* texture;
-        This->GetTexture(0, &texture);
+        if (auto ret = This->GetTexture(0, &texture); ret != D3D_OK) {
+            Dbg("Could not get texture");
+            return ret;
+        }
+
         auto isDrawingCockpit = IsUsingCockpitCamera() && IsCarTexture(texture);
         if (texture) {
             texture->Release();
@@ -461,18 +504,24 @@ HRESULT __stdcall DXHook_CreateDevice(
     *ppReturnedDeviceInterface = dev;
 
     auto devvtbl = GetVtable<IDirect3DDevice9Vtbl>(dev);
-    hooks::setvertexshaderconstantf = Hook(devvtbl->SetVertexShaderConstantF, DXHook_SetVertexShaderConstantF);
-    hooks::settransform = Hook(devvtbl->SetTransform, DXHook_SetTransform);
-    hooks::present = Hook(devvtbl->Present, DXHook_Present);
-    hooks::createvertexshader = Hook(devvtbl->CreateVertexShader, DXHook_CreateVertexShader);
-    hooks::drawindexedprimitive = Hook(devvtbl->DrawIndexedPrimitive, DXHook_DrawIndexedPrimitive);
+    try {
+        hooks::setvertexshaderconstantf = Hook(devvtbl->SetVertexShaderConstantF, DXHook_SetVertexShaderConstantF);
+        hooks::settransform = Hook(devvtbl->SetTransform, DXHook_SetTransform);
+        hooks::present = Hook(devvtbl->Present, DXHook_Present);
+        hooks::createvertexshader = Hook(devvtbl->CreateVertexShader, DXHook_CreateVertexShader);
+        hooks::drawindexedprimitive = Hook(devvtbl->DrawIndexedPrimitive, DXHook_DrawIndexedPrimitive);
+    } catch (const std::runtime_error& e) {
+        Dbg(e.what());
+    }
 
     gD3Ddev = dev;
 
     RECT winBounds;
     GetWindowRect(hFocusWindow, &winBounds);
 
-    InitVR(dev, gCfg, &gD3DVR, winBounds.right, winBounds.bottom);
+    if (!InitVR(dev, gCfg, &gD3DVR, winBounds.right, winBounds.bottom)) {
+        Dbg("Could not initialize VR");
+    }
 
     // Initialize this pointer here, as it's too early to do this in openRBRVR constructor
     auto rxHandle = GetModuleHandle("Plugins\\rbr_rx.dll");
@@ -481,7 +530,11 @@ HRESULT __stdcall DXHook_CreateDevice(
         gBTBTrackStatus = reinterpret_cast<uint8_t*>(rxAddr + RBRRXTrackStatusOffset);
 
         IDirect3DDevice9Vtbl* rbrrxdev = reinterpret_cast<IDirect3DDevice9Vtbl*>(rxAddr + RBRRXDeviceVtblOffset);
-        hooks::btbsetrendertarget = Hook(rbrrxdev->SetRenderTarget, BTB_SetRenderTarget);
+        try {
+            hooks::btbsetrendertarget = Hook(rbrrxdev->SetRenderTarget, BTB_SetRenderTarget);
+        } catch (const std::runtime_error& e) {
+            Dbg(e.what());
+        }
     }
 
     return ret;
@@ -490,8 +543,16 @@ HRESULT __stdcall DXHook_CreateDevice(
 IDirect3D9* __stdcall DXHook_Direct3DCreate9(UINT SDKVersion)
 {
     auto d3d = hooks::create.call(SDKVersion);
+    if (!d3d) {
+        Dbg("Could not initialize Vulkan");
+        return nullptr;
+    }
     auto d3dvtbl = GetVtable<IDirect3D9Vtbl>(d3d);
-    hooks::createdevice = Hook(d3dvtbl->CreateDevice, DXHook_CreateDevice);
+    try {
+        hooks::createdevice = Hook(d3dvtbl->CreateDevice, DXHook_CreateDevice);
+    } catch (const std::runtime_error& e) {
+        Dbg(e.what());
+    }
     return d3d;
 }
 
@@ -515,9 +576,12 @@ openRBRVR::openRBRVR(IRBRGame* g)
         return;
     }
 
-    hooks::create = Hook(d3dcreate, DXHook_Direct3DCreate9);
-    hooks::render = Hook(*reinterpret_cast<decltype(RBRHook_Render)*>(RBRRenderFunctionAddr), RBRHook_Render);
-
+    try {
+        hooks::create = Hook(d3dcreate, DXHook_Direct3DCreate9);
+        hooks::render = Hook(*reinterpret_cast<decltype(RBRHook_Render)*>(RBRRenderFunctionAddr), RBRHook_Render);
+    } catch (const std::runtime_error& e) {
+        Dbg(e.what());
+    }
     gCfg = Config::fromFile("Plugins\\openRBRVR.ini");
     gSavedCfg = gCfg;
 }

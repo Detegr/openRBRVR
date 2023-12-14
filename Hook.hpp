@@ -19,20 +19,20 @@ struct Hook {
         : src(src)
     {
         if (MH_CreateHook(reinterpret_cast<void*>(src), reinterpret_cast<void*>(tgt), reinterpret_cast<void**>(&call)) != MH_OK) {
-            throw std::exception("Could not hook");
+            throw std::runtime_error("Could not hook");
         }
         Enable();
     }
     void Enable()
     {
         if (MH_EnableHook(src) != MH_OK) {
-            throw std::exception("Could not disable hook");
+            throw std::runtime_error("Could not disable hook");
         }
     }
     void Disable()
     {
         if (MH_DisableHook(src) != MH_OK) {
-            throw std::exception("Could not disable hook");
+            throw std::runtime_error("Could not disable hook");
         }
     }
     Hook(const Hook&) = delete;
