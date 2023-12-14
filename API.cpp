@@ -27,7 +27,10 @@ extern "C" __declspec(dllexport) int32_t openRBRVR_Exec(ApiOperations ops, uint6
         return 1;
     }
     if (ops & RECENTER_VR_VIEW) {
-        vr::VRChaperone()->ResetZeroPose(vr::ETrackingUniverseOrigin::TrackingUniverseSeated);
+        auto chaperone = vr::VRChaperone();
+        if (chaperone) {
+            chaperone->ResetZeroPose(vr::ETrackingUniverseOrigin::TrackingUniverseSeated);
+        }
     }
     if (ops & TOGGLE_DEBUG_INFO) {
         gCfg.debug = !gCfg.debug;

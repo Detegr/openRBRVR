@@ -10,6 +10,7 @@
 #include "D3D.hpp"
 #include "Hook.hpp"
 #include "Licenses.hpp"
+#include "Menu.hpp"
 #include "Quaternion.hpp"
 #include "Util.hpp"
 #include "VR.hpp"
@@ -21,8 +22,7 @@
 IRBRGame* gGame;
 
 static IDirect3DDevice9* gD3Ddev = nullptr;
-Config gCfg;
-static Config gSavedCfg;
+Config gCfg, gSavedCfg;
 
 namespace shader {
     static M4 gCurrentProjectionMatrix;
@@ -558,9 +558,6 @@ IDirect3D9* __stdcall DXHook_Direct3DCreate9(UINT SDKVersion)
 
 openRBRVR::openRBRVR(IRBRGame* g)
     : game(g)
-    , menuIdx(0)
-    , menuPage(0)
-    , menuScroll(0)
 {
     gGame = g;
     Dbg("Hooking DirectX");
@@ -582,8 +579,7 @@ openRBRVR::openRBRVR(IRBRGame* g)
     } catch (const std::runtime_error& e) {
         Dbg(e.what());
     }
-    gCfg = Config::fromFile("Plugins\\openRBRVR.ini");
-    gSavedCfg = gCfg;
+    gCfg = gSavedCfg = Config::fromFile("Plugins\\openRBRVR.ini");
 }
 
 openRBRVR::~openRBRVR()
@@ -591,187 +587,24 @@ openRBRVR::~openRBRVR()
     ShutdownVR();
 }
 
-static Config::HorizonLock ChangeHorizonLock(Config::HorizonLock lock, bool forward)
-{
-    switch (lock) {
-        case Config::HorizonLock::LOCK_NONE:
-            return forward ? Config::HorizonLock::LOCK_ROLL : static_cast<Config::HorizonLock>((Config::HorizonLock::LOCK_ROLL | Config::HorizonLock::LOCK_PITCH));
-        case Config::HorizonLock::LOCK_ROLL:
-            return forward ? Config::HorizonLock::LOCK_PITCH : Config::HorizonLock::LOCK_NONE;
-        case Config::HorizonLock::LOCK_PITCH:
-            return forward ? static_cast<Config::HorizonLock>((Config::HorizonLock::LOCK_ROLL | Config::HorizonLock::LOCK_PITCH)) : Config::HorizonLock::LOCK_ROLL;
-        case (Config::HorizonLock::LOCK_ROLL | Config::HorizonLock::LOCK_PITCH):
-            return forward ? Config::HorizonLock::LOCK_NONE : Config::HorizonLock::LOCK_PITCH;
-        default:
-            return Config::HorizonLock::LOCK_NONE;
-    }
-}
-
-enum MenuItems {
-    RECENTER_VIEW = 0,
-    TOGGLE_DEBUG = 1,
-    COMPANION_WINDOW = 2,
-    LOADING_SCREEN = 3,
-    HORIZON = 4,
-    RENDER_3D = 5,
-    LICENSES = 6,
-    SAVE = 7,
-    MENU_ITEM_COUNT = 8,
-};
-
-void ChangeRenderIn3dSettings(bool forward)
-{
-    if (forward && gCfg.renderMainMenu3d) {
-        gCfg.renderMainMenu3d = false;
-        gCfg.renderPreStage3d = false;
-        gCfg.renderPauseMenu3d = false;
-    } else if (forward) {
-        gCfg.renderMainMenu3d = gCfg.renderPreStage3d;
-        gCfg.renderPreStage3d = gCfg.renderPauseMenu3d;
-        gCfg.renderPauseMenu3d = true;
-    } else {
-        gCfg.renderPauseMenu3d = gCfg.renderPreStage3d;
-        gCfg.renderPreStage3d = gCfg.renderMainMenu3d;
-        gCfg.renderMainMenu3d = false;
-    }
-}
-
 void openRBRVR::HandleFrontEndEvents(char txtKeyboard, bool bUp, bool bDown, bool bLeft, bool bRight, bool bSelect)
 {
-    if (menuPage == 0) {
-        if (bDown) {
-            (++menuIdx) %= MENU_ITEM_COUNT;
-            if (menuIdx == SAVE && gCfg == gSavedCfg) {
-                (++menuIdx) %= MENU_ITEM_COUNT;
-            }
-        } else if (bUp) {
-            if (--menuIdx < 0) {
-                menuIdx = MENU_ITEM_COUNT - 2;
-            }
-        } else if (bSelect) {
-            switch (menuIdx) {
-                case RECENTER_VIEW: {
-                    vr::VRChaperone()->ResetZeroPose(vr::ETrackingUniverseOrigin::TrackingUniverseSeated);
-                    break;
-                }
-                case TOGGLE_DEBUG: {
-                    gCfg.debug = !gCfg.debug;
-                    break;
-                }
-                case COMPANION_WINDOW: {
-                    gCfg.drawCompanionWindow = !gCfg.drawCompanionWindow;
-                    break;
-                }
-                case LOADING_SCREEN: {
-                    gCfg.drawLoadingScreen = !gCfg.drawLoadingScreen;
-                    break;
-                }
-                case HORIZON: {
-                    gCfg.lockToHorizon = ChangeHorizonLock(gCfg.lockToHorizon, true);
-                    break;
-                }
-                case RENDER_3D: {
-                    ChangeRenderIn3dSettings(true);
-                    break;
-                }
-                case LICENSES: {
-                    menuPage = 1;
-                    break;
-                }
-                case SAVE: {
-                    if (gCfg.Write("Plugins\\openRBRVR.ini")) {
-                        gSavedCfg = gCfg;
-                    }
-                    break;
-                }
-                default:
-                    break;
-            }
-        } else if (bLeft) {
-            switch (menuIdx) {
-                case TOGGLE_DEBUG: {
-                    gCfg.debug = !gCfg.debug;
-                    break;
-                }
-                case COMPANION_WINDOW: {
-                    gCfg.drawCompanionWindow = !gCfg.drawCompanionWindow;
-                    break;
-                }
-                case LOADING_SCREEN: {
-                    gCfg.drawLoadingScreen = !gCfg.drawLoadingScreen;
-                    break;
-                }
-                case HORIZON: {
-                    gCfg.lockToHorizon = ChangeHorizonLock(gCfg.lockToHorizon, false);
-                    break;
-                }
-                case RENDER_3D: {
-                    ChangeRenderIn3dSettings(false);
-                    break;
-                }
-            }
-        } else if (bRight) {
-            switch (menuIdx) {
-                case TOGGLE_DEBUG: {
-                    gCfg.debug = !gCfg.debug;
-                    break;
-                }
-                case COMPANION_WINDOW: {
-                    gCfg.drawCompanionWindow = !gCfg.drawCompanionWindow;
-                    break;
-                }
-                case LOADING_SCREEN: {
-                    gCfg.drawLoadingScreen = !gCfg.drawLoadingScreen;
-                    break;
-                }
-                case HORIZON: {
-                    gCfg.lockToHorizon = ChangeHorizonLock(gCfg.lockToHorizon, true);
-                    break;
-                }
-                case RENDER_3D: {
-                    ChangeRenderIn3dSettings(true);
-                    break;
-                }
-            }
-        }
-    } else if (menuPage == 1) {
-        if (bSelect || bLeft) {
-            menuPage = 0;
-        } else if (bDown) {
-            if (menuScroll < gLicenseInformation.size()) {
-                menuScroll++;
-            }
-        } else if (bUp) {
-            if (menuScroll > 0) {
-                menuScroll--;
-            }
-        }
+    if (bSelect) {
+        gMenu->Select();
+    }
+    if (bUp) {
+        gMenu->Up();
+    }
+    if (bDown) {
+        gMenu->Down();
+    }
+    if (bLeft) {
+        gMenu->Left();
+    }
+    if (bRight) {
+        gMenu->Right();
     }
 }
-
-static std::string GetHorizonLockStr()
-{
-    switch (gCfg.lockToHorizon) {
-        case Config::HorizonLock::LOCK_NONE:
-            return "Off";
-        case Config::HorizonLock::LOCK_ROLL:
-            return "Roll";
-        case Config::HorizonLock::LOCK_PITCH:
-            return "Pitch";
-        case (Config::HorizonLock::LOCK_ROLL | Config::HorizonLock::LOCK_PITCH):
-            return "Pitch and roll";
-        default:
-            return "Unknown";
-    }
-}
-
-struct MenuEntry {
-    std::string text;
-    std::optional<IRBRGame::EFonts> font;
-    std::optional<IRBRGame::EMenuColors> menuColor;
-    std::optional<std::tuple<float, float, float, float>> color;
-    std::optional<std::tuple<float, float>> position;
-};
 
 void openRBRVR::DrawMenuEntries(const std::ranges::forward_range auto& entries, float rowHeight)
 {
@@ -785,7 +618,7 @@ void openRBRVR::DrawMenuEntries(const std::ranges::forward_range auto& entries, 
         if (entry.menuColor) {
             game->SetMenuColor(entry.menuColor.value());
         } else if (entry.color) {
-            auto [r, g, b, a] = entry.color.value();
+            auto [r, g, b, a] = entry.color.value()();
             game->SetColor(r, g, b, a);
         }
         if (entry.position) {
@@ -793,73 +626,25 @@ void openRBRVR::DrawMenuEntries(const std::ranges::forward_range auto& entries, 
             x = newx;
             y = newy;
         }
-        game->WriteText(x, y, entry.text.c_str());
+        game->WriteText(x, y, entry.text().c_str());
         y += rowHeight;
     }
+    game->SetFont(IRBRGame::EFonts::FONT_SMALL);
+    game->SetColor(0.7f, 0.7f, 0.7f, 1.0f);
+    game->WriteText(10.0f, 458.0f, "https://github.com/Detegr/openRBRVR");
 }
 
 void openRBRVR::DrawFrontEndPage()
 {
-    constexpr auto menuItemsStartPos = 70.0f;
-    constexpr auto rowHeight = 21.0f;
-    constexpr auto licenseRowHeight = 14.0f;
-    constexpr auto configurationTextColor = std::make_tuple(0.7f, 0.7f, 0.7f, 1.0f);
+    constexpr auto menuItemsStartHeight = 70.0f;
 
-    MenuEntry renderResolution;
-
-    if (gHMD) {
-        const auto& [lw, lh] = GetRenderResolution(LeftEye);
-        const auto& [rw, rh] = GetRenderResolution(RightEye);
-        renderResolution = { std::format("Render resolution: {}x{} (left), {}x{} (right)", lw, lh, rw, rh) };
-    } else {
-        renderResolution = { "VR mode not initialized" };
+    game->DrawBlackOut(0.0f, 0.0f, 0.0f, 0.0f);
+    if (gMenu->Index() >= 0) {
+        game->DrawSelection(0.0f, menuItemsStartHeight - 2.0f + (static_cast<float>(gMenu->Index()) * gMenu->RowHeight()), 440.0f);
     }
 
-    switch (menuPage) {
-        case 0: {
-            game->DrawBlackOut(520.0f, 0.0f, 190.0f, 500.0f);
-            game->DrawSelection(0.0f, menuItemsStartPos - 2.0f + (static_cast<float>(menuIdx) * rowHeight), 440.0f);
-
-            // clang-format off
-            DrawMenuEntries(std::to_array<MenuEntry>({
-                {"openRBRVR", IRBRGame::EFonts::FONT_BIG, IRBRGame::EMenuColors::MENU_HEADING, std::nullopt, std::make_tuple(65.0f, 49.0f)},
-                {"Recenter view", std::nullopt, IRBRGame::EMenuColors::MENU_TEXT, std::nullopt, std::make_tuple(65.0f, menuItemsStartPos)},
-                {std::format("Debug information: {}", gCfg.debug ? "ON" : "OFF")},
-                {std::format("Draw desktop window: {}", gCfg.drawCompanionWindow ? "ON" : "OFF")},
-                {std::format("Draw loading screen: {}", gCfg.drawLoadingScreen ? "ON" : "OFF")},
-                {std::format("Lock horizon: {}", GetHorizonLockStr())},
-                {std::format("Render in 3D: [{}] pause menu, [{}] pre-stage, [{}] main menu",
-                    gCfg.renderPauseMenu3d ? "x" : " ",
-                    gCfg.renderPreStage3d ? "x" : " ",
-                    gCfg.renderMainMenu3d ? "x" : " ")},
-                {"Licenses"},
-                {.text = "Save the current config to openRBRVR.ini", .color = (gCfg == gSavedCfg) ? std::make_tuple(0.5f, 0.5f, 0.5f, 1.0f) : std::make_tuple(1.0f, 1.0f, 1.0f, 1.0f)},
-                {""},
-                {"Configuration:", IRBRGame::EFonts::FONT_BIG, std::nullopt, configurationTextColor},
-                {std::format("Menu size: {:.2f}", gCfg.menuSize), IRBRGame::EFonts::FONT_SMALL},
-                {std::format("Overlay size: {:.2f}", gCfg.overlaySize)},
-                {std::format("Supersampling: {:.2f}", gCfg.superSampling)},
-                renderResolution,
-                {"https://github.com/Detegr/openRBRVR", std::nullopt, std::nullopt, std::nullopt, std::make_tuple(10.0f, 500.0f - rowHeight*2)},
-            }));
-            //clang-format on
-            break;
-        }
-        case 1: {
-            game->SetFont(IRBRGame::EFonts::FONT_SMALL);
-            game->DrawBlackOut(520.0f, 0.0f, 190.0f, 500.0f);
-            game->SetFont(IRBRGame::EFonts::FONT_BIG);
-            game->SetMenuColor(IRBRGame::EMenuColors::MENU_HEADING);
-            game->WriteText(65.0f, 10.0f, "openRBRVR licenses");
-            game->SetMenuColor(IRBRGame::EMenuColors::MENU_TEXT);
-            game->WriteText(10.0f, 10.0f + rowHeight, "Press enter or left to go back");
-            game->SetFont(IRBRGame::EFonts::FONT_SMALL);
-            uint32_t i = 0;
-            for (auto& row : gLicenseInformation) {
-                if (i++ < menuScroll)
-                    continue;
-                game->WriteText(10.0f, 10.0f + rowHeight * 2 + (licenseRowHeight * (i - menuScroll)), row);
-            }
-        }
-    }
+    game->SetFont(IRBRGame::EFonts::FONT_BIG);
+    game->SetMenuColor(IRBRGame::EMenuColors::MENU_HEADING);
+    game->WriteText(65.0f, 49.0f, gMenu->Heading());
+    DrawMenuEntries(gMenu->Entries(), gMenu->RowHeight());
 }

@@ -6,9 +6,10 @@ set(CMAKE_CXX_STANDARD 20)
 
 set(SOURCES
     "API.cpp"
+    "Menu.cpp"
+    "openRBRVR.cpp"
     "VR.cpp"
     "Vertex.cpp"
-    "openRBRVR.cpp"
 )
 
 set(HEADERS
@@ -19,6 +20,7 @@ set(HEADERS
     "Hook.hpp"
     "IPlugin.h"
     "Licenses.hpp"
+    "Menu.hpp"
     "Util.hpp"
     "VR.hpp"
     "Vertex.hpp"

@@ -7,10 +7,6 @@
 class openRBRVR : public IPlugin {
     IRBRGame* game;
 
-    int32_t menuIdx;
-    uint32_t menuPage;
-    uint32_t menuScroll;
-
 public:
     openRBRVR(IRBRGame* g);
     virtual ~openRBRVR(void);
