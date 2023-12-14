@@ -1,3 +1,8 @@
+## Unreleased
+
+- Improve internal error handling
+- Renew the Options -> Plugins -> openRBRVR menu
+
 ## 0.3.1
 
 - Fix main menu clipping too early
