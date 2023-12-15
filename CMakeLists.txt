@@ -30,8 +30,8 @@ set(HEADERS
 )
 
 set(openRBRVR_Major 0)
-set(openRBRVR_Minor 3)
-set(openRBRVR_Patch 1)
+set(openRBRVR_Minor 4)
+set(openRBRVR_Patch 0)
 set(openRBRVR_Tweak 0)
 # set(openRBRVR_TweakStr "-beta${openRBRVR_Tweak}")
 
