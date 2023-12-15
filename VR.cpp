@@ -5,6 +5,8 @@
 
 #include <format>
 
+extern Config gCfg;
+
 IDirect3DVR9* gD3DVR = nullptr;
 vr::IVRSystem* gHMD = nullptr;
 vr::IVRCompositor* gCompositor = nullptr;
@@ -23,6 +25,11 @@ static D3D9_TEXTURE_VR_DESC dxvkTexture[2];
 static IDirect3DVertexBuffer9* quadVertexBuf[2];
 static IDirect3DVertexBuffer9* companionWindowVertexBuf;
 static constexpr D3DMATRIX identityMatrix = D3DFromM4(glm::identity<glm::mat4x4>());
+
+constexpr static bool IsAAEnabledForRenderTarget(RenderTarget t)
+{
+    return gCfg.msaa > 0 && t < 2;
+}
 
 constexpr static M4 GetProjectionMatrix(RenderTarget eye, float zNear, float zFar)
 {
@@ -61,9 +68,19 @@ bool CreateCompanionWindowBuffer(IDirect3DDevice9* dev)
     return true;
 }
 
-static bool CreateTexture(IDirect3DDevice9* dev, RenderTarget tgt, D3DFORMAT fmt, uint32_t w, uint32_t h)
+static bool CreateRenderTarget(IDirect3DDevice9* dev, RenderTarget tgt, D3DFORMAT fmt, uint32_t w, uint32_t h)
 {
-    auto ret = dev->CreateTexture(w, h, 1, D3DUSAGE_RENDERTARGET, fmt, D3DPOOL_DEFAULT, &dxTexture[tgt], nullptr);
+    HRESULT ret = 0;
+    // If anti-aliasing is enabled, we need to first render into an anti-aliased render target.
+    // If not, we can render directly to a texture that has D3DUSAGE_RENDERTARGET set.
+    if (IsAAEnabledForRenderTarget(tgt)) {
+        ret |= dev->CreateRenderTarget(w, h, fmt, gCfg.msaa, 0, false, &dxSurface[tgt], nullptr);
+    }
+    ret |= dev->CreateTexture(w, h, 1, D3DUSAGE_RENDERTARGET, fmt, D3DPOOL_DEFAULT, &dxTexture[tgt], nullptr);
+    if (ret != D3D_OK) {
+        Dbg("D3D initialization failed: CreateRenderTarget");
+        return false;
+    }
     static D3DFORMAT depthStencilFormat;
     if (depthStencilFormat == D3DFMT_UNKNOWN) {
         D3DFORMAT wantedFormats[] = {
@@ -89,17 +106,18 @@ static bool CreateTexture(IDirect3DDevice9* dev, RenderTarget tgt, D3DFORMAT fmt
             }
         }
     }
-    ret |= dev->CreateDepthStencilSurface(w, h, depthStencilFormat, D3DMULTISAMPLE_NONE, 0, TRUE, &dxDepthStencilSurface[tgt], nullptr);
+    auto msaa = IsAAEnabledForRenderTarget(tgt) ? gCfg.msaa : D3DMULTISAMPLE_NONE;
+    ret |= dev->CreateDepthStencilSurface(w, h, depthStencilFormat, msaa, 0, TRUE, &dxDepthStencilSurface[tgt], nullptr);
     if (FAILED(ret)) {
-        Dbg("D3D initialization failed: CreateTexture");
+        Dbg("D3D initialization failed: CreateRenderTarget");
         return false;
     }
     return true;
 }
 
-static bool CreateVRTexture(IDirect3DDevice9* dev, RenderTarget eye, uint32_t w, uint32_t h)
+static bool CreateVRRenderTarget(IDirect3DDevice9* dev, RenderTarget eye, uint32_t w, uint32_t h)
 {
-    CreateTexture(dev, eye, D3DFMT_X8R8G8B8, w, h);
+    CreateRenderTarget(dev, eye, D3DFMT_X8R8G8B8, w, h);
     openvrTexture[eye].handle = reinterpret_cast<void*>(&dxvkTexture[eye]);
     openvrTexture[eye].eType = vr::TextureType_Vulkan;
     openvrTexture[eye].eColorSpace = vr::ColorSpace_Auto;
@@ -182,13 +200,13 @@ bool InitVR(IDirect3DDevice9* dev, const Config& cfg, IDirect3DVR9** vrdev, uint
     // 	VRExtDisplay->GetWindowBounds(&x, &y, &w, &h);
     // }
 
-    if (!CreateVRTexture(dev, LeftEye, wss, hss))
+    if (!CreateVRRenderTarget(dev, LeftEye, wss, hss))
         return false;
-    if (!CreateVRTexture(dev, RightEye, wss, hss))
+    if (!CreateVRRenderTarget(dev, RightEye, wss, hss))
         return false;
-    if (!CreateTexture(dev, Menu, D3DFMT_X8B8G8R8, companionWindowWidth, companionWindowHeight))
+    if (!CreateRenderTarget(dev, Menu, D3DFMT_X8B8G8R8, companionWindowWidth, companionWindowHeight))
         return false;
-    if (!CreateTexture(dev, Overlay, D3DFMT_A8B8G8R8, companionWindowWidth, companionWindowHeight))
+    if (!CreateRenderTarget(dev, Overlay, D3DFMT_A8B8G8R8, companionWindowWidth, companionWindowHeight))
         return false;
 
     // Create and fill a vertex buffers for the 2D planes
@@ -275,19 +293,21 @@ static constexpr std::string VRCompositorErrorStr(vr::VRCompositorError e)
 
 IDirect3DSurface9* PrepareVRRendering(IDirect3DDevice9* dev, RenderTarget tgt, bool clear)
 {
-    if (dxTexture[tgt]->GetSurfaceLevel(0, &dxSurface[tgt]) != D3D_OK) {
-        Dbg("PrepareVRRendering: Failed to get surface level");
-        dxSurface[tgt] = nullptr;
-        return nullptr;
+    if (!IsAAEnabledForRenderTarget(tgt)) {
+        if (dxTexture[tgt]->GetSurfaceLevel(0, &dxSurface[tgt]) != D3D_OK) {
+            Dbg("PrepareVRRendering: Failed to get surface level");
+            dxSurface[tgt] = nullptr;
+            return nullptr;
+        }
     }
     if (dev->SetRenderTarget(0, dxSurface[tgt]) != D3D_OK) {
         Dbg("PrepareVRRendering: Failed to set render target");
-        dxSurface[tgt]->Release();
+        FinishVRRendering(dev, tgt);
         return nullptr;
     }
     if (dev->SetDepthStencilSurface(dxDepthStencilSurface[tgt]) != D3D_OK) {
         Dbg("PrepareVRRendering: Failed to set depth stencil surface");
-        dxSurface[tgt]->Release();
+        FinishVRRendering(dev, tgt);
         return nullptr;
     }
     if (clear) {
@@ -300,7 +320,7 @@ IDirect3DSurface9* PrepareVRRendering(IDirect3DDevice9* dev, RenderTarget tgt, b
 
 void FinishVRRendering(IDirect3DDevice9* dev, RenderTarget tgt)
 {
-    if (dxSurface[tgt]) [[likely]] {
+    if (!IsAAEnabledForRenderTarget(tgt) && dxSurface[tgt]) {
         dxSurface[tgt]->Release();
         dxSurface[tgt] = nullptr;
     }
@@ -318,6 +338,12 @@ void SubmitFramesToHMD(IDirect3DDevice9* dev)
         Dbg("Failed to get right eye surface");
         leftEye->Release();
         return;
+    }
+
+    if (gCfg.msaa != D3DMULTISAMPLE_NONE) {
+        // Resolve multisampling
+        dev->StretchRect(dxSurface[LeftEye], nullptr, leftEye, nullptr, D3DTEXF_NONE);
+        dev->StretchRect(dxSurface[RightEye], nullptr, rightEye, nullptr, D3DTEXF_NONE);
     }
 
     if (gD3DVR->TransferSurfaceForVR(leftEye) != D3D_OK) {

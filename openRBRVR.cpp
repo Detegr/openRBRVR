@@ -354,6 +354,8 @@ HRESULT __stdcall DXHook_Present(IDirect3DDevice9* This, const RECT* pSourceRect
         const auto& [lw, lh] = GetRenderResolution(LeftEye);
         const auto& [rw, rh] = GetRenderResolution(RightEye);
         gGame->WriteText(0, 18 * 6, std::format("Render resolution: {}x{} (left), {}x{} (right)", lw, lh, rw, rh).c_str());
+        gGame->WriteText(0, 18 * 7, std::format("Anti-aliasing: {}x", static_cast<int>(gCfg.msaa)).c_str());
+        gGame->WriteText(0, 18 * 8, std::format("Anisotropic filtering: {}x", gCfg.anisotropy).c_str());
     }
 
     return ret;
@@ -496,12 +498,36 @@ HRESULT __stdcall DXHook_CreateDevice(
     IDirect3DDevice9** ppReturnedDeviceInterface)
 {
     IDirect3DDevice9* dev = nullptr;
+    if (gCfg.msaa != D3DMULTISAMPLE_NONE) {
+        DWORD q = 0;
+        if (This->CheckDeviceMultiSampleType(Adapter, DeviceType, D3DFMT_X8R8G8B8, true, gCfg.msaa, &q) != D3D_OK) {
+            Dbg("Selected MSAA mode not supported");
+            gCfg.msaa = D3DMULTISAMPLE_NONE;
+        }
+        pPresentationParameters->MultiSampleType = gCfg.msaa;
+        pPresentationParameters->MultiSampleQuality = q > 0 ? q - 1 : 0;
+    }
     auto ret = hooks::createdevice.call(This, Adapter, DeviceType, hFocusWindow, BehaviorFlags, pPresentationParameters, &dev);
     if (FAILED(ret)) {
         Dbg("D3D initialization failed: CreateDevice");
         return ret;
     }
+
+    D3DCAPS9 caps;
+    dev->GetDeviceCaps(&caps);
+
+    if (caps.MaxAnisotropy < gCfg.anisotropy) {
+        gCfg.anisotropy = caps.MaxAnisotropy;
+    }
+
     *ppReturnedDeviceInterface = dev;
+    if (gCfg.msaa != D3DMULTISAMPLE_NONE) {
+        dev->SetRenderState(D3DRS_MULTISAMPLEANTIALIAS, 1);
+    }
+
+    for (auto i = D3DVERTEXTEXTURESAMPLER0; i <= D3DVERTEXTEXTURESAMPLER3; ++i) {
+        dev->SetSamplerState(i, D3DSAMP_MAXANISOTROPY, gCfg.anisotropy);
+    }
 
     auto devvtbl = GetVtable<IDirect3DDevice9Vtbl>(dev);
     try {

@@ -8,6 +8,8 @@
 #include <sstream>
 #include <string>
 
+#include <d3d9.h>
+
 #include "Util.hpp"
 #include "glm/vec3.hpp"
 
@@ -48,6 +50,8 @@ struct Config {
     bool renderMainMenu3d;
     bool renderPauseMenu3d;
     bool renderPreStage3d;
+    D3DMULTISAMPLE_TYPE msaa;
+    int anisotropy;
 
     auto operator<=>(const Config&) const = default;
 
@@ -107,6 +111,8 @@ struct Config {
             .renderMainMenu3d = false,
             .renderPauseMenu3d = true,
             .renderPreStage3d = false,
+            .msaa = D3DMULTISAMPLE_NONE,
+            .anisotropy = -1,
         };
 
         if (!std::filesystem::exists(path)) {
@@ -165,6 +171,30 @@ struct Config {
             } else if (key == "renderPreStage3d") {
                 cfg.renderPreStage3d = (value == "true");
             }
+        }
+
+        std::ifstream dxvkConfig("dxvk.conf");
+        if (dxvkConfig.good()) {
+            while (std::getline(dxvkConfig, line)) {
+                auto end = std::remove_if(line.begin(), line.end(), isspace);
+                auto s = std::string(line.begin(), end);
+                if (s.starts_with("d3d9.forceSwapchainMSAA")) {
+                    std::stringstream ss { s };
+                    std::string key, value;
+                    std::getline(ss, key, '=');
+                    std::getline(ss, value);
+                    cfg.msaa = std::max<D3DMULTISAMPLE_TYPE>(D3DMULTISAMPLE_NONE, static_cast<D3DMULTISAMPLE_TYPE>(intOrDefault(value, 0)));
+                }
+                if (s.starts_with("d3d9.samplerAnisotropy")) {
+                    std::stringstream ss { s };
+                    std::string key, value;
+                    std::getline(ss, key, '=');
+                    std::getline(ss, value);
+                    cfg.anisotropy = std::max<int>(intOrDefault(value, 0), 0);
+                }
+            }
+        } else {
+            cfg.msaa = D3DMULTISAMPLE_NONE;
         }
         return cfg;
     }
