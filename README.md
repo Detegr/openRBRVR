@@ -80,6 +80,16 @@ launcher). To set the FoV override, do the following steps:
 - **Copy openRBRVR d3d9.dll into the RBR folder again**.
 - Launch `RichardBurnsRally_SSE.exe`.
 
+## Enabling anti-aliasing and anisotropic filtering
+
+To enable anti-aliasing, modify these values from `dxvk.conf` in RBR folder:
+
+`d3d9.forceSwapchainMSAA` anti-alias level. Use one of 0, 2, 4, 8.
+`d3d9.samplerAnisotropy` anisotropic filtering level. Use one of 0, 2, 4, 8 or 16.
+`d3d9.forceSampleRateShading` set to `true`, otherwise there won't be much of an effect at all.
+
+Note that the RSF launcher might modify these values as well if the 2D mode settings are changed.
+
 ## Known bugs and limitations
 
 - The seat position cannot be changed via keyboard. PaceNote plugin can and
