@@ -1,5 +1,7 @@
-## Unreleased
+## 0.4.0
 
+- Add support for anti-aliasing and anisotropic filtering
+- Tweak stage rendering to reduce object clipping on close contact
 - Improve internal error handling
 - Renew the Options -> Plugins -> openRBRVR menu
 
