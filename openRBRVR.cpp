@@ -634,7 +634,6 @@ void openRBRVR::HandleFrontEndEvents(char txtKeyboard, bool bUp, bool bDown, boo
 
 void openRBRVR::DrawMenuEntries(const std::ranges::forward_range auto& entries, float rowHeight)
 {
-    auto i = 0;
     auto x = 0.0f;
     auto y = 0.0f;
     for (const auto& entry : entries) {
@@ -664,7 +663,7 @@ void openRBRVR::DrawFrontEndPage()
 {
     constexpr auto menuItemsStartHeight = 70.0f;
 
-    game->DrawBlackOut(0.0f, 0.0f, 0.0f, 0.0f);
+    game->DrawBlackOut(0.0f, 200.0f, 800.0f, 10.0f);
     if (gMenu->Index() >= 0) {
         game->DrawSelection(0.0f, menuItemsStartHeight - 2.0f + (static_cast<float>(gMenu->Index()) * gMenu->RowHeight()), 440.0f);
     }
@@ -672,5 +671,16 @@ void openRBRVR::DrawFrontEndPage()
     game->SetFont(IRBRGame::EFonts::FONT_BIG);
     game->SetMenuColor(IRBRGame::EMenuColors::MENU_HEADING);
     game->WriteText(65.0f, 49.0f, gMenu->Heading());
-    DrawMenuEntries(gMenu->Entries(), gMenu->RowHeight());
+
+    const auto& entries = gMenu->Entries();
+    DrawMenuEntries(entries, gMenu->RowHeight());
+
+    game->SetFont(IRBRGame::EFonts::FONT_BIG);
+    game->SetMenuColor(IRBRGame::EMenuColors::MENU_TEXT);
+
+    auto i = 0;
+    for(const auto& txt : entries[gMenu->Index()].longText) {
+		game->WriteText(65.0f, 200.0f + ((i+1) * gMenu->RowHeight()), txt.c_str());
+        i++;
+    }
 }

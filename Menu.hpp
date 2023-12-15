@@ -12,7 +12,7 @@ using MenuFn = std::function<void()>;
 
 struct MenuEntry {
     std::function<std::string()> text;
-    std::string longText;
+    std::vector<std::string> longText;
     std::optional<IRBRGame::EFonts> font;
     std::optional<IRBRGame::EMenuColors> menuColor;
     std::optional<std::function<std::tuple<float, float, float, float>()>> color;

@@ -100,15 +100,21 @@ void Toggle(bool& value) { value = !value; }
 
 // clang-format off
 static Menu mainMenu = { "openRBRVR", {
-  { id("Recenter"), "Recenters VR view", std::nullopt, IRBRGame::EMenuColors::MENU_TEXT, std::nullopt, Menu::menuItemsStartPos, std::nullopt, std::nullopt, RecenterVR },
+  { .text = id("Recenter VR view"), .longText = {"Recenters VR view"}, .menuColor = IRBRGame::EMenuColors::MENU_TEXT, .position = Menu::menuItemsStartPos, .selectAction = RecenterVR },
   { .text = [] { return std::format("Lock horizon: {}", GetHorizonLockStr()); },
+    .longText = {
+        "Enable to rotate the car around the headset instead of rotating the headset with the car.",
+        "For some people, enabling this option gives a more comfortable VR experience.",
+        "Roll means locking the left-right axis.",
+        "Pitch means locking the front-back axis."
+    },
     .leftAction = [] { ChangeHorizonLock(false); },
     .rightAction = [] { ChangeHorizonLock(true); },
     .selectAction = [] { ChangeHorizonLock(true); },
   },
-  { .text = id("Graphics settings") , .longText = "Graphics settings", .selectAction = [] { SelectMenu(1); } },
-  { .text = id("Debug settings"), .longText = "Debug settings. Not intended to be changed unless there is a problem that needs more information.", .selectAction = [] { SelectMenu(2); } },
-  { .text = id("Licenses"), .longText = "License information of open source libraries used in the plugin's implementation.", .selectAction = [] { SelectMenu(3); } },
+  { .text = id("Graphics settings") , .longText = {"Graphics settings"}, .selectAction = [] { SelectMenu(1); } },
+  { .text = id("Debug settings"), .longText = {"Not intended to be changed unless there is a problem that needs more information."}, .selectAction = [] { SelectMenu(2); } },
+  { .text = id("Licenses"), .longText = {"License information of open source libraries used in the plugin's implementation."}, .selectAction = [] { SelectMenu(3); } },
   { .text = id("Save the current config to openRBRVR.ini"),
     .color = [] { return (gCfg == gSavedCfg) ? std::make_tuple(0.5f, 0.5f, 0.5f, 1.0f) : std::make_tuple(1.0f, 1.0f, 1.0f, 1.0f); },
     .selectAction = [] {
@@ -120,6 +126,7 @@ static Menu mainMenu = { "openRBRVR", {
 }};
 static Menu graphicsMenu = { "openRBRVR graphics settings", {
   { .text = [] { return std::format("Draw desktop window: {}", gCfg.drawCompanionWindow ? "ON" : "OFF"); },
+    .longText = { "Draw game window on the monitor.", "Found to have a performance impact on some machines."},
     .menuColor = IRBRGame::EMenuColors::MENU_TEXT,
     .position = Menu::menuItemsStartPos,
     .leftAction = [] { Toggle(gCfg.drawCompanionWindow); },
@@ -127,6 +134,7 @@ static Menu graphicsMenu = { "openRBRVR graphics settings", {
     .selectAction = [] { Toggle(gCfg.drawCompanionWindow); },
   },
   { .text = [] { return std::format("Draw loading screen: {}", gCfg.drawLoadingScreen ? "ON" : "OFF"); },
+    .longText = { "If the screen flickers while loading, turn this OFF to have a black screen while loading."},
     .leftAction = [] { Toggle(gCfg.drawLoadingScreen); },
     .rightAction = [] { Toggle(gCfg.drawLoadingScreen); },
     .selectAction = [] { Toggle(gCfg.drawLoadingScreen); },
@@ -136,6 +144,7 @@ static Menu graphicsMenu = { "openRBRVR graphics settings", {
       gCfg.renderPreStage3d ? "x" : " ",
       gCfg.renderMainMenu3d ? "x" : " ");
     },
+    .longText = { "Change to render different parts of the game in 3D than on 2D plane.", "Enabling other than pause menu may cause motion sickness to some people."},
     .leftAction = [] { ChangeRenderIn3dSettings(false); },
     .rightAction = [] { ChangeRenderIn3dSettings(true); },
     .selectAction = [] { ChangeRenderIn3dSettings(true); },
@@ -146,6 +155,7 @@ static Menu graphicsMenu = { "openRBRVR graphics settings", {
 }};
 static Menu debugMenu = { "openRBRVR debug settings", {
   { .text = [] { return std::format("Debug information: {}", gCfg.debug ? "ON" : "OFF"); },
+    .longText = {"Show a lot of technical information on the top-left of the screen."},
     .menuColor = IRBRGame::EMenuColors::MENU_TEXT,
 	.position = Menu::menuItemsStartPos,
     .leftAction = [] { Toggle(gCfg.debug); },
