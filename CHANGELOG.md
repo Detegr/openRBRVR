@@ -1,3 +1,7 @@
+## 0.4.1
+
+- Use correct aspect ratio from desktop window size for 2D planes.
+
 ## 0.4.0
 
 - Add support for anti-aliasing and anisotropic filtering

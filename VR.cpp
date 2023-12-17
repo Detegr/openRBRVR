@@ -124,20 +124,27 @@ static bool CreateVRRenderTarget(IDirect3DDevice9* dev, RenderTarget eye, uint32
     return true;
 }
 
-static bool CreateQuad(IDirect3DDevice9* dev, RenderTarget tgt)
+static bool CreateQuad(IDirect3DDevice9* dev, RenderTarget tgt, float aspect)
 {
+    constexpr auto w = 0.6f;
+    const auto h = w / aspect;
+    constexpr auto left = 0.0f;
+    constexpr auto rght = 1.0f;
+    constexpr auto top = 0.0f;
+    constexpr auto btm = 1.0f;
+    constexpr auto z = 1.0f;
     // clang-format off
     Vertex quad[] = {
-        { -0.6f, 0.35f, 1.0f, 0.0f, 0.0f, }, // Top-left
-        { 0.6f, 0.35f, 1.0f, 1.0f, 0.0f, }, // Top-right
-        { -0.6f, -0.35f, 1.0f, 0.0f, 1.0f }, // Bottom-left
-        { 0.6f, -0.35f, 1.0f, 1.0f, 1.0f } // Bottom-right
+        { -w,  h, z, left, top, },
+        {  w,  h, z, rght, top, },
+        { -w, -h, z, left, btm  },
+        {  w, -h, z, rght, btm  }
     };
+    // clang-format on
 
     // We have only 2 quads, so indexing by RenderTarget directly does not work here
     auto tgtIdx = tgt == Menu ? 0 : 1;
 
-    // clang-format on
     return CreateVertexBuffer(dev, quad, 4, &quadVertexBuf[tgtIdx]);
 }
 
@@ -209,10 +216,12 @@ bool InitVR(IDirect3DDevice9* dev, const Config& cfg, IDirect3DVR9** vrdev, uint
     if (!CreateRenderTarget(dev, Overlay, D3DFMT_A8B8G8R8, companionWindowWidth, companionWindowHeight))
         return false;
 
+    auto aspectRatio = static_cast<double>(companionWindowWidth) / static_cast<double>(companionWindowHeight);
+
     // Create and fill a vertex buffers for the 2D planes
-    if (!CreateQuad(dev, Menu))
+    if (!CreateQuad(dev, Menu, static_cast<float>(aspectRatio)))
         return false;
-    if (!CreateQuad(dev, Overlay))
+    if (!CreateQuad(dev, Overlay, static_cast<float>(aspectRatio)))
         return false;
 
     if (!CreateCompanionWindowBuffer(dev))
