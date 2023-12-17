@@ -1,6 +1,7 @@
 ## 0.4.1
 
 - Use correct aspect ratio from desktop window size for 2D planes.
+- Add "Render replays in 3D" option.
 
 ## 0.4.0
 

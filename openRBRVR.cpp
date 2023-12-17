@@ -80,12 +80,27 @@ BOOL APIENTRY DllMain(HANDLE hModule, DWORD ul_reason_for_call, LPVOID lpReserve
     return TRUE;
 }
 
+enum GameMode : uint32_t {
+    Driving = 1,
+    Pause = 2,
+    MainMenu = 3,
+    Blackout = 4,
+    Loading = 5,
+    Exiting = 6,
+    Quit = 7,
+    Replay = 8,
+    End = 9,
+    PreStage = 10,
+    Starting = 12,
+};
+
 static std::optional<RenderTarget> gVRRenderTarget;
 static std::optional<RenderTarget> gCurrent2DRenderTarget;
 static IDirect3DSurface9 *gOriginalScreenTgt, *gOriginalDepthStencil;
 static bool gDriving;
 static bool gRender3d;
-static uint32_t gGameMode;
+static GameMode gGameMode;
+static GameMode gPrevGameMode;
 static std::vector<IDirect3DVertexShader9*> gOriginalShaders;
 static std::unordered_map<std::string, IDirect3DTexture9*> gCarTextures;
 static Quaternion* gCarQuat;
@@ -116,7 +131,7 @@ static std::chrono::steady_clock::time_point gFrameStart;
 
 static bool IsLoadingBTBStage()
 {
-    return gBTBTrackStatus && *gBTBTrackStatus == 1 && gGameMode == 5;
+    return gBTBTrackStatus && *gBTBTrackStatus == 1 && gGameMode == GameMode::Loading;
 }
 
 constexpr static bool IsUsingCockpitCamera()
@@ -173,7 +188,7 @@ void RenderVROverlay(RenderTarget renderTarget2D, bool clear)
     const auto& size = renderTarget2D == Menu ? gCfg.menuSize : gCfg.overlaySize;
     const auto& translation = renderTarget2D == Overlay ? gCfg.overlayTranslation : glm::vec3 { 0.0f, -0.2f, 0.0f };
     const auto& horizLock = renderTarget2D == Overlay ? std::make_optional(gLockToHorizonMatrix) : std::nullopt;
-    const auto& projection = gGameMode == 3 ? gMainMenu3dProjection : gCockpitProjection;
+    const auto& projection = gGameMode == GameMode::MainMenu ? gMainMenu3dProjection : gCockpitProjection;
 
     if (PrepareVRRendering(gD3Ddev, LeftEye, clear)) [[likely]] {
         RenderMenuQuad(gD3Ddev, LeftEye, renderTarget2D, size, projection[LeftEye], translation, horizLock);
@@ -204,9 +219,18 @@ void __fastcall RBRHook_Render(void* p)
 
     auto ptr = reinterpret_cast<uintptr_t>(p);
     auto doRendering = *reinterpret_cast<uint32_t*>(ptr + 0x720) == 0;
-    gGameMode = *reinterpret_cast<uint32_t*>(ptr + 0x728);
-    gDriving = gGameMode == 1;
-    gRender3d = gDriving || (gCfg.renderMainMenu3d && gGameMode == 3) || (gCfg.renderPauseMenu3d && gGameMode == 2) || (gCfg.renderPreStage3d && gGameMode == 10);
+    auto gameMode = *reinterpret_cast<GameMode*>(ptr + 0x728);
+    if (gameMode != gGameMode) [[unlikely]] {
+        gPrevGameMode = gGameMode;
+        gGameMode = gameMode;
+    }
+    gDriving = gGameMode == Driving;
+    gRender3d = gDriving
+        || (gCfg.renderMainMenu3d && gGameMode == GameMode::MainMenu)
+        || (gCfg.renderPauseMenu3d && gGameMode == GameMode::Pause && gPrevGameMode != GameMode::Replay)
+        || (gCfg.renderPauseMenu3d && gGameMode == GameMode::Pause && (gPrevGameMode == GameMode::Replay && gCfg.renderReplays3d))
+        || (gCfg.renderPreStage3d && gGameMode == GameMode::PreStage)
+        || (gCfg.renderReplays3d && gGameMode == GameMode::Replay);
 
     if (gD3Ddev->GetRenderTarget(0, &gOriginalScreenTgt) != D3D_OK) [[unlikely]] {
         Dbg("Could not get render original target");
@@ -219,7 +243,7 @@ void __fastcall RBRHook_Render(void* p)
         return;
     }
 
-    if (gGameMode == 3 && !gCarTextures.empty()) [[unlikely]] {
+    if (gGameMode == GameMode::MainMenu && !gCarTextures.empty()) [[unlikely]] {
         // Clear saved car textures if we're in the menu
         // Not sure if this is needed, but better be safe than sorry,
         // the car textures will be reloaded when loading the stage.
@@ -275,7 +299,7 @@ void __fastcall RBRHook_Render(void* p)
                 }
             }
 
-            auto shouldRender = !(gGameMode == 5 && !gCfg.drawLoadingScreen);
+            auto shouldRender = !(gGameMode == GameMode::Loading && !gCfg.drawLoadingScreen);
             if (shouldRender) {
                 hooks::render.call(p);
             }
@@ -516,7 +540,7 @@ HRESULT __stdcall DXHook_CreateDevice(
     D3DCAPS9 caps;
     dev->GetDeviceCaps(&caps);
 
-    if (caps.MaxAnisotropy < gCfg.anisotropy) {
+    if (static_cast<int32_t>(caps.MaxAnisotropy) < gCfg.anisotropy) {
         gCfg.anisotropy = caps.MaxAnisotropy;
     }
 
@@ -662,9 +686,11 @@ void openRBRVR::DrawMenuEntries(const std::ranges::forward_range auto& entries, 
 void openRBRVR::DrawFrontEndPage()
 {
     constexpr auto menuItemsStartHeight = 70.0f;
+    const auto idx = gMenu->Index();
+    const auto isLicenseMenu = idx < 0;
 
-    game->DrawBlackOut(0.0f, 200.0f, 800.0f, 10.0f);
-    if (gMenu->Index() >= 0) {
+    game->DrawBlackOut(0.0f, isLicenseMenu ? 88.0f : 221.0f, 800.0f, 10.0f);
+    if (!isLicenseMenu) {
         game->DrawSelection(0.0f, menuItemsStartHeight - 2.0f + (static_cast<float>(gMenu->Index()) * gMenu->RowHeight()), 440.0f);
     }
 
@@ -679,8 +705,10 @@ void openRBRVR::DrawFrontEndPage()
     game->SetMenuColor(IRBRGame::EMenuColors::MENU_TEXT);
 
     auto i = 0;
-    for(const auto& txt : entries[gMenu->Index()].longText) {
-		game->WriteText(65.0f, 200.0f + ((i+1) * gMenu->RowHeight()), txt.c_str());
-        i++;
+    if (!isLicenseMenu) {
+        for (const auto& txt : entries[gMenu->Index()].longText) {
+            game->WriteText(65.0f, 221.0f + ((i + 1) * gMenu->RowHeight()), txt.c_str());
+            i++;
+        }
     }
 }

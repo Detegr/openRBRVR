@@ -50,6 +50,7 @@ struct Config {
     bool renderMainMenu3d;
     bool renderPauseMenu3d;
     bool renderPreStage3d;
+    bool renderReplays3d;
     D3DMULTISAMPLE_TYPE msaa;
     int anisotropy;
 
@@ -70,7 +71,8 @@ struct Config {
             "debug = {}\n"
             "renderMainMenu3d = {}\n"
             "renderPauseMenu3d = {}\n"
-            "renderPreStage3d = {}",
+            "renderPreStage3d = {}\n"
+            "renderReplays3d = {}",
             superSampling,
             menuSize,
             overlaySize,
@@ -83,7 +85,8 @@ struct Config {
             debug,
             renderMainMenu3d,
             renderPauseMenu3d,
-            renderPreStage3d);
+            renderPreStage3d,
+            renderReplays3d);
     }
 
     bool Write(const std::filesystem::path& path) const
@@ -111,6 +114,7 @@ struct Config {
             .renderMainMenu3d = false,
             .renderPauseMenu3d = true,
             .renderPreStage3d = false,
+            .renderReplays3d = false,
             .msaa = D3DMULTISAMPLE_NONE,
             .anisotropy = -1,
         };
@@ -170,6 +174,8 @@ struct Config {
                 cfg.renderPauseMenu3d = (value == "true");
             } else if (key == "renderPreStage3d") {
                 cfg.renderPreStage3d = (value == "true");
+            } else if (key == "renderReplays3d") {
+                cfg.renderReplays3d = (value == "true");
             }
         }
 
