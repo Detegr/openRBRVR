@@ -171,7 +171,7 @@ void RenderVREye(void* p, RenderTarget eye, bool clear = true)
 void RenderVROverlay(RenderTarget renderTarget2D, bool clear)
 {
     const auto& size = renderTarget2D == Menu ? gCfg.menuSize : gCfg.overlaySize;
-    const auto& translation = renderTarget2D == Overlay ? gCfg.overlayTranslation : glm::vec3 { 0.0f, 0.0f, 0.0f };
+    const auto& translation = renderTarget2D == Overlay ? gCfg.overlayTranslation : glm::vec3 { 0.0f, -0.2f, 0.0f };
     const auto& horizLock = renderTarget2D == Overlay ? std::make_optional(gLockToHorizonMatrix) : std::nullopt;
     const auto& projection = gGameMode == 3 ? gMainMenu3dProjection : gCockpitProjection;
 
