@@ -680,7 +680,7 @@ void openRBRVR::DrawMenuEntries(const std::ranges::forward_range auto& entries, 
     }
     game->SetFont(IRBRGame::EFonts::FONT_SMALL);
     game->SetColor(0.7f, 0.7f, 0.7f, 1.0f);
-    game->WriteText(10.0f, 458.0f, "https://github.com/Detegr/openRBRVR");
+    game->WriteText(10.0f, 458.0f, std::format("openRBRVR {} - https://github.com/Detegr/openRBRVR", VERSION_STR).c_str());
 }
 
 void openRBRVR::DrawFrontEndPage()
