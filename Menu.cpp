@@ -169,12 +169,19 @@ static Menu graphicsMenu = { "openRBRVR graphics settings", {
 }};
 static Menu debugMenu = { "openRBRVR debug settings", {
   { .text = [] { return std::format("Debug information: {}", gCfg.debug ? "ON" : "OFF"); },
-    .longText = {"Show a lot of technical information on the top-left of the screen."},
+    .longText = { "Show a lot of technical information on the top-left of the screen." },
     .menuColor = IRBRGame::EMenuColors::MENU_TEXT,
 	.position = Menu::menuItemsStartPos,
     .leftAction = [] { Toggle(gCfg.debug); },
     .rightAction = [] { Toggle(gCfg.debug); },
     .selectAction = [] { Toggle(gCfg.debug); },
+  },
+  { .text = [] { return std::format("Always call Present: {}", gCfg.alwaysPresent ? "ON" : "OFF"); },
+    .longText = { "Always call Present function even if the desktop window isn't rendered.","Users can experiment turning this off if there are crashes or freezes when using the", "plugin." },
+    .menuColor = IRBRGame::EMenuColors::MENU_TEXT,
+    .leftAction = [] { Toggle(gCfg.alwaysPresent); },
+    .rightAction = [] { Toggle(gCfg.alwaysPresent); },
+    .selectAction = [] { Toggle(gCfg.alwaysPresent); },
   },
   { .text = id("Back to previous menu"),
 	.selectAction = [] { SelectMenu(0); }

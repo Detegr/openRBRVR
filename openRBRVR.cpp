@@ -186,7 +186,7 @@ void RenderVREye(void* p, RenderTarget eye, bool clear = true)
 void RenderVROverlay(RenderTarget renderTarget2D, bool clear)
 {
     const auto& size = renderTarget2D == Menu ? gCfg.menuSize : gCfg.overlaySize;
-    const auto& translation = renderTarget2D == Overlay ? gCfg.overlayTranslation : glm::vec3 { 0.0f, -0.2f, 0.0f };
+    const auto& translation = renderTarget2D == Overlay ? gCfg.overlayTranslation : glm::vec3 { 0.0f, -0.1f, 0.0f };
     const auto& horizLock = renderTarget2D == Overlay ? std::make_optional(gLockToHorizonMatrix) : std::nullopt;
     const auto& projection = gGameMode == GameMode::MainMenu ? gMainMenu3dProjection : gCockpitProjection;
 
@@ -330,10 +330,10 @@ HRESULT __stdcall DXHook_Present(IDirect3DDevice9* This, const RECT* pSourceRect
     gOriginalDepthStencil->Release();
 
     auto ret = 0;
-    if (gHMD && gCfg.drawCompanionWindow) {
-        RenderCompanionWindowFromRenderTarget(This, gRender3d ? LeftEye : Menu);
-        ret = hooks::present.call(This, pSourceRect, pDestRect, hDestWindowOverride, pDirtyRegion);
-    } else if (!gHMD) {
+    if ((gHMD && gCfg.drawCompanionWindow) || !gHMD || gCfg.alwaysPresent) {
+        if (gCfg.drawCompanionWindow) {
+            RenderCompanionWindowFromRenderTarget(This, gRender3d ? LeftEye : Menu);
+        }
         ret = hooks::present.call(This, pSourceRect, pDestRect, hDestWindowOverride, pDirtyRegion);
     }
 

@@ -53,6 +53,7 @@ struct Config {
     bool renderReplays3d;
     D3DMULTISAMPLE_TYPE msaa;
     int anisotropy;
+    bool alwaysPresent;
 
     auto operator<=>(const Config&) const = default;
 
@@ -72,7 +73,8 @@ struct Config {
             "renderMainMenu3d = {}\n"
             "renderPauseMenu3d = {}\n"
             "renderPreStage3d = {}\n"
-            "renderReplays3d = {}",
+            "renderReplays3d = {}\n"
+            "alwaysPresent = {}",
             superSampling,
             menuSize,
             overlaySize,
@@ -86,7 +88,8 @@ struct Config {
             renderMainMenu3d,
             renderPauseMenu3d,
             renderPreStage3d,
-            renderReplays3d);
+            renderReplays3d,
+            alwaysPresent);
     }
 
     bool Write(const std::filesystem::path& path) const
@@ -117,6 +120,7 @@ struct Config {
             .renderReplays3d = false,
             .msaa = D3DMULTISAMPLE_NONE,
             .anisotropy = -1,
+            .alwaysPresent = true,
         };
 
         if (!std::filesystem::exists(path)) {
@@ -176,6 +180,8 @@ struct Config {
                 cfg.renderPreStage3d = (value == "true");
             } else if (key == "renderReplays3d") {
                 cfg.renderReplays3d = (value == "true");
+            } else if (key == "alwaysPresent") {
+                cfg.alwaysPresent = (value == "true");
             }
         }
 

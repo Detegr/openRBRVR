@@ -2,6 +2,7 @@
 
 - Use correct aspect ratio from desktop window size for 2D planes.
 - Add "Render replays in 3D" option.
+- Add "Always call Present" debug option to the debug menu.
 
 ## 0.4.0
 
