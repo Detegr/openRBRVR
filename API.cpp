@@ -21,7 +21,7 @@ enum ApiOperations : uint64_t {
     TOGGLE_DEBUG_INFO = 0b10,
 };
 
-extern "C" __declspec(dllexport) int32_t openRBRVR_Exec(ApiOperations ops, uint64_t value)
+extern "C" __declspec(dllexport) int64_t openRBRVR_Exec(ApiOperations ops, uint64_t value)
 {
     if (ops == API_VERSION) {
         return 1;
