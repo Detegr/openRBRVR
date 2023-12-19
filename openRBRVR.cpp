@@ -312,8 +312,8 @@ HRESULT __stdcall DXHook_Present(IDirect3DDevice9* This, const RECT* pSourceRect
     gOriginalDepthStencil->Release();
 
     auto ret = 0;
-    if ((gHMD && gCfg.drawCompanionWindow) || !gHMD || gCfg.alwaysPresent) {
-        if (gCfg.drawCompanionWindow) {
+    if ((gHMD && gCfg.drawCompanionWindow) || (gHMD && !gDriving) || !gHMD || gCfg.alwaysPresent) {
+        if (gCfg.drawCompanionWindow || !gDriving) {
             RenderCompanionWindowFromRenderTarget(This, gRender3d ? LeftEye : Menu);
         }
         ret = hooks::present.call(This, pSourceRect, pDestRect, hDestWindowOverride, pDirtyRegion);
