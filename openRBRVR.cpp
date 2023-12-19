@@ -59,7 +59,7 @@ static uintptr_t RBRRenderFunctionAddr = GetRBRAddress(0x47E1E0);
 static uintptr_t RBRCarQuatPtrAddr = GetRBRAddress(0x8EF660);
 static uintptr_t RBRCarInfoAddr = GetRBRAddress(0x165FC68);
 void __fastcall RBRHook_Render(void* p);
-uint32_t __stdcall RBRHook_LoadTexture(void* p, const char* texName, uint32_t a, uint32_t b, uint32_t c, uint32_t d, uint32_t e, uint32_t f, uint32_t g, uint32_t h, uint32_t i, uint32_t j, uint32_t k, IDirect3DTexture9** ppTexture);
+void __stdcall RBRHook_RenderCar(void* a, void* b);
 
 namespace hooks {
     Hook<decltype(&Direct3DCreate9)> create;
@@ -70,8 +70,8 @@ namespace hooks {
     Hook<decltype(&RBRHook_Render)> render;
     Hook<decltype(IDirect3DDevice9Vtbl::CreateVertexShader)> createvertexshader;
     Hook<decltype(IDirect3DDevice9Vtbl::SetRenderTarget)> btbsetrendertarget;
-    Hook<decltype(&RBRHook_LoadTexture)> loadtexture;
     Hook<decltype(IDirect3DDevice9Vtbl::DrawIndexedPrimitive)> drawindexedprimitive;
+    Hook<decltype(&RBRHook_RenderCar)> rendercar;
 }
 
 BOOL APIENTRY DllMain(HANDLE hModule, DWORD ul_reason_for_call, LPVOID lpReserved)
@@ -102,7 +102,6 @@ static bool gRender3d;
 static GameMode gGameMode;
 static GameMode gPrevGameMode;
 static std::vector<IDirect3DVertexShader9*> gOriginalShaders;
-static std::unordered_map<std::string, IDirect3DTexture9*> gCarTextures;
 static Quaternion* gCarQuat;
 static uint32_t* gCameraType;
 static M4 gLockToHorizonMatrix = glm::identity<M4>();
@@ -140,16 +139,6 @@ constexpr static bool IsUsingCockpitCamera()
         return false;
     }
     return (*gCameraType >= 3) && (*gCameraType <= 6);
-}
-
-static bool IsCarTexture(IDirect3DBaseTexture9* tex)
-{
-    for (const auto& entry : gCarTextures) {
-        if (std::get<1>(entry) == tex) {
-            return true;
-        }
-    }
-    return false;
 }
 
 HRESULT __stdcall DXHook_CreateVertexShader(IDirect3DDevice9* This, const DWORD* pFunction, IDirect3DVertexShader9** ppShader)
@@ -208,12 +197,12 @@ void RenderVROverlay(RenderTarget renderTarget2D, bool clear)
 // RBR 3D scene draw function is rerouted here
 void __fastcall RBRHook_Render(void* p)
 {
-    if (!hooks::loadtexture.call) [[unlikely]] {
+    if (!hooks::rendercar.call) [[unlikely]] {
         auto hedgehoghandle = reinterpret_cast<uintptr_t>(GetModuleHandle("HedgeHog3D.dll"));
         if (!hedgehoghandle) {
             Dbg("Could not get handle for HedgeHog3D");
         } else {
-            hooks::loadtexture = Hook(*reinterpret_cast<decltype(RBRHook_LoadTexture)*>(hedgehoghandle + 0xAEC15), RBRHook_LoadTexture);
+            hooks::rendercar = Hook(*reinterpret_cast<decltype(RBRHook_RenderCar)*>(hedgehoghandle + 0x7BC60), RBRHook_RenderCar);
         }
     }
 
@@ -241,13 +230,6 @@ void __fastcall RBRHook_Render(void* p)
 
     if (!doRendering) [[unlikely]] {
         return;
-    }
-
-    if (gGameMode == GameMode::MainMenu && !gCarTextures.empty()) [[unlikely]] {
-        // Clear saved car textures if we're in the menu
-        // Not sure if this is needed, but better be safe than sorry,
-        // the car textures will be reloaded when loading the stage.
-        gCarTextures.clear();
     }
 
     if (!gCameraType) [[unlikely]] {
@@ -380,9 +362,18 @@ HRESULT __stdcall DXHook_Present(IDirect3DDevice9* This, const RECT* pSourceRect
         gGame->WriteText(0, 18 * 6, std::format("Render resolution: {}x{} (left), {}x{} (right)", lw, lh, rw, rh).c_str());
         gGame->WriteText(0, 18 * 7, std::format("Anti-aliasing: {}x", static_cast<int>(gCfg.msaa)).c_str());
         gGame->WriteText(0, 18 * 8, std::format("Anisotropic filtering: {}x", gCfg.anisotropy).c_str());
+        auto i = 9;
     }
 
     return ret;
+}
+
+static bool gRenderingCar;
+void __stdcall RBRHook_RenderCar(void* a, void* b)
+{
+    gRenderingCar = true;
+    hooks::rendercar.call(a, b);
+    gRenderingCar = false;
 }
 
 HRESULT __stdcall DXHook_SetVertexShaderConstantF(IDirect3DDevice9* This, UINT StartRegister, const float* pConstantData, UINT Vector4fCount)
@@ -411,14 +402,14 @@ HRESULT __stdcall DXHook_SetVertexShaderConstantF(IDirect3DDevice9* This, UINT S
             return ret;
         }
 
-        auto isDrawingCockpit = IsUsingCockpitCamera() && IsCarTexture(texture);
+        auto isRenderingCockpit = IsUsingCockpitCamera() && gRenderingCar;
         if (texture) {
             texture->Release();
         }
 
         if (StartRegister == 0) {
             const auto orig = glm::transpose(M4FromShaderConstantPtr(pConstantData));
-            const auto& projection = isDrawingCockpit ? gCockpitProjection : gProjection;
+            const auto& projection = isRenderingCockpit ? gCockpitProjection : gProjection;
 
             // MVP matrix
             // MV = P^-1 * MVP
@@ -476,16 +467,6 @@ HRESULT __stdcall BTB_SetRenderTarget(IDirect3DDevice9* This, DWORD RenderTarget
     // to not be rendered at all. Routing the call to the D3D device created by openRBRVR,
     // it seems to work correctly.
     return gD3Ddev->SetRenderTarget(RenderTargetIndex, pRenderTarget);
-}
-
-uint32_t __stdcall RBRHook_LoadTexture(void* p, const char* texName, uint32_t a, uint32_t b, uint32_t c, uint32_t d, uint32_t e, uint32_t f, uint32_t g, uint32_t h, uint32_t i, uint32_t j, uint32_t k, IDirect3DTexture9** ppTexture)
-{
-    auto ret = hooks::loadtexture.call(p, texName, a, b, c, d, e, f, g, h, i, j, k, ppTexture);
-    std::string tex(texName);
-    if (ret == 0 && (tex.starts_with("cars\\") || tex.starts_with("cars/"))) {
-        gCarTextures[tex] = *ppTexture;
-    }
-    return ret;
 }
 
 HRESULT __stdcall DXHook_DrawIndexedPrimitive(IDirect3DDevice9* This, D3DPRIMITIVETYPE PrimitiveType, INT BaseVertexIndex, UINT MinVertexIndex, UINT NumVertices, UINT startIndex, UINT primCount)
