@@ -1,3 +1,10 @@
+## 0.4.2
+
+- Change the logic how cockpit rendering is detected. Fixes a rendering issue
+  with Skoda Fabia R5.
+- Change "Show desktop window" logic in a way that the desktop window rendering
+  is disabled only when driving mode is active.
+
 ## 0.4.1
 
 - Use correct aspect ratio from desktop window size for 2D planes.
