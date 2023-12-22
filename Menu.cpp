@@ -177,7 +177,7 @@ static Menu debugMenu = { "openRBRVR debug settings", {
     .selectAction = [] { Toggle(gCfg.debug); },
   },
   { .text = [] { return std::format("Always call Present: {}", gCfg.alwaysPresent ? "ON" : "OFF"); },
-    .longText = { "Always call Present function even if the desktop window isn't rendered.","Users can experiment turning this off if there are crashes or freezes when using the", "plugin." },
+    .longText = { "Always call Present function even if the desktop window isn't rendered.","Users can experiment turning this off if there are crashes or freezes when using the", "plugin. Implies no desktop window rendering." },
     .menuColor = IRBRGame::EMenuColors::MENU_TEXT,
     .leftAction = [] { Toggle(gCfg.alwaysPresent); },
     .rightAction = [] { Toggle(gCfg.alwaysPresent); },
