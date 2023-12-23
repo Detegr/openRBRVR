@@ -1,3 +1,9 @@
+## 0.4.3
+
+- Combine previous cockpit rendering detection logics. They both have issues
+  with certain cars so both are now used to minimize car rendering issues.
+- Fix a logic bug with "Always call Present" debug option that rendered it useless.
+
 ## 0.4.2
 
 - Change the logic how cockpit rendering is detected. Fixes a rendering issue
