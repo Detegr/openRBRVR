@@ -387,7 +387,6 @@ HRESULT __stdcall DXHook_Present(IDirect3DDevice9* This, const RECT* pSourceRect
         gGame->WriteText(0, 18 * 6, std::format("Render resolution: {}x{} (left), {}x{} (right)", lw, lh, rw, rh).c_str());
         gGame->WriteText(0, 18 * 7, std::format("Anti-aliasing: {}x", static_cast<int>(gCfg.msaa)).c_str());
         gGame->WriteText(0, 18 * 8, std::format("Anisotropic filtering: {}x", gCfg.anisotropy).c_str());
-        auto i = 9;
     }
 
     return ret;
