@@ -21,6 +21,13 @@ static std::string XrResultToString(const XrInstance& instance, XrResult res)
     return buf;
 }
 
+static std::string XrVersionToString(const XrVersion version) {
+    return std::format("{}.{}.{}",
+        version >> 48,
+        (version >> 32) & 0xFFFF,
+        version & 0xFFFFFFFF);
+}
+
 template <typename T>
 T GetExtension(XrInstance instance, const std::string& fnName)
 {
@@ -176,6 +183,19 @@ void OpenXR::Init(IDirect3DDevice9* dev, const Config& cfg, IDirect3DVR9** vrdev
     if (auto err = xrEnumerateSwapchainFormats(session, formatCount, &formatCount, swapchainFormats.data()); err != XR_SUCCESS) {
         throw std::runtime_error("Failed to enumerate swapchain formats");
     }
+    
+    Dbg(std::format("OpenXR graphicsRequirements: version {}-{}",
+        XrVersionToString(graphicsRequirements.minApiVersionSupported),
+        XrVersionToString(graphicsRequirements.maxApiVersionSupported)));
+    Dbg(std::format("OpenXR instanceExtensions: {}", GetInstanceExtensions()));
+    Dbg(std::format("OpenXR deviceExtensions: {}", GetDeviceExtensions()));
+
+    std::stringstream ss;
+    ss << "OpenXR swapchainFormats:";
+    for (auto fmt : swapchainFormats) {
+        ss << " " << fmt;
+    }
+    Dbg(ss.str());
 
     swapchainFormat = swapchainFormats.front();
 
@@ -192,6 +212,8 @@ void OpenXR::Init(IDirect3DDevice9* dev, const Config& cfg, IDirect3DVR9** vrdev
             .arraySize = 1,
             .mipCount = 1,
         };
+        Dbg(std::format("requesting swapchain: {}x{}, format {}", swapchainCreateInfo.width, swapchainCreateInfo.height, swapchainCreateInfo.format));
+
         if (auto err = xrCreateSwapchain(session, &swapchainCreateInfo, &swapchains[i]); err != XR_SUCCESS) {
             throw std::runtime_error(std::format("VR init failed. xrCreateSwapchain: {}", XrResultToString(instance, err)));
         }
