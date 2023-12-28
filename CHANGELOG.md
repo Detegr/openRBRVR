@@ -1,3 +1,9 @@
+## 0.4.4
+
+- Changes to potentially improve the stability of the plugin.
+- Fix black opaque square being rendered in front of the car in external
+  cameras if "render car shadows" was active.
+
 ## 0.4.3
 
 - Combine previous cockpit rendering detection logics. They both have issues
