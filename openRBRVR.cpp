@@ -157,7 +157,7 @@ static bool IsCarTexture(IDirect3DBaseTexture9* tex)
 HRESULT __stdcall DXHook_CreateVertexShader(IDirect3DDevice9* This, const DWORD* pFunction, IDirect3DVertexShader9** ppShader)
 {
     static int i = 0;
-    auto ret = hooks::createvertexshader.call(This, pFunction, ppShader);
+    auto ret = hooks::createvertexshader.call(gD3Ddev, pFunction, ppShader);
     if (i < 40) {
         // These are the original shaders for RBR that need
         // to be patched with the VR projection.
@@ -339,9 +339,9 @@ HRESULT __stdcall DXHook_Present(IDirect3DDevice9* This, const RECT* pSourceRect
     auto ret = 0;
     if (gCfg.alwaysPresent || !gHMD) {
         if (gHMD && (gCfg.drawCompanionWindow || !gDriving)) {
-            RenderCompanionWindowFromRenderTarget(This, gRender3d ? LeftEye : Menu);
+            RenderCompanionWindowFromRenderTarget(gD3Ddev, gRender3d ? LeftEye : Menu);
         }
-        ret = hooks::present.call(This, pSourceRect, pDestRect, hDestWindowOverride, pDirtyRegion);
+        ret = hooks::present.call(gD3Ddev, pSourceRect, pDestRect, hDestWindowOverride, pDirtyRegion);
     }
 
     if (gCfg.debug && gHMD) [[unlikely]] {
@@ -404,7 +404,7 @@ void __stdcall RBRHook_RenderCar(void* a, void* b)
 HRESULT __stdcall DXHook_SetVertexShaderConstantF(IDirect3DDevice9* This, UINT StartRegister, const float* pConstantData, UINT Vector4fCount)
 {
     IDirect3DVertexShader9* shader;
-    if (auto ret = This->GetVertexShader(&shader); ret != D3D_OK) {
+    if (auto ret = gD3Ddev->GetVertexShader(&shader); ret != D3D_OK) {
         Dbg("Could not get vertex shader");
         return ret;
     }
@@ -422,7 +422,7 @@ HRESULT __stdcall DXHook_SetVertexShaderConstantF(IDirect3DDevice9* This, UINT S
         // Separate projection matrix is used because if the small near Z value is used for all shaders
         // it will cause Z fighting (flickering) in the trackside objects. With this we get best of both worlds.
         IDirect3DBaseTexture9* texture;
-        if (auto ret = This->GetTexture(0, &texture); ret != D3D_OK) {
+        if (auto ret = gD3Ddev->GetTexture(0, &texture); ret != D3D_OK) {
             Dbg("Could not get texture");
             return ret;
         }
@@ -443,7 +443,7 @@ HRESULT __stdcall DXHook_SetVertexShaderConstantF(IDirect3DDevice9* This, UINT S
 
             // For some reason the Z-axis is pointing to the wrong direction, so it is flipped here as well
             const auto mvp = glm::transpose(projection[gVRRenderTarget.value()] * gEyePos[gVRRenderTarget.value()] * gHMDPose * gFlipZMatrix * gLockToHorizonMatrix * mv);
-            return hooks::setvertexshaderconstantf.call(This, StartRegister, glm::value_ptr(mvp), Vector4fCount);
+            return hooks::setvertexshaderconstantf.call(gD3Ddev, StartRegister, glm::value_ptr(mvp), Vector4fCount);
         } else if (StartRegister == 20) {
             // Sky/fog
             // It seems this parameter contains the orientation of the car and the
@@ -458,10 +458,10 @@ HRESULT __stdcall DXHook_SetVertexShaderConstantF(IDirect3DDevice9* This, UINT S
             const auto rotation = glm::mat4_cast(glm::conjugate(orientation));
 
             const auto m = glm::transpose(rotation * orig);
-            return hooks::setvertexshaderconstantf.call(This, StartRegister, glm::value_ptr(m), Vector4fCount);
+            return hooks::setvertexshaderconstantf.call(gD3Ddev, StartRegister, glm::value_ptr(m), Vector4fCount);
         }
     }
-    return hooks::setvertexshaderconstantf.call(This, StartRegister, pConstantData, Vector4fCount);
+    return hooks::setvertexshaderconstantf.call(gD3Ddev, StartRegister, pConstantData, Vector4fCount);
 }
 
 HRESULT __stdcall DXHook_SetTransform(IDirect3DDevice9* This, D3DTRANSFORMSTATETYPE State, const D3DMATRIX* pMatrix)
@@ -475,13 +475,13 @@ HRESULT __stdcall DXHook_SetTransform(IDirect3DDevice9* This, D3DTRANSFORMSTATET
         const auto& projection = gProjection[gVRRenderTarget.value()];
         fixedfunction::gCurrentProjectionMatrix = D3DFromM4(projection);
         fixedfunction::gCurrentProjectionMatrixInverse = glm::inverse(projection);
-        return hooks::settransform.call(This, State, &fixedfunction::gCurrentProjectionMatrix);
+        return hooks::settransform.call(gD3Ddev, State, &fixedfunction::gCurrentProjectionMatrix);
     } else if (gVRRenderTarget && State == D3DTS_VIEW) {
         fixedfunction::gCurrentViewMatrix = D3DFromM4(gEyePos[gVRRenderTarget.value()] * gHMDPose * gFlipZMatrix * gLockToHorizonMatrix * M4FromD3D(*pMatrix));
-        return hooks::settransform.call(This, State, &fixedfunction::gCurrentViewMatrix);
+        return hooks::settransform.call(gD3Ddev, State, &fixedfunction::gCurrentViewMatrix);
     }
 
-    return hooks::settransform.call(This, State, pMatrix);
+    return hooks::settransform.call(gD3Ddev, State, pMatrix);
 }
 
 HRESULT __stdcall BTB_SetRenderTarget(IDirect3DDevice9* This, DWORD RenderTargetIndex, IDirect3DSurface9* pRenderTarget)
@@ -511,23 +511,23 @@ HRESULT __stdcall DXHook_DrawIndexedPrimitive(IDirect3DDevice9* This, D3DPRIMITI
 {
     IDirect3DVertexShader9* shader;
     IDirect3DBaseTexture9* texture;
-    This->GetVertexShader(&shader);
-    This->GetTexture(0, &texture);
+    gD3Ddev->GetVertexShader(&shader);
+    gD3Ddev->GetTexture(0, &texture);
     if (gVRRenderTarget && !shader && !texture) {
         // Some parts of the car are drawn without a shader and without a texture (just black meshes)
         // We need to render these with the cockpit Z clipping values in order for them to look correct
         const auto projection = fixedfunction::gCurrentProjectionMatrix;
         const auto cockpitProjection = D3DFromM4(gCockpitProjection[gVRRenderTarget.value()]);
-        hooks::settransform.call(This, D3DTS_PROJECTION, &cockpitProjection);
-        auto ret = hooks::drawindexedprimitive.call(This, PrimitiveType, BaseVertexIndex, MinVertexIndex, NumVertices, startIndex, primCount);
-        hooks::settransform.call(This, D3DTS_PROJECTION, &fixedfunction::gCurrentProjectionMatrix);
+        hooks::settransform.call(gD3Ddev, D3DTS_PROJECTION, &cockpitProjection);
+        auto ret = hooks::drawindexedprimitive.call(gD3Ddev, PrimitiveType, BaseVertexIndex, MinVertexIndex, NumVertices, startIndex, primCount);
+        hooks::settransform.call(gD3Ddev, D3DTS_PROJECTION, &fixedfunction::gCurrentProjectionMatrix);
         return ret;
     } else {
         if (shader)
             shader->Release();
         if (texture)
             texture->Release();
-        return hooks::drawindexedprimitive.call(This, PrimitiveType, BaseVertexIndex, MinVertexIndex, NumVertices, startIndex, primCount);
+        return hooks::drawindexedprimitive.call(gD3Ddev, PrimitiveType, BaseVertexIndex, MinVertexIndex, NumVertices, startIndex, primCount);
     }
 }
 
