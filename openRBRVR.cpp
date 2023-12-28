@@ -514,6 +514,12 @@ HRESULT __stdcall DXHook_DrawIndexedPrimitive(IDirect3DDevice9* This, D3DPRIMITI
     gD3Ddev->GetVertexShader(&shader);
     gD3Ddev->GetTexture(0, &texture);
     if (gVRRenderTarget && !shader && !texture) {
+        if(!IsUsingCockpitCamera()) {
+            // Don't draw these if we're not in a cockpit camera.
+            // In this mode, a black transparent square is drawn in front of the car
+            // if car shadows are enabled.
+            return 0;
+        }
         // Some parts of the car are drawn without a shader and without a texture (just black meshes)
         // We need to render these with the cockpit Z clipping values in order for them to look correct
         const auto projection = fixedfunction::gCurrentProjectionMatrix;
