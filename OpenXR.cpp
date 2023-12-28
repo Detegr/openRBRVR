@@ -197,7 +197,11 @@ void OpenXR::Init(IDirect3DDevice9* dev, const Config& cfg, IDirect3DVR9** vrdev
     }
     Dbg(ss.str());
 
-    swapchainFormat = swapchainFormats.front();
+    if (std::find(swapchainFormats.begin(), swapchainFormats.end(), VK_FORMAT_R8G8B8A8_SRGB) != swapchainFormats.end()) {
+        swapchainFormat = VK_FORMAT_R8G8B8A8_SRGB;
+    } else {
+        swapchainFormat = swapchainFormats.front();
+    }
 
     for (size_t i = 0; i < viewConfigViews.size(); ++i) {
         XrSwapchainCreateInfo swapchainCreateInfo = {
