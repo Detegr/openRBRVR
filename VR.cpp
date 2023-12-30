@@ -339,11 +339,6 @@ void SubmitFramesToHMD(IDirect3DDevice9* dev)
 {
     IDirect3DSurface9 *leftEye, *rightEye;
 
-    if (gD3DVR->BeginVRSubmit() != D3D_OK) {
-        Dbg("BeginVRSubmit failed");
-        return;
-    }
-
     if (dxTexture[LeftEye]->GetSurfaceLevel(0, &leftEye) != D3D_OK) {
         Dbg("Failed to get left eye surface");
         return;
@@ -354,11 +349,17 @@ void SubmitFramesToHMD(IDirect3DDevice9* dev)
         return;
     }
 
+    if (gD3DVR->BeginVRSubmit() != D3D_OK) {
+        Dbg("BeginVRSubmit failed");
+        return;
+    }
+
     if (gCfg.msaa != D3DMULTISAMPLE_NONE) {
         // Resolve multisampling
         dev->StretchRect(dxSurface[LeftEye], nullptr, leftEye, nullptr, D3DTEXF_NONE);
         dev->StretchRect(dxSurface[RightEye], nullptr, rightEye, nullptr, D3DTEXF_NONE);
     }
+
     if (gD3DVR->TransferSurfaceForVR(leftEye) != D3D_OK) {
         Dbg("Failed to transfer left eye surface");
         goto release;
