@@ -1,3 +1,7 @@
+## 0.4.5
+
+- Fix tracking lag that occurred for some Oculus users.
+
 ## 0.4.4
 
 - Changes to potentially improve the stability of the plugin.
