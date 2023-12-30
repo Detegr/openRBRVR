@@ -349,15 +349,15 @@ void SubmitFramesToHMD(IDirect3DDevice9* dev)
         return;
     }
 
-    if (gD3DVR->BeginVRSubmit() != D3D_OK) {
-        Dbg("BeginVRSubmit failed");
-        return;
-    }
-
     if (gCfg.msaa != D3DMULTISAMPLE_NONE) {
         // Resolve multisampling
         dev->StretchRect(dxSurface[LeftEye], nullptr, leftEye, nullptr, D3DTEXF_NONE);
         dev->StretchRect(dxSurface[RightEye], nullptr, rightEye, nullptr, D3DTEXF_NONE);
+    }
+
+    if (gD3DVR->BeginVRSubmit() != D3D_OK) {
+        Dbg("BeginVRSubmit failed");
+        return;
     }
 
     if (gD3DVR->TransferSurfaceForVR(leftEye) != D3D_OK) {
