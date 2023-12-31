@@ -1,5 +1,21 @@
 # Frequently asked questions
 
+## The plugin does not start, Direct3DCreateVR is missing
+
+![Direct3DCreateVR missing](img/d3dcreatevr.png)
+
+The `d3d9.dll` file is not from openRBRVR release. The RSF launcher sometimes
+gets things a bit wrong, try the following steps to resolve the issue:
+
+- Close RBR
+- Change the VR plugin to RBRVR and back to openRBRVR (if you have both installed).
+
+If this does not help, try the following steps:
+
+- Close RBR
+- Disable VR mode in RSFLauncher and make sure the 2D fullscreen mode is set to "Normal" and not as "Vulkan".
+- Close RSFLauncher app and re-run the latest Rallysimfans\_Installer.exe app and choose "Update Existing Installation" (make sure the RBRVR and openRBRVR are ticked in the list of components).
+
 ## My FPS is worse than what it is in RBRVR
 
 - Disable cubic env maps
