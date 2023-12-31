@@ -37,13 +37,9 @@ This can be fixed either from the RSF launcher, NGPCarMenu, or runtime by using
 the PaceNote plugin (double click right mouse button to open up the menu).
 Values between 2.3-2.6 work fine for my wide FoV headset.
 
-## Enabling anisotropic filtering
+## Frequently asked questions
 
-RSF launcher does not show an option to change anisotropic filtering. It can be
-changed by modifying `dxvk.conf` by hand:
-
-`d3d9.samplerAnisotropy` anisotropic filtering level. Use one of 0, 2, 4, 8 or
-16.
+- See the [FAQ](https://github.com/Detegr/openRBRVR/blob/master/FAQ.md).
 
 ## Known bugs and limitations
 

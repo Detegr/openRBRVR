@@ -27,6 +27,13 @@
   some particles into the car because that is how RBR works. You can turn
   particles off if they're distracting.
 
+## How do I enable anisotropic filtering?
+
+RSF launcher does not show an option to change anisotropic filtering. It can be
+changed by modifying `dxvk.conf` by hand:
+
+- `d3d9.samplerAnisotropy` Use one of 0, 2, 4, 8 or 16.
+
 ## The texts in RBR menus are missing
 
 - Increase 2D resolution to 800x600 or above.
@@ -44,5 +51,5 @@
 ## There is shimmering and/or flickering of certain textures
 
 - This can happen without Anti-Aliasing and/or anisotropic filtering. Increase
-  [anisotropic filtering](https://github.com/Detegr/openRBRVR?tab=readme-ov-file#enabling-anisotropic-filtering)
-  and try increasing Anti-Aliasing if your system can handle it.
+  anisotropic filtering and try increasing Anti-Aliasing if your system can
+  handle it.
