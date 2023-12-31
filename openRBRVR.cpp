@@ -58,9 +58,11 @@ static uintptr_t RBRTrackIdAddr = GetRBRAddress(0x1660804);
 static uintptr_t RBRRenderFunctionAddr = GetRBRAddress(0x47E1E0);
 static uintptr_t RBRCarQuatPtrAddr = GetRBRAddress(0x8EF660);
 static uintptr_t RBRCarInfoAddr = GetRBRAddress(0x165FC68);
+static uintptr_t RBRRenderParticlesFunctionAddr = GetRBRAddress(0x5eff60); // Other possible hooking points are at 0x5efed0, 0x5effd0 and 0x5f0040
 void __fastcall RBRHook_Render(void* p);
 uint32_t __stdcall RBRHook_LoadTexture(void* p, const char* texName, uint32_t a, uint32_t b, uint32_t c, uint32_t d, uint32_t e, uint32_t f, uint32_t g, uint32_t h, uint32_t i, uint32_t j, uint32_t k, IDirect3DTexture9** ppTexture);
 void __stdcall RBRHook_RenderCar(void* a, void* b);
+void __fastcall RBRHook_RenderParticles(void* This);
 
 namespace hooks {
     Hook<decltype(&Direct3DCreate9)> create;
@@ -74,6 +76,7 @@ namespace hooks {
     Hook<decltype(&RBRHook_LoadTexture)> loadtexture;
     Hook<decltype(IDirect3DDevice9Vtbl::DrawIndexedPrimitive)> drawindexedprimitive;
     Hook<decltype(&RBRHook_RenderCar)> rendercar;
+    Hook<decltype(&RBRHook_RenderParticles)> renderparticles;
 }
 
 BOOL APIENTRY DllMain(HANDLE hModule, DWORD ul_reason_for_call, LPVOID lpReserved)
@@ -393,11 +396,19 @@ HRESULT __stdcall DXHook_Present(IDirect3DDevice9* This, const RECT* pSourceRect
 }
 
 static bool gRenderingCar;
+static bool gRenderingParticles;
 void __stdcall RBRHook_RenderCar(void* a, void* b)
 {
     gRenderingCar = true;
     hooks::rendercar.call(a, b);
     gRenderingCar = false;
+}
+
+void __fastcall RBRHook_RenderParticles(void* This)
+{
+    gRenderingParticles = true;
+    hooks::renderparticles.call(This);
+    gRenderingParticles = false;
 }
 
 HRESULT __stdcall DXHook_SetVertexShaderConstantF(IDirect3DDevice9* This, UINT StartRegister, const float* pConstantData, UINT Vector4fCount)
@@ -426,7 +437,7 @@ HRESULT __stdcall DXHook_SetVertexShaderConstantF(IDirect3DDevice9* This, UINT S
             return ret;
         }
 
-        auto isRenderingCockpit = IsUsingCockpitCamera() && (gRenderingCar || IsCarTexture(texture));
+        auto isRenderingCockpit = IsUsingCockpitCamera() && (gRenderingCar || IsCarTexture(texture) || gRenderingParticles);
         if (texture) {
             texture->Release();
         }
@@ -650,6 +661,7 @@ openRBRVR::openRBRVR(IRBRGame* g)
     try {
         hooks::create = Hook(d3dcreate, DXHook_Direct3DCreate9);
         hooks::render = Hook(*reinterpret_cast<decltype(RBRHook_Render)*>(RBRRenderFunctionAddr), RBRHook_Render);
+        hooks::renderparticles = Hook(*reinterpret_cast<decltype(RBRHook_RenderParticles)*>(RBRRenderParticlesFunctionAddr), RBRHook_RenderParticles);
     } catch (const std::runtime_error& e) {
         Dbg(e.what());
     }

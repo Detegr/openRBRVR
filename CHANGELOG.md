@@ -1,6 +1,8 @@
 ## 0.4.5
 
 - Fix tracking lag that occurred for some Oculus users.
+- Fix particle rendering issue where too much of the particles were visible
+  inside the car cockpit.
 
 ## 0.4.4
 

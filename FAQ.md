@@ -20,13 +20,6 @@
   button. Adjust the seat, hit save and close the window from the `X` in
   top-right corner.
 
-## Particles are coming inside the car
-
-- There is a [rendering bug](https://github.com/Detegr/openRBRVR/issues/3) that
-  causes the particles to be too visible inside the car. It is normal to get
-  some particles into the car because that is how RBR works. You can turn
-  particles off if they're distracting.
-
 ## How do I enable anisotropic filtering?
 
 RSF launcher does not show an option to change anisotropic filtering. It can be
