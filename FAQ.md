@@ -60,7 +60,8 @@ changed by modifying `dxvk.conf` by hand:
 
 ## What graphics settings should I use?
 
-- Depends on the hardware. I use SteamVR at 100% scaling with the following settings in the RSF launcher:
+- Depends on the hardware. I use SteamVR at 100% scaling, anisotropic filtering
+  at 16x with the following settings in the RSF launcher:
 
 ![Example settings](img/example_settings.png)
 
