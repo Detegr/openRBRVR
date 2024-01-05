@@ -1,6 +1,8 @@
 # Frequently asked questions
 
-## The plugin does not start, Direct3DCreateVR is missing
+## The plugin does not start
+
+### Direct3DCreateVR is missing
 
 ![Direct3DCreateVR missing](img/d3dcreatevr.png)
 
@@ -15,6 +17,11 @@ If this does not help, try the following steps:
 - Close RBR
 - Disable VR mode in RSFLauncher and make sure the 2D fullscreen mode is set to "Normal" and not as "Vulkan".
 - Close RSFLauncher app and re-run the latest Rallysimfans\_Installer.exe app and choose "Update Existing Installation" (make sure the RBRVR and openRBRVR are ticked in the list of components).
+
+
+### Game just crashes to desktop right away
+
+- Make sure Light plugin is not enabled. This plugin is not compatible with it.
 
 ## My FPS is worse than what it is in RBRVR
 
