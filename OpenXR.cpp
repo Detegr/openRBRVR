@@ -79,6 +79,7 @@ OpenXR::OpenXR()
     : swapchains()
     , session()
     , hasProjection(false)
+    , resetViewRequested(false)
 {
     XrApplicationInfo appInfo = {
         .applicationName = "openRBRVR",
@@ -253,12 +254,18 @@ void OpenXR::Init(IDirect3DDevice9* dev, const Config& cfg, IDirect3DVR9** vrdev
         }
     }
 
+    viewPose = { { 0, 0, 0, 1 }, { 0, 0, 0 } };
+
     XrReferenceSpaceCreateInfo spaceCreateInfo = {
         .type = XR_TYPE_REFERENCE_SPACE_CREATE_INFO,
         .referenceSpaceType = XR_REFERENCE_SPACE_TYPE_LOCAL,
-        .poseInReferenceSpace = { { 0, 0, 0, 1 }, { 0, 0, 0 } },
+        .poseInReferenceSpace = viewPose,
     };
     if (auto err = xrCreateReferenceSpace(session, &spaceCreateInfo, &space); err != XR_SUCCESS) {
+        throw std::runtime_error(std::format("Failed to initialize OpenXR. xrCreateReferenceSpace {}", XrResultToString(instance, err)));
+    }
+    spaceCreateInfo.referenceSpaceType = XR_REFERENCE_SPACE_TYPE_VIEW;
+    if (auto err = xrCreateReferenceSpace(session, &spaceCreateInfo, &viewSpace); err != XR_SUCCESS) {
         throw std::runtime_error(std::format("Failed to initialize OpenXR. xrCreateReferenceSpace {}", XrResultToString(instance, err)));
     }
 
@@ -508,6 +515,11 @@ bool OpenXR::UpdateVRPoses(Quaternion* carQuat, Config::HorizonLock lockSetting)
         return false;
     }
 
+    if (resetViewRequested) {
+        resetViewRequested = false;
+        RecenterView();
+    }
+
     if (auto res = xrBeginFrame(session, nullptr); res != XR_SUCCESS) {
         Dbg(std::format("xrBeginFrame: {}", XrResultToString(instance, res)));
     }
@@ -590,19 +602,64 @@ FrameTimingInfo OpenXR::GetFrameTiming()
 
 void OpenXR::ResetView()
 {
+    resetViewRequested = true;
+}
+
+void OpenXR::RecenterView()
+{
+    XrSpaceLocation spaceLocation = {
+        .type = XR_TYPE_SPACE_LOCATION,
+        .next = nullptr,
+    };
+    if (auto res = xrLocateSpace(viewSpace, space, frameState.predictedDisplayTime, &spaceLocation); res != XR_SUCCESS) {
+        Dbg(std::format("Failed to recenter VR view: {}", XrResultToString(instance, res)));
+        return;
+    }
+
+    auto& vpo = viewPose.orientation;
+    auto& slo = spaceLocation.pose.orientation;
+    auto orientationDiff = glm::quat(slo.w, slo.x, slo.y, slo.z);
+    auto poseOrientation = glm::quat(vpo.w, vpo.x, vpo.y, vpo.z);
+    auto newOrientation = glm::normalize(poseOrientation * orientationDiff);
+
+    XrPosef pose = {
+        .orientation = {
+            .x = newOrientation.x,
+            .y = newOrientation.y,
+            .z = newOrientation.z,
+            .w = newOrientation.w,
+        },
+        .position = {
+            .x = viewPose.position.x + spaceLocation.pose.position.x,
+            .y = viewPose.position.y + spaceLocation.pose.position.y,
+            .z = viewPose.position.z + spaceLocation.pose.position.z,
+        }
+    };
+
+    XrSpace newSpace;
     XrReferenceSpaceCreateInfo spaceCreateInfo = {
         .type = XR_TYPE_REFERENCE_SPACE_CREATE_INFO,
         .referenceSpaceType = XR_REFERENCE_SPACE_TYPE_LOCAL,
-        .poseInReferenceSpace = views[0].pose,
+        .poseInReferenceSpace = pose,
     };
-    if (auto err = xrCreateReferenceSpace(session, &spaceCreateInfo, &space); err != XR_SUCCESS) {
-        Dbg(std::format("Failed to recenter VR view: {}", XrResultToString(instance, err)));
+    if (auto res = xrCreateReferenceSpace(session, &spaceCreateInfo, &newSpace); res != XR_SUCCESS) {
+        Dbg(std::format("Failed to recenter VR view: {}", XrResultToString(instance, res)));
+        return;
     }
+
+    if (auto res = xrDestroySpace(space); res != XR_SUCCESS) {
+        Dbg(std::format("Failed to destroy old space: {}", XrResultToString(instance, res)));
+        return;
+    }
+
+    space = newSpace;
+    viewPose = pose;
 }
 
 void OpenXR::ShutdownVR()
 {
     xrDestroySpace(space);
+    xrDestroySpace(viewSpace);
     xrDestroySwapchain(swapchains[LeftEye]);
     xrDestroySwapchain(swapchains[RightEye]);
     xrDestroySession(session);
