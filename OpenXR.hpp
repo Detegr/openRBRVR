@@ -13,13 +13,15 @@ private:
     XrInstance instance;
     XrSystemId systemId;
     XrSwapchain swapchains[2];
-    XrSpace space;
+    XrSpace space, viewSpace;
     XrFrameState frameState;
     std::vector<XrSwapchainImageVulkanKHR> swapchainImages[2];
     std::array<XrView, 2> views;
     std::array<XrCompositionLayerProjectionView, 2> projectionViews;
-    bool hasProjection; // TODO
     int64_t swapchainFormat;
+    XrPosef viewPose;
+    bool hasProjection;
+    bool resetViewRequested;
 
     uint32_t renderWidth[2];
     uint32_t renderHeight[2];
@@ -37,6 +39,7 @@ private:
     std::optional<XrViewState> UpdateViews();
     void UpdatePoses();
     bool GetProjectionMatrix();
+    void RecenterView();
 
 public:
     OpenXR();
