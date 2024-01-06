@@ -1,3 +1,8 @@
+## 0.5.0
+
+- Implement OpenXR support
+- Change internal GPU access logic
+
 ## 0.4.5
 
 - Fix tracking lag that occurred for some Oculus users.
