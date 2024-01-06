@@ -72,8 +72,31 @@ OpenVR::OpenVR(IDirect3DDevice9* dev, const Config& cfg, IDirect3DVR9** vrdev, u
     // 	VRExtDisplay->GetWindowBounds(&x, &y, &w, &h);
     // }
 
+    Direct3DCreateVR(dev, vrdev);
+
     try {
         InitSurfaces(dev, std::make_tuple(wss, hss), std::make_tuple(wss, hss), companionWindowWidth, companionWindowHeight);
+
+        IDirect3DSurface9 *leftEye, *rightEye;
+        if (dxTexture[LeftEye]->GetSurfaceLevel(0, &leftEye) != D3D_OK) {
+            Dbg("Failed to get left eye surface");
+            return;
+        }
+        if (dxTexture[RightEye]->GetSurfaceLevel(0, &rightEye) != D3D_OK) {
+            Dbg("Failed to get right eye surface");
+            leftEye->Release();
+            return;
+        }
+        if (gD3DVR->GetVRDesc(leftEye, &dxvkTexture[LeftEye]) != D3D_OK) {
+            Dbg("Failed to get left eye descriptor");
+            leftEye->Release();
+            return;
+        }
+        if (gD3DVR->GetVRDesc(rightEye, &dxvkTexture[RightEye]) != D3D_OK) {
+            Dbg("Failed to get right eye descriptor");
+            rightEye->Release();
+            return;
+        }
 
         openvrTexture[LeftEye].handle = reinterpret_cast<void*>(&dxvkTexture[LeftEye]);
         openvrTexture[LeftEye].eType = vr::TextureType_Vulkan;
@@ -85,7 +108,6 @@ OpenVR::OpenVR(IDirect3DDevice9* dev, const Config& cfg, IDirect3DVR9** vrdev, u
         Dbg(e.what());
     }
 
-    Direct3DCreateVR(dev, vrdev);
     Dbg("VR init successful\n");
 }
 
@@ -112,23 +134,6 @@ void OpenVR::SubmitFramesToHMD(IDirect3DDevice9* dev)
     if (gD3DVR->BeginVRSubmit() != D3D_OK) {
         Dbg("BeginVRSubmit failed");
         return;
-    }
-
-    if (gD3DVR->TransferSurfaceForVR(leftEye) != D3D_OK) {
-        Dbg("Failed to transfer left eye surface");
-        goto release;
-    }
-    if (gD3DVR->TransferSurfaceForVR(rightEye) != D3D_OK) {
-        Dbg("Failed to transfer right eye surface");
-        goto release;
-    }
-    if (gD3DVR->GetVRDesc(leftEye, &dxvkTexture[LeftEye]) != D3D_OK) {
-        Dbg("Failed to get left eye descriptor");
-        goto release;
-    }
-    if (gD3DVR->GetVRDesc(rightEye, &dxvkTexture[RightEye]) != D3D_OK) {
-        Dbg("Failed to get left eye descriptor");
-        goto release;
     }
     if (auto e = compositor->Submit(static_cast<vr::EVREye>(LeftEye), &openvrTexture[LeftEye]); e != vr::VRCompositorError_None) [[unlikely]] {
         Dbg(std::format("Compositor error: {}", VRCompositorErrorStr(e)));
