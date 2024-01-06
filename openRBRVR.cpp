@@ -636,12 +636,15 @@ HRESULT __stdcall DXHook_CreateDevice(
     RECT winBounds;
     GetWindowRect(hFocusWindow, &winBounds);
 
-    if (gVR && gVR->GetRuntimeType() == OPENXR) {
-        reinterpret_cast<OpenXR*>(gVR.get())->Init(dev, gCfg, &gD3DVR, winBounds.right, winBounds.bottom);
-    } else {
-        gVR = std::make_unique<OpenVR>(dev, gCfg, &gD3DVR, winBounds.right, winBounds.bottom);
+    try {
+        if (gVR && gVR->GetRuntimeType() == OPENXR) {
+            reinterpret_cast<OpenXR*>(gVR.get())->Init(dev, gCfg, &gD3DVR, winBounds.right, winBounds.bottom);
+        } else {
+            gVR = std::make_unique<OpenVR>(dev, gCfg, &gD3DVR, winBounds.right, winBounds.bottom);
+        }
+    } catch (const std::runtime_error& e) {
+        Dbg(std::format("VR init failed: {}", e.what()));
     }
-
     // Initialize this pointer here, as it's too early to do this in openRBRVR constructor
     auto rxHandle = GetModuleHandle("Plugins\\rbr_rx.dll");
     if (rxHandle) {
