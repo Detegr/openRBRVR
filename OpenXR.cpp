@@ -299,6 +299,8 @@ void OpenXR::Init(IDirect3DDevice9* dev, const Config& cfg, IDirect3DVR9** vrdev
         .type = XR_TYPE_EVENT_DATA_BUFFER,
         .next = nullptr,
     };
+
+    bool sessionRunning = false;
     auto retries = 10;
     while (retries-- > 0) {
         if (auto res = xrPollEvent(instance, &eventData); res == XR_SUCCESS) {
@@ -316,13 +318,14 @@ void OpenXR::Init(IDirect3DDevice9* dev, const Config& cfg, IDirect3DVR9** vrdev
                         throw std::runtime_error(std::format("Failed to initialize OpenXR. xrBeginSession: {}", XrResultToString(instance, res)));
                     }
 
+                    sessionRunning = true;
                     break;
                 }
             }
         }
     }
 
-    if (retries == 0) {
+    if (!sessionRunning) {
         Dbg("Did not receive XR_SESSION_STATE_READY event, launching the session anyway...");
         XrSessionBeginInfo sessionBeginInfo = {
             .type = XR_TYPE_SESSION_BEGIN_INFO,
