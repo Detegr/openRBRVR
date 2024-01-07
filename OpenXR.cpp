@@ -299,7 +299,8 @@ void OpenXR::Init(IDirect3DDevice9* dev, const Config& cfg, IDirect3DVR9** vrdev
         .type = XR_TYPE_EVENT_DATA_BUFFER,
         .next = nullptr,
     };
-    while (true) {
+    auto retries = 10;
+    while (retries-- > 0) {
         if (auto res = xrPollEvent(instance, &eventData); res == XR_SUCCESS) {
             if (eventData.type == XR_TYPE_EVENT_DATA_SESSION_STATE_CHANGED) {
                 const XrEventDataSessionStateChanged* sessionStateChangedEvent = reinterpret_cast<const XrEventDataSessionStateChanged*>(&eventData);
@@ -314,9 +315,22 @@ void OpenXR::Init(IDirect3DDevice9* dev, const Config& cfg, IDirect3DVR9** vrdev
                     if (auto res = xrBeginSession(session, &sessionBeginInfo); res != XR_SUCCESS) {
                         throw std::runtime_error(std::format("Failed to initialize OpenXR. xrBeginSession: {}", XrResultToString(instance, res)));
                     }
+
                     break;
                 }
             }
+        }
+    }
+
+    if (retries == 0) {
+        Dbg("Did not receive XR_SESSION_STATE_READY event, launching the session anyway...");
+        XrSessionBeginInfo sessionBeginInfo = {
+            .type = XR_TYPE_SESSION_BEGIN_INFO,
+            .next = nullptr,
+            .primaryViewConfigurationType = XR_VIEW_CONFIGURATION_TYPE_PRIMARY_STEREO,
+        };
+        if (auto res = xrBeginSession(session, &sessionBeginInfo); res != XR_SUCCESS) {
+            throw std::runtime_error(std::format("Failed to initialize OpenXR. xrBeginSession: {}", XrResultToString(instance, res)));
         }
     }
 
