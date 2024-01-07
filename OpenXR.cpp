@@ -295,14 +295,13 @@ void OpenXR::Init(IDirect3DDevice9* dev, const Config& cfg, IDirect3DVR9** vrdev
         };
     }
 
-    XrEventDataBuffer eventData = {
-        .type = XR_TYPE_EVENT_DATA_BUFFER,
-        .next = nullptr,
-    };
-
     bool sessionRunning = false;
     auto retries = 10;
     while (retries-- > 0) {
+        XrEventDataBuffer eventData = {
+            .type = XR_TYPE_EVENT_DATA_BUFFER,
+            .next = nullptr,
+        };
         if (auto res = xrPollEvent(instance, &eventData); res == XR_SUCCESS) {
             if (eventData.type == XR_TYPE_EVENT_DATA_SESSION_STATE_CHANGED) {
                 const XrEventDataSessionStateChanged* sessionStateChangedEvent = reinterpret_cast<const XrEventDataSessionStateChanged*>(&eventData);
@@ -323,6 +322,7 @@ void OpenXR::Init(IDirect3DDevice9* dev, const Config& cfg, IDirect3DVR9** vrdev
                 }
             }
         }
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
     }
 
     if (!sessionRunning) {
