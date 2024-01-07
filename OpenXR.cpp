@@ -470,8 +470,8 @@ void OpenXR::SubmitFramesToHMD(IDirect3DDevice9* dev)
         .type = XR_TYPE_FRAME_END_INFO,
         .displayTime = frameState.predictedDisplayTime,
         .environmentBlendMode = XR_ENVIRONMENT_BLEND_MODE_OPAQUE,
-        .layerCount = frameState.shouldRender ? static_cast<uint32_t>(1) : static_cast<uint32_t>(0),
-        .layers = frameState.shouldRender ? layers : nullptr,
+        .layerCount = 1,
+        .layers = layers,
     };
 
     if (auto res = xrEndFrame(session, &frameEndInfo); res != XR_SUCCESS) {
@@ -528,7 +528,8 @@ bool OpenXR::UpdateVRPoses(Quaternion* carQuat, Config::HorizonLock lockSetting)
     }
 
     if (frameState.shouldRender == XR_FALSE) {
-        Dbg("Skipping layer rendering");
+        // Oculus runtime has a bug where shouldRender is always false... o_o
+        // So we do nothing about it.
     }
 
     if (resetViewRequested) {
