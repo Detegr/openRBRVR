@@ -39,6 +39,7 @@ If this does not help, try the following steps:
 
 - Enable 3-2-1 countdown pause from `Controls` page of RSF launcher to have
   time to adjust the seat before starting a stage.
+- Open RBR and go to stage.
 - Open PaceNote plugin by double clicking the RBR window with right mouse
   button. Adjust the seat, hit save and close the window from the `X` in
   top-right corner.
