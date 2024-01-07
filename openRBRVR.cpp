@@ -629,6 +629,7 @@ HRESULT __stdcall DXHook_CreateDevice(
         hooks::drawindexedprimitive = Hook(devvtbl->DrawIndexedPrimitive, DXHook_DrawIndexedPrimitive);
     } catch (const std::runtime_error& e) {
         Dbg(e.what());
+        MessageBoxA(hFocusWindow, e.what(), "Hooking failed", MB_OK);
     }
 
     gD3Ddev = dev;
@@ -643,7 +644,7 @@ HRESULT __stdcall DXHook_CreateDevice(
             gVR = std::make_unique<OpenVR>(dev, gCfg, &gD3DVR, winBounds.right, winBounds.bottom);
         }
     } catch (const std::runtime_error& e) {
-        Dbg(std::format("VR init failed: {}", e.what()));
+        MessageBoxA(hFocusWindow, std::format("VR init failed: {}", e.what()).c_str(), "VR init failed", MB_OK);
     }
     // Initialize this pointer here, as it's too early to do this in openRBRVR constructor
     auto rxHandle = GetModuleHandle("Plugins\\rbr_rx.dll");
@@ -656,6 +657,7 @@ HRESULT __stdcall DXHook_CreateDevice(
             hooks::btbsetrendertarget = Hook(rbrrxdev->SetRenderTarget, BTB_SetRenderTarget);
         } catch (const std::runtime_error& e) {
             Dbg(e.what());
+            MessageBoxA(hFocusWindow, e.what(), "Hooking failed", MB_OK);
         }
     }
 
