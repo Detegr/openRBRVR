@@ -644,7 +644,7 @@ HRESULT __stdcall DXHook_CreateDevice(
             gVR = std::make_unique<OpenVR>(dev, gCfg, &gD3DVR, winBounds.right, winBounds.bottom);
         }
     } catch (const std::runtime_error& e) {
-        MessageBoxA(hFocusWindow, std::format("VR init failed: {}", e.what()).c_str(), "VR init failed", MB_OK);
+        MessageBoxA(hFocusWindow, e.what(), "VR init failed", MB_OK);
     }
     // Initialize this pointer here, as it's too early to do this in openRBRVR constructor
     auto rxHandle = GetModuleHandle("Plugins\\rbr_rx.dll");
@@ -669,7 +669,11 @@ IDirect3D9* __stdcall DXHook_Direct3DCreate9(UINT SDKVersion)
     if (gCfg.runtime == OPENXR) {
         // OpenXR must be initialized before calling Direct3DCreate9
         // because it will query extensions when initializing DXVK
-        gVR = std::make_unique<OpenXR>();
+        try {
+            gVR = std::make_unique<OpenXR>();
+        } catch (const std::runtime_error& e) {
+            MessageBoxA(nullptr, e.what(), "OpenXR init failed", MB_OK);
+        }
     }
 
     auto d3d = hooks::create.call(SDKVersion);
@@ -682,6 +686,7 @@ IDirect3D9* __stdcall DXHook_Direct3DCreate9(UINT SDKVersion)
         hooks::createdevice = Hook(d3dvtbl->CreateDevice, DXHook_CreateDevice);
     } catch (const std::runtime_error& e) {
         Dbg(e.what());
+        MessageBoxA(nullptr, e.what(), "Hooking failed", MB_OK);
     }
     return d3d;
 }
@@ -709,6 +714,7 @@ openRBRVR::openRBRVR(IRBRGame* g)
         hooks::renderparticles = Hook(*reinterpret_cast<decltype(RBRHook_RenderParticles)*>(RBRRenderParticlesFunctionAddr), RBRHook_RenderParticles);
     } catch (const std::runtime_error& e) {
         Dbg(e.what());
+        MessageBoxA(nullptr, e.what(), "Hooking failed", MB_OK);
     }
     gCfg = gSavedCfg = Config::fromFile("Plugins\\openRBRVR.ini");
 }
