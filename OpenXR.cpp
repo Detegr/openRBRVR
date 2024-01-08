@@ -430,9 +430,6 @@ void OpenXR::SubmitFramesToHMD(IDirect3DDevice9* dev)
         return;
     }
 
-    // Wait for the GPU. Without this the game will crash at startup.
-    gD3DVR->WaitDeviceIdle(true);
-
     // Essentially StretchRect but works directly with VkImage as a target
     gD3DVR->CopySurfaceToVulkanImage(
         dxSurface[LeftEye],
@@ -474,12 +471,16 @@ void OpenXR::SubmitFramesToHMD(IDirect3DDevice9* dev)
         .layers = layers,
     };
 
+    xrReleaseSwapchainImage(swapchains[LeftEye], &releaseInfo);
+    xrReleaseSwapchainImage(swapchains[RightEye], &releaseInfo);
+
+    gD3DVR->BeginVRSubmit();
+
     if (auto res = xrEndFrame(session, &frameEndInfo); res != XR_SUCCESS) {
         Dbg(std::format("xrEndFrame failed: {}", XrResultToString(instance, res)));
     }
 
-    xrReleaseSwapchainImage(swapchains[LeftEye], &releaseInfo);
-    xrReleaseSwapchainImage(swapchains[RightEye], &releaseInfo);
+    gD3DVR->EndVRSubmit();
 
     if (gCfg.debug && perfQueryFree) [[unlikely]] {
         gpuEndQuery->Issue(D3DISSUE_END);
