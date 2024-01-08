@@ -131,7 +131,7 @@ void OpenVR::SubmitFramesToHMD(IDirect3DDevice9* dev)
         dev->StretchRect(dxSurface[RightEye], nullptr, rightEye, nullptr, D3DTEXF_NONE);
     }
 
-    gD3DVR->WaitDeviceIdle(true);
+    gD3DVR->BeginVRSubmit();
 
     if (auto e = compositor->Submit(static_cast<vr::EVREye>(LeftEye), &openvrTexture[LeftEye]); e != vr::VRCompositorError_None) [[unlikely]] {
         Dbg(std::format("Compositor error: {}", VRCompositorErrorStr(e)));
@@ -139,6 +139,8 @@ void OpenVR::SubmitFramesToHMD(IDirect3DDevice9* dev)
     if (auto e = compositor->Submit(static_cast<vr::EVREye>(RightEye), &openvrTexture[RightEye]); e != vr::VRCompositorError_None) [[unlikely]] {
         Dbg(std::format("Compositor error: {}", VRCompositorErrorStr(e)));
     }
+
+    gD3DVR->EndVRSubmit();
 
 release:
     leftEye->Release();
