@@ -636,8 +636,8 @@ void OpenXR::RecenterView()
 
     auto& vpo = viewPose.orientation;
     auto& slo = spaceLocation.pose.orientation;
-    auto orientationDiff = glm::quat(slo.w, slo.x, slo.y, slo.z);
-    auto poseOrientation = glm::quat(vpo.w, vpo.x, vpo.y, vpo.z);
+    auto orientationDiff = glm::quat(slo.w, 0, slo.y, 0);
+    auto poseOrientation = glm::quat(vpo.w, 0, vpo.y, 0);
     auto newOrientation = glm::normalize(poseOrientation * orientationDiff);
 
     XrPosef pose = {
