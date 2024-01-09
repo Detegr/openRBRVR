@@ -75,6 +75,7 @@ public:
     virtual bool UpdateVRPoses(Quaternion* carQuat, Config::HorizonLock lockSetting) = 0;
     virtual IDirect3DSurface9* PrepareVRRendering(IDirect3DDevice9* dev, RenderTarget tgt, bool clear = true);
     virtual void FinishVRRendering(IDirect3DDevice9* dev, RenderTarget tgt);
+    virtual void PrepareFramesForHMD(IDirect3DDevice9* dev) = 0;
     virtual void SubmitFramesToHMD(IDirect3DDevice9* dev) = 0;
     virtual std::tuple<uint32_t, uint32_t> GetRenderResolution(RenderTarget tgt) const
     {

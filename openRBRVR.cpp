@@ -393,7 +393,6 @@ HRESULT __stdcall DXHook_Present(IDirect3DDevice9* This, const RECT* pSourceRect
             gVR->FinishVRRendering(gD3Ddev, gCurrent2DRenderTarget.value());
             RenderVROverlay(gCurrent2DRenderTarget.value(), !gRender3d);
         }
-        gVR->SubmitFramesToHMD(gD3Ddev);
     }
 
     if (gD3Ddev->SetRenderTarget(0, gOriginalScreenTgt) != D3D_OK) {
@@ -406,18 +405,27 @@ HRESULT __stdcall DXHook_Present(IDirect3DDevice9* This, const RECT* pSourceRect
     gOriginalDepthStencil->Release();
 
     auto ret = 0;
-    if (gCfg.alwaysPresent || !gVR) {
-        if (gVR && (gCfg.drawCompanionWindow || !gDriving)) {
+    if (gVR) {
+        gVR->PrepareFramesForHMD(gD3Ddev);
+        if (gCfg.drawCompanionWindow || !gDriving) {
             RenderCompanionWindowFromRenderTarget(gD3Ddev, gVR.get(), gRender3d ? LeftEye : Menu);
         }
-        ret = hooks::present.call(gD3Ddev, pSourceRect, pDestRect, hDestWindowOverride, pDirtyRegion);
     }
 
     if (gCfg.debug && gVR) [[unlikely]] {
+        // Present will act as a vsync, so we need to calculate the frame time here
+        // It won't be a significant factor anyway, I think.
+
         auto frameEnd = std::chrono::steady_clock::now();
         auto cpuFrameTime = std::chrono::duration_cast<std::chrono::microseconds>(frameEnd - gFrameStart);
 
         DrawDebugInfo(cpuFrameTime.count());
+    }
+
+    ret = hooks::present.call(gD3Ddev, pSourceRect, pDestRect, hDestWindowOverride, pDirtyRegion);
+
+    if (gVR) {
+        gVR->SubmitFramesToHMD(gD3Ddev);
     }
 
     gVRError = false;
@@ -598,6 +606,8 @@ HRESULT __stdcall DXHook_CreateDevice(
         pPresentationParameters->MultiSampleType = gCfg.msaa;
         pPresentationParameters->MultiSampleQuality = q > 0 ? q - 1 : 0;
     }
+    pPresentationParameters->PresentationInterval = D3DPRESENT_INTERVAL_IMMEDIATE;
+
     auto ret = hooks::createdevice.call(This, Adapter, DeviceType, hFocusWindow, BehaviorFlags, pPresentationParameters, &dev);
     if (FAILED(ret)) {
         Dbg("D3D initialization failed: CreateDevice");

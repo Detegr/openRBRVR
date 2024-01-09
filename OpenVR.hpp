@@ -26,6 +26,7 @@ public:
         HMD = nullptr;
         compositor = nullptr;
     }
+    void PrepareFramesForHMD(IDirect3DDevice9* dev) override;
     bool UpdateVRPoses(Quaternion* carQuat, Config::HorizonLock lockSetting) override;
     void SubmitFramesToHMD(IDirect3DDevice9* dev) override;
     FrameTimingInfo GetFrameTiming() override;

@@ -111,40 +111,40 @@ OpenVR::OpenVR(IDirect3DDevice9* dev, const Config& cfg, IDirect3DVR9** vrdev, u
     Dbg("VR init successful\n");
 }
 
-void OpenVR::SubmitFramesToHMD(IDirect3DDevice9* dev)
+void OpenVR::PrepareFramesForHMD(IDirect3DDevice9* dev)
 {
-    IDirect3DSurface9 *leftEye, *rightEye;
-
-    if (dxTexture[LeftEye]->GetSurfaceLevel(0, &leftEye) != D3D_OK) {
-        Dbg("Failed to get left eye surface");
-        return;
-    }
-    if (dxTexture[RightEye]->GetSurfaceLevel(0, &rightEye) != D3D_OK) {
-        Dbg("Failed to get right eye surface");
-        leftEye->Release();
-        return;
-    }
-
     if (gCfg.msaa != D3DMULTISAMPLE_NONE) {
         // Resolve multisampling
+        IDirect3DSurface9 *leftEye, *rightEye;
+
+        if (dxTexture[LeftEye]->GetSurfaceLevel(0, &leftEye) != D3D_OK) {
+            Dbg("Failed to get left eye surface");
+            return;
+        }
+        if (dxTexture[RightEye]->GetSurfaceLevel(0, &rightEye) != D3D_OK) {
+            Dbg("Failed to get right eye surface");
+            leftEye->Release();
+            return;
+        }
+
         dev->StretchRect(dxSurface[LeftEye], nullptr, leftEye, nullptr, D3DTEXF_NONE);
         dev->StretchRect(dxSurface[RightEye], nullptr, rightEye, nullptr, D3DTEXF_NONE);
+
+        leftEye->Release();
+        rightEye->Release();
     }
+}
 
+void OpenVR::SubmitFramesToHMD(IDirect3DDevice9* dev)
+{
     gD3DVR->BeginVRSubmit();
-
     if (auto e = compositor->Submit(static_cast<vr::EVREye>(LeftEye), &openvrTexture[LeftEye]); e != vr::VRCompositorError_None) [[unlikely]] {
         Dbg(std::format("Compositor error: {}", VRCompositorErrorStr(e)));
     }
     if (auto e = compositor->Submit(static_cast<vr::EVREye>(RightEye), &openvrTexture[RightEye]); e != vr::VRCompositorError_None) [[unlikely]] {
         Dbg(std::format("Compositor error: {}", VRCompositorErrorStr(e)));
     }
-
     gD3DVR->EndVRSubmit();
-
-release:
-    leftEye->Release();
-    rightEye->Release();
 }
 
 bool OpenVR::UpdateVRPoses(Quaternion* carQuat, Config::HorizonLock lockSetting)
