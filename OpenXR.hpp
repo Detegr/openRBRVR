@@ -56,6 +56,7 @@ public:
 
     void ShutdownVR() override;
     bool UpdateVRPoses(Quaternion* carQuat, Config::HorizonLock lockSetting) override;
+    void PrepareFramesForHMD(IDirect3DDevice9* dev) override;
     void SubmitFramesToHMD(IDirect3DDevice9* dev) override;
     std::tuple<uint32_t, uint32_t> GetRenderResolution(RenderTarget tgt) const override
     {

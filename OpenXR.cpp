@@ -388,7 +388,7 @@ XrSwapchainImageVulkanKHR& OpenXR::AcquireSwapchainImage(RenderTarget tgt)
     return swapchainImages[tgt][idx];
 }
 
-void OpenXR::SubmitFramesToHMD(IDirect3DDevice9* dev)
+void OpenXR::PrepareFramesForHMD(IDirect3DDevice9* dev)
 {
     if (gCfg.drawCompanionWindow) {
         // To draw the companion window, we must have the scene drawn to the texture
@@ -431,6 +431,10 @@ void OpenXR::SubmitFramesToHMD(IDirect3DDevice9* dev)
     }
 
     // Essentially StretchRect but works directly with VkImage as a target
+    // We need to do this copy as OpenXR wants to handle the swapchain images internally
+    // and in DXVK there is no way to create a texture that would use this swapchain image.
+    // Also, if we're using anti-aliasing, this step is needed anyways.
+
     gD3DVR->CopySurfaceToVulkanImage(
         dxSurface[LeftEye],
         left.image,
@@ -445,6 +449,17 @@ void OpenXR::SubmitFramesToHMD(IDirect3DDevice9* dev)
         renderWidth[RightEye],
         renderHeight[RightEye]);
 
+    xrReleaseSwapchainImage(swapchains[LeftEye], &releaseInfo);
+    xrReleaseSwapchainImage(swapchains[RightEye], &releaseInfo);
+
+    if (gCfg.debug && perfQueryFree) [[unlikely]] {
+        gpuEndQuery->Issue(D3DISSUE_END);
+        gpuDisjointQuery->Issue(D3DISSUE_END);
+    }
+}
+
+void OpenXR::SubmitFramesToHMD(IDirect3DDevice9* dev)
+{
     projectionViews[LeftEye].fov = views[LeftEye].fov;
     projectionViews[LeftEye].pose = views[LeftEye].pose;
     projectionViews[RightEye].fov = views[RightEye].fov;
@@ -471,21 +486,11 @@ void OpenXR::SubmitFramesToHMD(IDirect3DDevice9* dev)
         .layers = layers,
     };
 
-    xrReleaseSwapchainImage(swapchains[LeftEye], &releaseInfo);
-    xrReleaseSwapchainImage(swapchains[RightEye], &releaseInfo);
-
     gD3DVR->BeginVRSubmit();
-
     if (auto res = xrEndFrame(session, &frameEndInfo); res != XR_SUCCESS) {
         Dbg(std::format("xrEndFrame failed: {}", XrResultToString(instance, res)));
     }
-
     gD3DVR->EndVRSubmit();
-
-    if (gCfg.debug && perfQueryFree) [[unlikely]] {
-        gpuEndQuery->Issue(D3DISSUE_END);
-        gpuDisjointQuery->Issue(D3DISSUE_END);
-    }
 }
 
 std::optional<XrViewState> OpenXR::UpdateViews()
