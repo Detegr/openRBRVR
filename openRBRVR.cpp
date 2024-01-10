@@ -406,26 +406,23 @@ HRESULT __stdcall DXHook_Present(IDirect3DDevice9* This, const RECT* pSourceRect
 
     auto ret = 0;
     if (gVR) {
-        gVR->PrepareFramesForHMD(gD3Ddev);
         if (gCfg.drawCompanionWindow || !gDriving) {
             RenderCompanionWindowFromRenderTarget(gD3Ddev, gVR.get(), gRender3d ? LeftEye : Menu);
         }
+        gVR->PrepareFramesForHMD(gD3Ddev);
     }
 
-    if (gCfg.debug && gVR) [[unlikely]] {
-        // Present will act as a vsync, so we need to calculate the frame time here
-        // It won't be a significant factor anyway, I think.
-
-        auto frameEnd = std::chrono::steady_clock::now();
-        auto cpuFrameTime = std::chrono::duration_cast<std::chrono::microseconds>(frameEnd - gFrameStart);
-
-        DrawDebugInfo(cpuFrameTime.count());
-    }
+    auto frameEnd = std::chrono::steady_clock::now();
+    auto cpuFrameTime = std::chrono::duration_cast<std::chrono::microseconds>(frameEnd - gFrameStart);
 
     ret = hooks::present.call(gD3Ddev, pSourceRect, pDestRect, hDestWindowOverride, pDirtyRegion);
 
     if (gVR) {
         gVR->SubmitFramesToHMD(gD3Ddev);
+    }
+
+    if (gCfg.debug) {
+        DrawDebugInfo(cpuFrameTime.count());
     }
 
     gVRError = false;

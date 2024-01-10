@@ -79,7 +79,29 @@ static void ChangeHorizonLock(bool forward)
     }
 }
 
-void ChangeRenderIn3dSettings(bool forward)
+static std::string GetGpuIdleStr(WaitGPU w)
+{
+    switch (w) {
+        case NOWAIT: return "OFF";
+        case EARLY: return "Early";
+        case MID: return "Mid";
+        case LATE: return "Late";
+        default: std::unreachable();
+    }
+}
+
+static void ChangeGpuWait(bool forward)
+{
+    switch (gCfg.waitGpuIdle) {
+        case NOWAIT: gCfg.waitGpuIdle = forward ? EARLY : LATE; break;
+        case EARLY: gCfg.waitGpuIdle = forward ? MID : NOWAIT; break;
+        case MID: gCfg.waitGpuIdle = forward ? LATE : EARLY; break;
+        case LATE: gCfg.waitGpuIdle = forward ? NOWAIT : MID; break;
+        default: std::unreachable();
+    }
+}
+
+static void ChangeRenderIn3dSettings(bool forward)
 {
     if (forward && gCfg.renderMainMenu3d) {
         gCfg.renderMainMenu3d = false;
@@ -182,12 +204,19 @@ static Menu debugMenu = { "openRBRVR debug settings", {
     .rightAction = [] { Toggle(gCfg.debug); },
     .selectAction = [] { Toggle(gCfg.debug); },
   },
-  { .text = [] { return std::format("Always call Present: {}", gCfg.alwaysPresent ? "ON" : "OFF"); },
-    .longText = { "Always call Present function even if the desktop window isn't rendered.","Users can experiment turning this off if there are crashes or freezes when using the", "plugin. Implies no desktop window rendering." },
+  { .text = [] { return std::format("Wait GPU to be idle before submit: {}", GetGpuIdleStr(gCfg.waitGpuIdle)); },
+    .longText = { "Waits that the GPU is idle before submitting frames to it.", "If OpenXR mode does not start up, try enabling this option.", "Try early first and move on to later ones if the previous one seems to work." },
     .menuColor = IRBRGame::EMenuColors::MENU_TEXT,
-    .leftAction = [] { Toggle(gCfg.alwaysPresent); },
-    .rightAction = [] { Toggle(gCfg.alwaysPresent); },
-    .selectAction = [] { Toggle(gCfg.alwaysPresent); },
+    .leftAction = [] { ChangeGpuWait(false); },
+    .rightAction = [] { ChangeGpuWait(true); },
+    .selectAction = [] { ChangeGpuWait(true); },
+  },
+  { .text = [] { return std::format("Flush GPU before waiting for it to be idle: {}", gCfg.waitGpuIdleFlush ? "ON" : "OFF"); },
+    .longText = { "Used with the Wait Gpu to be idle option. Without it this does nothing.", "Try OFF first, toggle to ON if OFF does not work." },
+    .menuColor = IRBRGame::EMenuColors::MENU_TEXT,
+    .leftAction = [] { Toggle(gCfg.waitGpuIdleFlush); },
+    .rightAction = [] { Toggle(gCfg.waitGpuIdleFlush); },
+    .selectAction = [] { Toggle(gCfg.waitGpuIdleFlush); },
   },
   { .text = id("Back to previous menu"),
 	.selectAction = [] { SelectMenu(0); }
