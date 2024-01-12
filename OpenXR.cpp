@@ -224,7 +224,7 @@ void OpenXR::Init(IDirect3DDevice9* dev, const Config& cfg, IDirect3DVR9** vrdev
         XrSwapchainCreateInfo swapchainCreateInfo = {
             .type = XR_TYPE_SWAPCHAIN_CREATE_INFO,
             .createFlags = 0,
-            .usageFlags = XR_SWAPCHAIN_USAGE_SAMPLED_BIT | XR_SWAPCHAIN_USAGE_COLOR_ATTACHMENT_BIT,
+            .usageFlags = XR_SWAPCHAIN_USAGE_TRANSFER_DST_BIT,
             .format = swapchainFormat,
             .sampleCount = 1,
             .width = renderWidth[i],
