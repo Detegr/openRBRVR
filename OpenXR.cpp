@@ -435,8 +435,8 @@ void OpenXR::PrepareFramesForHMD(IDirect3DDevice9* dev)
     // and in DXVK there is no way to create a texture that would use this swapchain image.
     // Also, if we're using anti-aliasing, this step is needed anyways.
 
-    if (gCfg.waitGpuIdle == EARLY) {
-        gD3DVR->WaitDeviceIdle(gCfg.waitGpuIdleFlush);
+    if (gCfg.wmrWorkaround) {
+        gD3DVR->Flush();
     }
 
     gD3DVR->CopySurfaceToVulkanImage(
@@ -452,10 +452,6 @@ void OpenXR::PrepareFramesForHMD(IDirect3DDevice9* dev)
         swapchainFormat,
         renderWidth[RightEye],
         renderHeight[RightEye]);
-
-    if (gCfg.waitGpuIdle == MID) {
-        gD3DVR->WaitDeviceIdle(gCfg.waitGpuIdleFlush);
-    }
 
     xrReleaseSwapchainImage(swapchains[LeftEye], &releaseInfo);
     xrReleaseSwapchainImage(swapchains[RightEye], &releaseInfo);
@@ -493,10 +489,6 @@ void OpenXR::SubmitFramesToHMD(IDirect3DDevice9* dev)
         .layerCount = 1,
         .layers = layers,
     };
-
-    if (gCfg.waitGpuIdle == LATE) {
-        gD3DVR->WaitDeviceIdle(gCfg.waitGpuIdleFlush);
-    }
 
     gD3DVR->BeginVRSubmit();
     if (auto res = xrEndFrame(session, &frameEndInfo); res != XR_SUCCESS) {

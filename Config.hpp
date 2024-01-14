@@ -18,13 +18,6 @@ enum VRRuntime {
     OPENXR
 };
 
-enum WaitGPU {
-    NOWAIT,
-    EARLY,
-    MID,
-    LATE,
-};
-
 static float floatOrDefault(const std::string& value, float def)
 {
     try {
@@ -65,8 +58,7 @@ struct Config {
     bool renderReplays3d;
     D3DMULTISAMPLE_TYPE msaa;
     int anisotropy;
-    WaitGPU waitGpuIdle;
-    bool waitGpuIdleFlush;
+    bool wmrWorkaround;
     VRRuntime runtime;
 
     auto operator<=>(const Config&) const = default;
@@ -88,8 +80,7 @@ struct Config {
             "renderPauseMenu3d = {}\n"
             "renderPreStage3d = {}\n"
             "renderReplays3d = {}\n"
-            "waitGpuIdle = {}\n"
-            "waitGpuIdleFlush = {}\n"
+            "wmrWorkaround = {}\n"
             "runtime = {}",
             superSampling,
             menuSize,
@@ -105,8 +96,7 @@ struct Config {
             renderPauseMenu3d,
             renderPreStage3d,
             renderReplays3d,
-            static_cast<int>(waitGpuIdle),
-            waitGpuIdleFlush,
+            wmrWorkaround,
             runtime == OPENVR ? "steamvr" : "openxr");
     }
 
@@ -138,8 +128,7 @@ struct Config {
             .renderReplays3d = false,
             .msaa = D3DMULTISAMPLE_NONE,
             .anisotropy = -1,
-            .waitGpuIdle = NOWAIT,
-            .waitGpuIdleFlush = false,
+            .wmrWorkaround = false,
             .runtime = OPENVR,
         };
 
@@ -200,10 +189,8 @@ struct Config {
                 cfg.renderPreStage3d = (value == "true");
             } else if (key == "renderReplays3d") {
                 cfg.renderReplays3d = (value == "true");
-            } else if (key == "waitGpuIdle") {
-                cfg.waitGpuIdle = static_cast<WaitGPU>(intOrDefault(value, 0));
-            } else if (key == "waitGpuIdleFlush") {
-                cfg.waitGpuIdleFlush = (value == "true");
+            } else if (key == "wmrWorkaround") {
+                cfg.wmrWorkaround = (value == "true");
             } else if (key == "runtime") {
                 cfg.runtime = value == "openxr" ? OPENXR : OPENVR;
             }
