@@ -115,14 +115,26 @@ OpenXR::OpenXR()
 
 void OpenXR::Init(IDirect3DDevice9* dev, const Config& cfg, IDirect3DVR9** vrdev, uint32_t companionWindowWidth, uint32_t companionWindowHeight)
 {
-    if (dev->CreateQuery(D3DQUERYTYPE_TIMESTAMP, &gpuStartQuery) != D3D_OK) {
-        throw std::runtime_error("VR initialization failed: CreateQuery");
+    std::array timestampQueries = std::to_array({
+        &gpuStartQuery,
+        &gpuEndQuery,
+        &openxrGpuStartQuery,
+        &openxrGpuEndQuery,
+    });
+    std::array disjointQueries = std::to_array({
+        &gpuDisjointQuery,
+        &openxrDisjointQuery,
+    });
+
+    for (auto& q : timestampQueries) {
+        if (dev->CreateQuery(D3DQUERYTYPE_TIMESTAMP, q) != D3D_OK) {
+            throw std::runtime_error("VR initialization failed: CreateQuery");
+        }
     }
-    if (dev->CreateQuery(D3DQUERYTYPE_TIMESTAMP, &gpuEndQuery) != D3D_OK) {
-        throw std::runtime_error("VR initialization failed: CreateQuery");
-    }
-    if (dev->CreateQuery(D3DQUERYTYPE_TIMESTAMPDISJOINT, &gpuDisjointQuery) != D3D_OK) {
-        throw std::runtime_error("VR initialization failed: CreateQuery");
+    for (auto& q : disjointQueries) {
+        if (dev->CreateQuery(D3DQUERYTYPE_TIMESTAMPDISJOINT, q) != D3D_OK) {
+            throw std::runtime_error("VR initialization failed: CreateQuery");
+        }
     }
     if (dev->CreateQuery(D3DQUERYTYPE_TIMESTAMPFREQ, &gpuFreqQuery) != D3D_OK) {
         throw std::runtime_error("VR initialization failed: CreateQuery");
@@ -407,6 +419,19 @@ void OpenXR::PrepareFramesForHMD(IDirect3DDevice9* dev)
         }
     }
 
+    if (gCfg.debug && perfQueryFree) [[unlikely]] {
+        gpuEndQuery->Issue(D3DISSUE_END);
+        gpuDisjointQuery->Issue(D3DISSUE_END);
+    }
+}
+
+void OpenXR::SubmitFramesToHMD(IDirect3DDevice9* dev)
+{
+    if (gCfg.debug && perfQueryFree) [[unlikely]] {
+        openxrDisjointQuery->Issue(D3DISSUE_BEGIN);
+        openxrGpuStartQuery->Issue(D3DISSUE_END);
+    }
+
     auto& left = AcquireSwapchainImage(LeftEye);
     auto& right = AcquireSwapchainImage(RightEye);
 
@@ -460,14 +485,6 @@ void OpenXR::PrepareFramesForHMD(IDirect3DDevice9* dev)
     xrReleaseSwapchainImage(swapchains[LeftEye], &releaseInfo);
     xrReleaseSwapchainImage(swapchains[RightEye], &releaseInfo);
 
-    if (gCfg.debug && perfQueryFree) [[unlikely]] {
-        gpuEndQuery->Issue(D3DISSUE_END);
-        gpuDisjointQuery->Issue(D3DISSUE_END);
-    }
-}
-
-void OpenXR::SubmitFramesToHMD(IDirect3DDevice9* dev)
-{
     projectionViews[LeftEye].fov = views[LeftEye].fov;
     projectionViews[LeftEye].pose = views[LeftEye].pose;
     projectionViews[RightEye].fov = views[RightEye].fov;
@@ -503,6 +520,11 @@ void OpenXR::SubmitFramesToHMD(IDirect3DDevice9* dev)
         Dbg(std::format("xrEndFrame failed: {}", XrResultToString(instance, res)));
     }
     gD3DVR->EndVRSubmit();
+
+    if (gCfg.debug && perfQueryFree) [[unlikely]] {
+        openxrGpuEndQuery->Issue(D3DISSUE_END);
+        openxrDisjointQuery->Issue(D3DISSUE_END);
+    }
 }
 
 std::optional<XrViewState> OpenXR::UpdateViews()
@@ -615,9 +637,18 @@ FrameTimingInfo OpenXR::GetFrameTiming()
 {
     FrameTimingInfo ret = { 0 };
 
-    BOOL disjoint;
-    uint64_t gpuStart, gpuEnd;
-    if (gpuDisjointQuery->GetData(&disjoint, sizeof(disjoint), 0) == D3D_OK && !disjoint) {
+    BOOL disjoint, openxrDisjoint;
+    if (auto res = gpuDisjointQuery->GetData(&disjoint, sizeof(disjoint), 0); res != D3D_OK) {
+        perfQueryFree = false;
+        return ret;
+    }
+    if (auto res = openxrDisjointQuery->GetData(&openxrDisjoint, sizeof(openxrDisjoint), 0); res != D3D_OK) {
+        perfQueryFree = false;
+        return ret;
+    }
+
+    if (!disjoint && !openxrDisjoint) {
+        uint64_t gpuStart, gpuEnd;
         gpuStartQuery->GetData(&gpuStart, sizeof(gpuStart), 0);
         gpuEndQuery->GetData(&gpuEnd, sizeof(gpuEnd), 0);
 
@@ -625,7 +656,14 @@ FrameTimingInfo OpenXR::GetFrameTiming()
         gpuFreqQuery->Issue(D3DISSUE_END);
         gpuFreqQuery->GetData(&freq, sizeof(freq), 0);
 
-        ret.gpuTotal = float(gpuEnd - gpuStart) / float(freq);
+        ret.gpuPreSubmit = float(gpuEnd - gpuStart) / float(freq);
+
+        uint64_t openxrStart, openxrEnd;
+        openxrGpuStartQuery->GetData(&openxrStart, sizeof(openxrStart), 0);
+        openxrGpuEndQuery->GetData(&openxrEnd, sizeof(openxrEnd), 0);
+
+        ret.compositorGpu = float(openxrEnd - openxrStart) / float(freq);
+        ret.gpuTotal = ret.gpuPreSubmit + ret.compositorGpu;
 
         perfQueryFree = true;
     } else {

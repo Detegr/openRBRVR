@@ -32,6 +32,9 @@ private:
     bool perfQueryFree = true;
     IDirect3DQuery9* gpuStartQuery;
     IDirect3DQuery9* gpuEndQuery;
+    IDirect3DQuery9* openxrDisjointQuery;
+    IDirect3DQuery9* openxrGpuStartQuery;
+    IDirect3DQuery9* openxrGpuEndQuery;
     IDirect3DQuery9* gpuDisjointQuery;
     IDirect3DQuery9* gpuFreqQuery;
 

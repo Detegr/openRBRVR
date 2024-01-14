@@ -217,12 +217,14 @@ static void DrawDebugInfo(uint64_t cpuFrameTime_us)
                 .c_str());
     } else {
         gGame->WriteText(0, 18 * ++i, std::format("CPU: render time: {:.2f}ms", cpuFrameTime_us / 1000.0).c_str());
-        static float gpuTotal;
+        static float gpuTotal, gpuRender, gpuCompositor;
         if (t.gpuTotal > 0.0) {
             // Cache non-zero GPU total value as we won't get a new value for every frame
-            gpuTotal = t.gpuTotal;
+            gpuTotal = t.gpuTotal * 1000.0;
+            gpuRender = t.gpuPreSubmit * 1000.0;
+            gpuCompositor = t.compositorGpu * 1000.0;
         }
-        gGame->WriteText(0, 18 * ++i, std::format("GPU: render time: {:.2f}ms", gpuTotal * 1000.0).c_str());
+        gGame->WriteText(0, 18 * ++i, std::format("GPU: total time: {:.2f}ms, render {:.2f}ms, submit: {:.2f}ms", gpuTotal, gpuRender, gpuCompositor).c_str());
     }
 
     gGame->WriteText(0, 18 * ++i, std::format("Mods: {} {}", IsRBRRXLoaded() ? "RBRRX" : "", IsRBRHUDLoaded() ? "RBRHUD" : "").c_str());
@@ -412,10 +414,10 @@ HRESULT __stdcall DXHook_Present(IDirect3DDevice9* This, const RECT* pSourceRect
         gVR->PrepareFramesForHMD(gD3Ddev);
     }
 
+    ret = hooks::present.call(gD3Ddev, pSourceRect, pDestRect, hDestWindowOverride, pDirtyRegion);
+
     auto frameEnd = std::chrono::steady_clock::now();
     auto cpuFrameTime = std::chrono::duration_cast<std::chrono::microseconds>(frameEnd - gFrameStart);
-
-    ret = hooks::present.call(gD3Ddev, pSourceRect, pDestRect, hDestWindowOverride, pDirtyRegion);
 
     if (gVR) {
         gVR->SubmitFramesToHMD(gD3Ddev);
