@@ -14,8 +14,8 @@
 #include "glm/vec3.hpp"
 
 enum VRRuntime {
-    OPENVR,
-    OPENXR
+    OPENVR = 1,
+    OPENXR = 2,
 };
 
 static float floatOrDefault(const std::string& value, float def)
@@ -80,7 +80,6 @@ struct Config {
             "renderPauseMenu3d = {}\n"
             "renderPreStage3d = {}\n"
             "renderReplays3d = {}\n"
-            "wmrWorkaround = {}\n"
             "runtime = {}",
             superSampling,
             menuSize,
@@ -96,8 +95,7 @@ struct Config {
             renderPauseMenu3d,
             renderPreStage3d,
             renderReplays3d,
-            wmrWorkaround,
-            runtime == OPENVR ? "steamvr" : "openxr");
+            runtime == OPENVR ? "steamvr" : (wmrWorkaround ? "openxr-wmr" : "openxr"));
     }
 
     bool Write(const std::filesystem::path& path) const
@@ -192,7 +190,15 @@ struct Config {
             } else if (key == "wmrWorkaround") {
                 cfg.wmrWorkaround = (value == "true");
             } else if (key == "runtime") {
-                cfg.runtime = value == "openxr" ? OPENXR : OPENVR;
+                if(value == "openxr") {
+                    cfg.runtime = OPENXR;
+                    cfg.wmrWorkaround = false;
+                } else if(value == "openxr-wmr") {
+                    cfg.runtime = OPENXR;
+                    cfg.wmrWorkaround = true;
+                } else {
+                    cfg.runtime = OPENVR;
+                }
             }
         }
 

@@ -114,11 +114,25 @@ static class Menu mainMenu = { "openRBRVR", {
   },
   { .text = id("Graphics settings") , .longText = {"Graphics settings"}, .selectAction = [] { SelectMenu(1); } },
   { .text = id("Debug settings"), .longText = {"Not intended to be changed unless there is a problem that needs more information."}, .selectAction = [] { SelectMenu(2); } },
-  { .text = [] { return std::format("VR runtime: {}", gCfg.runtime == OPENVR ? "OpenVR (SteamVR)" : "OpenXR"); },
-    .longText {"Selects VR runtime. Requires game restart.", "", "SteamVR support is more mature and supports more devices.", "", "OpenXR is an open-source, royalty-free standard.", "It has less overhead and may result in better performance.", "", "OpenXR device compatibility is more limited for old 32-bit games like RBR."},
-    .leftAction = [] { gCfg.runtime = gCfg.runtime == OPENXR ? OPENVR : OPENXR; },
-    .rightAction = [] { gCfg.runtime = gCfg.runtime == OPENXR ? OPENVR : OPENXR; },
-    .selectAction = [] { gCfg.runtime = gCfg.runtime == OPENXR ? OPENVR : OPENXR; },
+  { .text = [] { return std::format("VR runtime: {}", gCfg.runtime == OPENVR ? "OpenVR (SteamVR)" : (gCfg.wmrWorkaround ? "OpenXR (Reverb compatibility mode)" : "OpenXR")); },
+    .longText {
+        "Selects VR runtime. Requires game restart.",
+        "",
+        "SteamVR support is more mature and supports more devices.",
+        "", "OpenXR is an open-source, royalty-free standard.",
+        "It has less overhead and may result in better performance.",
+        "",
+        "OpenXR device compatibility is more limited for old 32-bit games like RBR.",
+        "The performance of Reverb compatibility mode is worse than normal OpenXR. Use it only if there's problems with the normal mode."},
+    .leftAction = [] {
+        if (gCfg.runtime == OPENXR) { if(gCfg.wmrWorkaround) Toggle(gCfg.wmrWorkaround); else gCfg.runtime = OPENVR; }
+        else { gCfg.runtime = OPENXR; gCfg.wmrWorkaround = true; }
+    },
+    .rightAction = [] {
+        if (gCfg.runtime == OPENXR) { if(gCfg.wmrWorkaround) gCfg.runtime = OPENVR; else gCfg.wmrWorkaround = true; }
+        else { gCfg.runtime = OPENXR; gCfg.wmrWorkaround = false; }
+    },
+    .selectAction = [] {},
   },
   { .text = id("Licenses"), .longText = {"License information of open source libraries used in the plugin's implementation."}, .selectAction = [] { SelectMenu(3); } },
   { .text = id("Save the current config to openRBRVR.ini"),
@@ -181,13 +195,6 @@ static Menu debugMenu = { "openRBRVR debug settings", {
     .leftAction = [] { Toggle(gCfg.debug); },
     .rightAction = [] { Toggle(gCfg.debug); },
     .selectAction = [] { Toggle(gCfg.debug); },
-  },
-  { .text = [] { return std::format("OpenXR Reverb compatibility mode: {}", gCfg.wmrWorkaround ? "ON" : "OFF"); },
-    .longText = { "A workaround making OpenXR mode work with WMR OpenXR runtime.", "This has an performance impact, should be set to off if OpenXR runtime works without this option.", "Has no effect in SteamVR." },
-    .menuColor = IRBRGame::EMenuColors::MENU_TEXT,
-    .leftAction = [] { Toggle(gCfg.wmrWorkaround); },
-    .rightAction = [] { Toggle(gCfg.wmrWorkaround); },
-    .selectAction = [] { Toggle(gCfg.wmrWorkaround); },
   },
   { .text = id("Back to previous menu"),
 	.selectAction = [] { SelectMenu(0); }
