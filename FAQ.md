@@ -15,13 +15,36 @@ gets things a bit wrong, try the following steps to resolve the issue:
 If this does not help, try the following steps:
 
 - Close RBR
-- Disable VR mode in RSFLauncher and make sure the 2D fullscreen mode is set to "Normal" and not as "Vulkan".
-- Close RSFLauncher app and re-run the latest Rallysimfans\_Installer.exe app and choose "Update Existing Installation" (make sure the RBRVR and openRBRVR are ticked in the list of components).
-
+- Disable VR mode in RSFLauncher and make sure the 2D fullscreen mode is set to
+  "Normal" and not as "Vulkan".
+- Close RSFLauncher app and re-run the latest Rallysimfans\_Installer.exe app
+  and choose "Update Existing Installation" (make sure the RBRVR and openRBRVR
+  are ticked in the list of components).
 
 ### Game just crashes to desktop right away
 
 - Make sure Light plugin is not enabled. This plugin is not compatible with it.
+- If using openXR, please make sure your headset is supported.
+
+## Can I use OpenXR instead of OpenVR/SteamVR?
+
+OpenXR is supported for headsets that have 32-bit OpenXR runtime available.
+Please refer to the following table to check if your device is supported:
+
+| Manufacturer | Runtime                                                                 | Support     | Comments                                                                    |
+| ------------ | ----------------------------------------------------------------------- | ----------- | --------------------------------------------------------------------------- |
+| Pimax        | [Pimax-OpenXR](https://github.com/mbucchia/Pimax-OpenXR)                | ✅          |                                                                             |
+| Oculus       | Oculus OpenXR                                                           | ✅          |                                                                             |
+| Reverb       | WMR with [OpenXR-Vk-D3D12](https://github.com/mbucchia/OpenXR-Vk-D3D12) | ✅*         | Needs a synchronization workaround that has a potential performance impact  |
+| Oculus       | [VDXR](https://github.com/mbucchia/VirtualDesktop-OpenXR)               | ⚠️           | Swapchain creation fails. Perhaps a VirtualDesktop incompatibility          |
+| Valve        | SteamVR OpenXR                                                          | ⛔          | No 32-bit runtime available                                                 |
+| Varjo        | Varjo OpenXR                                                            | ⛔          | No 32-bit runtime available                                                 |
+| Pico         | ?                                                                       | ❓          | Untested at the moment                                                      |
+
+Enable OpenXR runtime from `Options -> Plugins -> openRBRVR -> VR runtime` or
+edit `openRBRVR.ini` to contain `runtime = openxr`. For Reverb headsets, select
+`OpenXR (Reverb compatibility mode)` from the game or put `runtime =
+openxr-wmr` in the ini.
 
 ## My FPS is worse than what it is in RBRVR
 
