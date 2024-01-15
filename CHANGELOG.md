@@ -1,7 +1,7 @@
 ## 0.5.0
 
 - Implement OpenXR support
-- Change internal GPU access logic
+- Change internal GPU synchronization logic
 
 ## 0.4.5
 
