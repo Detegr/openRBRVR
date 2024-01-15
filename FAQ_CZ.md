@@ -1,5 +1,7 @@
 # Často kladené dotazy
 
+[🇬🇧](FAQ.md) - [🇨🇿](FAQ_CZ.md)
+
 ## Plugin se nespustí
 
 ### Direct3DCreateVR is missing

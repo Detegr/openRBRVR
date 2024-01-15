@@ -1,5 +1,7 @@
 # openRBRVR
 
+[🇬🇧](README.md) - [🇨🇿](README_CZ.md) - [🇫🇷](README_FR.md)
+
 ![openRBRVR logo](img/openRBRVR.png)
 
 Open source VR plugin pro Richard Burns Rally.
