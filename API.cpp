@@ -23,6 +23,7 @@ enum ApiOperations : uint64_t {
     TOGGLE_DEBUG_INFO = 0x2,
     OPENXR_REQUEST_INSTANCE_EXTENSIONS = 0x4,
     OPENXR_REQUEST_DEVICE_EXTENSIONS = 0x8,
+    GET_VR_RUNTIME = 0x10,
 };
 
 extern "C" __declspec(dllexport) int64_t openRBRVR_Exec(ApiOperations ops, uint64_t value)
@@ -43,6 +44,12 @@ extern "C" __declspec(dllexport) int64_t openRBRVR_Exec(ApiOperations ops, uint6
     if ((ops & OPENXR_REQUEST_DEVICE_EXTENSIONS) && gVR && gVR->GetRuntimeType() == OPENXR) {
         OpenXR* vr = reinterpret_cast<OpenXR*>(gVR.get());
         return reinterpret_cast<int64_t>(vr->GetDeviceExtensions());
+    }
+    if (ops & GET_VR_RUNTIME) {
+        if(!gVR) {
+            return 0;
+        }
+        return static_cast<int64_t>(gVR->GetRuntimeType());
     }
     return 0;
 }
