@@ -16,11 +16,31 @@ Pokud tohle nepomůže, zkuste:
 
 - Ukončete RBR
 - Vypněte VR mód v RSF launcheru a ujistěte se, že 2D fullscreen mód je nastaven na "Normal" a NE na "Vulkan".
-- Zavřete RSF launcher a spusťte RSF instalátor a vyberte "Update Existing Installation" (nezapomeňte zašktnout RBRVR i openRBRVR plugin v seznamu).
+- Zavřete RSF launcher a spusťte RSF instalátor a vyberte "Update Existing Installation" (nezapomeňte zaškrtnout RBRVR i openRBRVR plugin v seznamu).
 
 ### Hra hned spadne na plochu (desktop)
 
 - Pokud máte Light plugin, tak se ujistěte, že ho máte zakázaný. openRBRVR není s tímto pluginem kompatibilní.
+
+## Můžu použít OpenXR místo OpenVR/SteamVR?
+
+OpenXR je podporován u headsetů, které mají dostupný 32-bit OpenXR runtime.
+V následující tabulce se můžete podívat jestli ho váš headset podporuje:
+
+| Výrobce      | Runtime                                                                 | Podpora     | Komentář                                                                   |
+| ------------ | ----------------------------------------------------------------------- | ----------- | --------------------------------------------------------------------------- |
+| Pimax        | [Pimax-OpenXR](https://github.com/mbucchia/Pimax-OpenXR)                | ✅          |                                                                             |
+| Oculus       | Oculus OpenXR                                                           | ✅          |                                                                             |
+| Reverb       | WMR with [OpenXR-Vk-D3D12](https://github.com/mbucchia/OpenXR-Vk-D3D12) | ✅*         | Potřebuje řešení synchronizace, které ale může mít dopad na výkon           |
+| Oculus       | [VDXR](https://github.com/mbucchia/VirtualDesktop-OpenXR)               | ⚠️           | Swapchain creation fails. Nejspíš nekompatibilita s VirtualDesktop          |
+| Valve        | SteamVR OpenXR                                                          | ⛔          | Nemá 32-bit runtime                                                         |
+| Varjo        | Varjo OpenXR                                                            | ⛔          | Nemá 32-bit runtime                                                         |
+| Pico         | ?                                                                       | ❓          | V tento moment netestováno                                                  |
+
+OpenXR runtime zapnete v `Options (Nastavení) -> Plugins -> openRBRVR -> VR runtime` nebo editací `openRBRVR.ini`
+a upravením řádku `runtime = openxr`.
+Pokud máte Reverb headset, vyberte `OpenXR (Reverb compatibility mode)` ve hře a nebo upravte řádek v ini na
+`runtime = openxr-wmr`.
 
 ## Moje FPS jsou horší než v RBRVR pluginu
 
