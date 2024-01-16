@@ -28,7 +28,7 @@ Avec le FoV du bureau, les objets peuvent disparaitre de votre vision périphér
 
 ## FAQ
 
-- Voir [FAQ](https://github.com/Detegr/openRBRVR/blob/master/FAQ.md).
+- Voir [FAQ](https://github.com/Detegr/openRBRVR/blob/master/FAQ_FR.md).
 
 ## Les bugs connus et les limites
 

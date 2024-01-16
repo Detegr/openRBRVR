@@ -1,6 +1,6 @@
 # Frequently asked questions
 
-[🇬🇧](FAQ.md) - [🇨🇿](FAQ_CZ.md)
+[🇬🇧](FAQ.md) - [🇨🇿](FAQ_CZ.md) - [🇫🇷](FAQ_FR.md)
 
 ## The plugin does not start
 
