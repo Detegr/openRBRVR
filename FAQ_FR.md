@@ -45,7 +45,6 @@ openxr-wmr` dans le ini.
 
 - Désactiver l'environnement cubique
 - S'assurer que l'anti-aliasing n'est pas trop élevé. Généralement 4x SRS est le maximum acceptable, sachant que la majorité des configurations ne peuvent pas aller au-delà de 2x SRS.
-- Si aucun des deux ne foncitonne, aller dans `Options -> Plugins -> openRBRVR -> Debug settings -> Always call Present` et le mettre sur `OFF`. Redémarrer le jeu.
 
 ## Comment je réinitialise la vue en VR ?
 

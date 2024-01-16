@@ -53,8 +53,6 @@ openxr-wmr` in the ini.
 - Disable cubic env maps
 - Make sure anti-aliasing is not too high. Generally 4x SRS is the highest you
   can go and most systems can't go over 2x SRS.
-- If neither of those work, go to `Options -> Plugins -> openRBRVR -> Debug
-  settings -> Always call Present` and set it to `OFF`. Then restart the game.
 
 ## How do I reset the VR view?
 
