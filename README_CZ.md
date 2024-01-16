@@ -40,27 +40,23 @@ viditelnější než v jiných. Můžete to spravit přímo v RSF launcheru, NGP
 nebo přímo ve hře použitím PaceNote pluginu (Dvakrát klikněte pravým tlačítkem
 myši pro zobrazení menu). U mého headsetu dobře fungují hodnoty 2.3 až 2.6
 
-## Zapnutí anizotropního filtrování
+## Často kladené dotazy
 
-RSF Launcher nezobrazuje nastavení pro jeho změnu, proto musíte ručně změnit
-soubor `dxvk.conf` přidáním/přepsáním řádku: `d3d9.samplerAnisotropy = -1`
-
-Použitelné hodnoty: 0, 2, 4, 8 nebo 16
+- Naleznete v [FAQ](https://github.com/Detegr/openRBRVR/blob/master/FAQ_CZ.md).
 
 ## Známé chyby a omezení
 
-- Pokud není zapnut PaceNote plugin, uvidíte černou obrazovku před čelním sklem
 - Polohu sedadla nelze změnit pomocí klávesnice, ale musíte použít PaceNote
   plugin dvojklikem pravým tlačítkem myši v okně hry
-- Vycentrovat VR pohled můžete v `Options -> Plugins -> openRBRVR -> Recenter
-  view` nebo nastavením klávesy v RBRControl pluginu
+- BTB tratě mohou mít velký dopad na výkon pokud je zapnuto `cubic env maps`.
+  Doporučuju tuto možnost v launcheru vypnout pro openRBRVR.
 
 ## Pokyny pro sestavení
 
 Projekt používá CMake a je vyvíjen ve Visual Studiu 2022 community edition,
 který má podporu CMake zabudovanou v sobě.
 
-Pro vytvoření d3d9.dll, zkompilujte `dxvk` použitím meson. Používám parametry:
+Pro vytvoření d3d9.dll, zkompilujte `dxvk` použitím mesonu. Používám parametry:
 `meson setup --backend=vs2022 --build_type=release`
 
 ## Poděkování
@@ -71,7 +67,8 @@ Pro vytvoření d3d9.dll, zkompilujte `dxvk` použitím meson. Používám param
 - Towerbrah za nápad implementovat VR podporu použitím forku od TheIronWolfa a
   za pomoc s debuggingem problémů s RBRHUD+RBRRX.
 - [mika-n](https://github.com/mika-n) za open sourcing
-  [NGPCarMenu](https://github.com/mika-n/NGPCarMenu).
+  [NGPCarMenu](https://github.com/mika-n/NGPCarMenu) a spolupráci na začlenění
+  pluginu do RSF a RBRControls.
 
 ## Licence
 
