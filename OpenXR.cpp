@@ -83,6 +83,9 @@ OpenXR::OpenXR()
 {
     XrApplicationInfo appInfo = {
         .applicationName = "openRBRVR",
+        .applicationVersion = 1,
+        .engineName = "",
+        .engineVersion = 0,
         .apiVersion = XR_CURRENT_API_VERSION,
     };
     const char* extensions[] = {
