@@ -172,6 +172,19 @@ void OpenXR::Init(IDirect3DDevice9* dev, const Config& cfg, IDirect3DVR9** vrdev
         throw std::runtime_error(std::format("Failed to initialize OpenXR: xrCreateSession {}", XrResultToString(instance, err)));
     }
 
+    XrPosef identity = {
+        .orientation = { 0.0f, 0.0f, 0.0f, 1.0f },
+        .position = { 0.0f, 0.0f, 0.0f },
+    };
+    XrReferenceSpaceCreateInfo referenceSpaceCreateInfo = {
+        .type = XR_TYPE_REFERENCE_SPACE_CREATE_INFO,
+        .referenceSpaceType = XR_REFERENCE_SPACE_TYPE_LOCAL,
+        .poseInReferenceSpace = identity,
+    };
+    if (auto err = xrCreateReferenceSpace(session, &referenceSpaceCreateInfo, &space); err != XR_SUCCESS) {
+        throw std::runtime_error(std::format("Failed to initialize OpenXR: xrCreateReferenceSpace {}", XrResultToString(instance, err)));
+    }
+
     XrViewConfigurationType viewConfigType = XR_VIEW_CONFIGURATION_TYPE_PRIMARY_STEREO;
     uint32_t viewConfigCount;
     if (auto err = xrEnumerateViewConfigurations(instance, systemId, 0, &viewConfigCount, &viewConfigType); err != XR_SUCCESS) {
