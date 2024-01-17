@@ -144,6 +144,7 @@ void OpenVR::SubmitFramesToHMD(IDirect3DDevice9* dev)
     if (auto e = compositor->Submit(static_cast<vr::EVREye>(RightEye), &openvrTexture[RightEye]); e != vr::VRCompositorError_None) [[unlikely]] {
         Dbg(std::format("Compositor error: {}", VRCompositorErrorStr(e)));
     }
+    compositor->PostPresentHandoff();
     gD3DVR->EndVRSubmit();
 }
 
