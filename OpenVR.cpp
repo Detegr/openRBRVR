@@ -56,9 +56,14 @@ OpenVR::OpenVR(IDirect3DDevice9* dev, const Config& cfg, IDirect3DVR9** vrdev, u
     eyePos[LeftEye] = glm::inverse(M4FromSteamVRMatrix(HMD->GetEyeToHeadTransform(static_cast<vr::EVREye>(LeftEye))));
     eyePos[RightEye] = glm::inverse(M4FromSteamVRMatrix(HMD->GetEyeToHeadTransform(static_cast<vr::EVREye>(RightEye))));
 
+    Direct3DCreateVR(dev, vrdev);
+
+    // WaitGetPoses might access the Vulkan queue so we need to lock it
+    gD3DVR->LockSubmissionQueue();
     if (auto e = compositor->WaitGetPoses(poses, vr::k_unMaxTrackedDeviceCount, nullptr, 0); e != vr::VRCompositorError_None) {
         Dbg("Could not get VR poses");
     }
+    gD3DVR->UnlockSubmissionQueue();
 
     uint32_t w, h;
     HMD->GetRecommendedRenderTargetSize(&w, &h);
@@ -71,8 +76,6 @@ OpenVR::OpenVR(IDirect3DDevice9* dev, const Config& cfg, IDirect3DVR9** vrdev, u
     //	int32_t x, y;
     // 	VRExtDisplay->GetWindowBounds(&x, &y, &w, &h);
     // }
-
-    Direct3DCreateVR(dev, vrdev);
 
     try {
         InitSurfaces(dev, std::make_tuple(wss, hss), std::make_tuple(wss, hss), companionWindowWidth, companionWindowHeight);
@@ -150,10 +153,14 @@ void OpenVR::SubmitFramesToHMD(IDirect3DDevice9* dev)
 
 bool OpenVR::UpdateVRPoses(Quaternion* carQuat, Config::HorizonLock lockSetting)
 {
+    // WaitGetPoses might access the Vulkan queue so we need to lock it
+    gD3DVR->LockSubmissionQueue();
     if (auto e = compositor->WaitGetPoses(poses, vr::k_unMaxTrackedDeviceCount, nullptr, 0); e != vr::VRCompositorError_None) {
         Dbg("Could not get VR poses");
         return false;
     }
+    gD3DVR->UnlockSubmissionQueue();
+
     auto pose = &poses[vr::k_unTrackedDeviceIndex_Hmd];
     if (pose->bPoseIsValid) {
         HMDPose[LeftEye] = glm::inverse(M4FromSteamVRMatrix(pose->mDeviceToAbsoluteTracking));
