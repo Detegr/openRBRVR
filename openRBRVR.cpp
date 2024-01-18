@@ -419,10 +419,10 @@ HRESULT __stdcall DXHook_Present(IDirect3DDevice9* This, const RECT* pSourceRect
 
     if (gVR) {
         gVR->SubmitFramesToHMD(gD3Ddev);
-    }
 
-    if (gCfg.debug) {
-        DrawDebugInfo(cpuFrameTime.count());
+        if (gCfg.debug) {
+            DrawDebugInfo(cpuFrameTime.count());
+        }
     }
 
     gVRError = false;
