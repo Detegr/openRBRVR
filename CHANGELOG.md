@@ -1,3 +1,7 @@
+## 0.5.1
+
+- SteamVR: Improve concurrent Vulkan queue usage
+
 ## 0.5.0
 
 - Implement OpenXR support
