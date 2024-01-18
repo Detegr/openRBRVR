@@ -196,10 +196,10 @@ struct Config {
             } else if (key == "wmrWorkaround") {
                 cfg.wmrWorkaround = (value == "true");
             } else if (key == "runtime") {
-                if(value == "openxr") {
+                if (value == "openxr") {
                     cfg.runtime = OPENXR;
                     cfg.wmrWorkaround = false;
-                } else if(value == "openxr-wmr") {
+                } else if (value == "openxr-wmr") {
                     cfg.runtime = OPENXR;
                     cfg.wmrWorkaround = true;
                 } else {

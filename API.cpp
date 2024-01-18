@@ -46,7 +46,7 @@ extern "C" __declspec(dllexport) int64_t openRBRVR_Exec(ApiOperations ops, uint6
         return reinterpret_cast<int64_t>(vr->GetDeviceExtensions());
     }
     if (ops & GET_VR_RUNTIME) {
-        if(!gVR) {
+        if (!gVR) {
             return 0;
         }
         return static_cast<int64_t>(gVR->GetRuntimeType());
