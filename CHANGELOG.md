@@ -1,6 +1,7 @@
 ## 0.5.1
 
 - SteamVR: Improve concurrent Vulkan queue usage
+- Make the amount of correction that lock to horizon applies adjustable
 
 ## 0.5.0
 

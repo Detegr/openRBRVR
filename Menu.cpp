@@ -101,17 +101,7 @@ void Toggle(bool& value) { value = !value; }
 // clang-format off
 static class Menu mainMenu = { "openRBRVR", {
   { .text = id("Recenter VR view"), .longText = {"Recenters VR view"}, .menuColor = IRBRGame::EMenuColors::MENU_TEXT, .position = Menu::menuItemsStartPos, .selectAction = RecenterVR },
-  { .text = [] { return std::format("Lock horizon: {}", GetHorizonLockStr()); },
-    .longText = {
-        "Enable to rotate the car around the headset instead of rotating the headset with the car.",
-        "For some people, enabling this option gives a more comfortable VR experience.",
-        "Roll means locking the left-right axis.",
-        "Pitch means locking the front-back axis."
-    },
-    .leftAction = [] { ChangeHorizonLock(false); },
-    .rightAction = [] { ChangeHorizonLock(true); },
-    .selectAction = [] { ChangeHorizonLock(true); },
-  },
+  { .text = id("Horizon lock settings") , .longText = {"Horizon lock settings"}, .selectAction = [] { SelectMenu(4); } },
   { .text = id("Graphics settings") , .longText = {"Graphics settings"}, .selectAction = [] { SelectMenu(1); } },
   { .text = id("Debug settings"), .longText = {"Not intended to be changed unless there is a problem that needs more information."}, .selectAction = [] { SelectMenu(2); } },
   { .text = [] { return std::format("VR runtime: {}", gCfg.runtime == OPENVR ? "OpenVR (SteamVR)" : (gCfg.wmrWorkaround ? "OpenXR (Reverb compatibility mode)" : "OpenXR")); },
@@ -201,6 +191,31 @@ static Menu debugMenu = { "openRBRVR debug settings", {
   },
 }};
 static LicenseMenu licenseMenu;
+static Menu horizonLockMenu = { "openRBRVR horizon lock settings", {
+  { .text = [] { return std::format("Lock horizon: {}", GetHorizonLockStr()); },
+    .longText = {
+        "Enable to rotate the car around the headset instead of rotating the headset with the car.",
+        "For some people, enabling this option gives a more comfortable VR experience.",
+        "Roll means locking the left-right axis.",
+        "Pitch means locking the front-back axis."
+    },
+	.menuColor = IRBRGame::EMenuColors::MENU_TEXT,
+    .position = Menu::menuItemsStartPos,
+    .leftAction = [] { ChangeHorizonLock(false); },
+    .rightAction = [] { ChangeHorizonLock(true); },
+    .selectAction = [] { ChangeHorizonLock(true); },
+  },
+  { .text = [] { return std::format("Percentage: {}%", static_cast<int>(gCfg.horizonLockMultiplier * 100.0f)); },
+    .longText = {
+        "Amount of locking that's happening. 100 means the horizon is always level.",
+    },
+    .leftAction = [] { gCfg.horizonLockMultiplier = std::max<float>(0.05f, gCfg.horizonLockMultiplier - 0.05f); },
+    .rightAction = [] { gCfg.horizonLockMultiplier = std::min<float>(1.0f, gCfg.horizonLockMultiplier + 0.05f); },
+  },
+  { .text = id("Back to previous menu"),
+	.selectAction = [] { SelectMenu(0); }
+  },
+}};
 // clang-format on
 
 static auto menus = std::to_array<Menu*>({
@@ -208,6 +223,7 @@ static auto menus = std::to_array<Menu*>({
     &graphicsMenu,
     &debugMenu,
     &licenseMenu,
+    &horizonLockMenu,
 });
 
 Menu* gMenu = menus[0];

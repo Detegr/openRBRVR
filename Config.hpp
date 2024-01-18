@@ -49,6 +49,7 @@ struct Config {
     glm::vec3 overlayTranslation;
     float superSampling;
     HorizonLock lockToHorizon;
+    float horizonLockMultiplier;
     bool drawCompanionWindow;
     bool drawLoadingScreen;
     bool debug;
@@ -73,6 +74,7 @@ struct Config {
             "overlayTranslateY = {:.2f}\n"
             "overlayTranslateZ = {:.2f}\n"
             "lockToHorizon = {}\n"
+            "horizonLockMultiplier = {}\n"
             "drawDesktopWindow = {}\n"
             "drawLoadingScreen = {}\n"
             "debug = {}\n"
@@ -88,6 +90,7 @@ struct Config {
             overlayTranslation.y,
             overlayTranslation.z,
             static_cast<int>(lockToHorizon),
+            horizonLockMultiplier,
             drawCompanionWindow,
             drawLoadingScreen,
             debug,
@@ -117,6 +120,7 @@ struct Config {
             .overlayTranslation = glm::vec3 { 0.0f, 0.0f, 0.0f },
             .superSampling = 1.0,
             .lockToHorizon = LOCK_NONE,
+            .horizonLockMultiplier = 1.0,
             .drawCompanionWindow = true,
             .drawLoadingScreen = true,
             .debug = false,
@@ -173,6 +177,8 @@ struct Config {
                 cfg.superSampling = floatOrDefault(value, 1.0);
             } else if (key == "lockToHorizon") {
                 cfg.lockToHorizon = static_cast<HorizonLock>(intOrDefault(value, 0));
+            } else if (key == "horizonLockMultiplier") {
+                cfg.horizonLockMultiplier = static_cast<HorizonLock>(floatOrDefault(value, 1.0));
             } else if (key == "drawDesktopWindow") {
                 cfg.drawCompanionWindow = (value == "true");
             } else if (key == "drawLoadingScreen") {
