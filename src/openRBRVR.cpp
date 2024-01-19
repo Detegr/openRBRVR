@@ -62,6 +62,8 @@ static uintptr_t RBRTrackIdAddr = GetRBRAddress(0x1660804);
 static uintptr_t RBRRenderFunctionAddr = GetRBRAddress(0x47E1E0);
 static uintptr_t RBRCarQuatPtrAddr = GetRBRAddress(0x8EF660);
 static uintptr_t RBRCarInfoAddr = GetRBRAddress(0x165FC68);
+static uintptr_t RBRStageNameAddr = GetRBRAddress(0x007D1D64);
+static uintptr_t RBRGameModeExt2PtrAddr = GetRBRAddress(0x007EA678);
 static uintptr_t RBRRenderParticlesFunctionAddr = GetRBRAddress(0x5eff60); // Other possible hooking points are at 0x5efed0, 0x5effd0 and 0x5f0040
 void __fastcall RBRHook_Render(void* p);
 uint32_t __stdcall RBRHook_LoadTexture(void* p, const char* texName, uint32_t a, uint32_t b, uint32_t c, uint32_t d, uint32_t e, uint32_t f, uint32_t g, uint32_t h, uint32_t i, uint32_t j, uint32_t k, IDirect3DTexture9** ppTexture);
@@ -114,6 +116,8 @@ static std::vector<IDirect3DVertexShader9*> gOriginalShaders;
 static std::unordered_map<std::string, IDirect3DTexture9*> gCarTextures;
 static Quaternion* gCarQuat;
 static uint32_t* gCameraType;
+static uint32_t gCurrentStageId;
+static uint32_t* gStageId;
 static M4 gLockToHorizonMatrix = glm::identity<M4>();
 static bool gVRError;
 
@@ -231,6 +235,7 @@ static void DrawDebugInfo(uint64_t cpuFrameTime_us)
     gGame->WriteText(0, 18 * ++i, std::format("Render resolution: {}x{} (left), {}x{} (right)", lw, lh, rw, rh).c_str());
     gGame->WriteText(0, 18 * ++i, std::format("Anti-aliasing: {}x", static_cast<int>(gCfg.msaa)).c_str());
     gGame->WriteText(0, 18 * ++i, std::format("Anisotropic filtering: {}x", gCfg.anisotropy).c_str());
+    gGame->WriteText(0, 18 * ++i, std::format("Current stage ID: {}", gCurrentStageId).c_str());
 }
 
 // Call the RBR render function with a texture as the render target
@@ -329,6 +334,10 @@ void __fastcall RBRHook_Render(void* p)
         gCameraType = reinterpret_cast<uint32_t*>(cameraInfo);
     }
 
+    if (!gStageId) [[unlikely]] {
+        gStageId = reinterpret_cast<uint32_t*>(*reinterpret_cast<uintptr_t*>(*reinterpret_cast<uintptr_t*>(RBRGameModeExt2PtrAddr) + 0x70) + 0x20);
+    }
+
     if (gVR) [[likely]] {
         if (gDriving && (gCfg.lockToHorizon != Config::HorizonLock::LOCK_NONE) && !gCarQuat) [[unlikely]] {
             uintptr_t p = *reinterpret_cast<uintptr_t*>(RBRCarQuatPtrAddr) + 0x100;
@@ -422,6 +431,22 @@ HRESULT __stdcall DXHook_Present(IDirect3DDevice9* This, const RECT* pSourceRect
 
         if (gCfg.debug) {
             DrawDebugInfo(cpuFrameTime.count());
+        }
+    }
+
+    if (gVR && (gCurrentStageId != *gStageId)) {
+        gCurrentStageId = *gStageId;
+        bool found = false;
+        for (const auto& v : gCfg.gfx) {
+            const std::vector<int>& stages = std::get<1>(v.second);
+            if (std::find(stages.cbegin(), stages.cend(), gCurrentStageId) != stages.cend()) {
+                gVR->SetRenderContext(v.first);
+                found = true;
+                break;
+            }
+        }
+        if (!found) {
+            gVR->SetRenderContext("default");
         }
     }
 
@@ -724,6 +749,7 @@ openRBRVR::openRBRVR(IRBRGame* g)
         MessageBoxA(nullptr, e.what(), "Hooking failed", MB_OK);
     }
     gCfg = gSavedCfg = Config::fromPath("Plugins");
+    gDrawOverlayBorder = gCfg.debug;
 }
 
 openRBRVR::~openRBRVR()

@@ -76,8 +76,7 @@ static M4 XrPoseToM4(const XrPosef& pose)
 }
 
 OpenXR::OpenXR()
-    : swapchains()
-    , session()
+    : session()
     , hasProjection(false)
     , resetViewRequested(false)
 {
@@ -220,42 +219,76 @@ void OpenXR::Init(IDirect3DDevice9* dev, const Config& cfg, IDirect3DVR9** vrdev
         swapchainFormat = swapchainFormats.front();
     }
 
-    for (size_t i = 0; i < viewConfigViews.size(); ++i) {
-        renderWidth[i] = static_cast<uint32_t>(viewConfigViews[i].recommendedImageRectWidth * gCfg.superSampling);
-        renderHeight[i] = static_cast<uint32_t>(viewConfigViews[i].recommendedImageRectHeight * gCfg.superSampling);
+    for (const auto& gfx : cfg.gfx) {
+        auto superSampling = std::get<0>(gfx.second);
 
-        XrSwapchainCreateInfo swapchainCreateInfo = {
-            .type = XR_TYPE_SWAPCHAIN_CREATE_INFO,
-            .createFlags = 0,
-            .usageFlags = XR_SWAPCHAIN_USAGE_TRANSFER_DST_BIT,
-            .format = swapchainFormat,
-            .sampleCount = 1,
-            .width = renderWidth[i],
-            .height = renderHeight[i],
-            .faceCount = 1,
-            .arraySize = 1,
-            .mipCount = 1,
+        OpenXRRenderContext* xrCtx = new OpenXRRenderContext {};
+        RenderContext ctx = {
+            .ext = xrCtx
         };
-        Dbg(std::format("requesting swapchain: {}x{}, format {}", swapchainCreateInfo.width, swapchainCreateInfo.height, swapchainCreateInfo.format));
 
-        if (auto err = xrCreateSwapchain(session, &swapchainCreateInfo, &swapchains[i]); err != XR_SUCCESS) {
-            throw std::runtime_error(std::format("VR init failed. xrCreateSwapchain: {}", XrResultToString(instance, err)));
+        for (size_t i = 0; i < viewConfigViews.size(); ++i) {
+            ctx.width[i] = static_cast<uint32_t>(viewConfigViews[i].recommendedImageRectWidth * superSampling);
+            ctx.height[i] = static_cast<uint32_t>(viewConfigViews[i].recommendedImageRectHeight * superSampling);
+
+            XrSwapchainCreateInfo swapchainCreateInfo = {
+                .type = XR_TYPE_SWAPCHAIN_CREATE_INFO,
+                .createFlags = 0,
+                .usageFlags = XR_SWAPCHAIN_USAGE_TRANSFER_DST_BIT,
+                .format = swapchainFormat,
+                .sampleCount = 1,
+                .width = ctx.width[i],
+                .height = ctx.height[i],
+                .faceCount = 1,
+                .arraySize = 1,
+                .mipCount = 1,
+            };
+            Dbg(std::format("requesting swapchain: {}x{}, format {}", swapchainCreateInfo.width, swapchainCreateInfo.height, swapchainCreateInfo.format));
+
+            if (auto err = xrCreateSwapchain(session, &swapchainCreateInfo, &xrCtx->swapchains[i]); err != XR_SUCCESS) {
+                throw std::runtime_error(std::format("VR init failed. xrCreateSwapchain: {}", XrResultToString(instance, err)));
+            }
+
+            uint32_t imageCount;
+            if (auto err = xrEnumerateSwapchainImages(xrCtx->swapchains[i], 0, &imageCount, nullptr); err != XR_SUCCESS) {
+                throw std::runtime_error(std::format("Failed to initialize OpenXR: xrEnumerateSwapchainImages {}", XrResultToString(instance, err)));
+            }
+            xrCtx->swapchainImages[i].resize(imageCount, { .type = XR_TYPE_SWAPCHAIN_IMAGE_VULKAN_KHR });
+            if (auto err = xrEnumerateSwapchainImages(
+                    xrCtx->swapchains[i],
+                    xrCtx->swapchainImages[i].size(),
+                    &imageCount,
+                    reinterpret_cast<XrSwapchainImageBaseHeader*>(xrCtx->swapchainImages[i].data()));
+                err != XR_SUCCESS) {
+                throw std::runtime_error(std::format("Failed to initialize OpenXR: xrEnumerateSwapchainImages {}", XrResultToString(instance, err)));
+            }
         }
 
-        uint32_t imageCount;
-        if (auto err = xrEnumerateSwapchainImages(swapchains[i], 0, &imageCount, nullptr); err != XR_SUCCESS) {
-            throw std::runtime_error(std::format("Failed to initialize OpenXR: xrEnumerateSwapchainImages {}", XrResultToString(instance, err)));
+        InitSurfaces(dev, ctx, companionWindowWidth, companionWindowHeight);
+
+        for (size_t i = 0; i < xrCtx->views.size(); ++i) {
+            xrCtx->views[i] = { .type = XR_TYPE_VIEW };
+            xrCtx->projectionViews[i] = {
+                .type = XR_TYPE_COMPOSITION_LAYER_PROJECTION_VIEW,
+                .next = nullptr,
+                .subImage = {
+                    .swapchain = xrCtx->swapchains[i],
+                    .imageRect = {
+                        .offset = { 0, 0 },
+                        .extent = {
+                            .width = static_cast<int>(ctx.width[i]),
+                            .height = static_cast<int>(ctx.height[i]),
+                        },
+                    },
+                    .imageArrayIndex = 0,
+                }
+            };
         }
-        swapchainImages[i].resize(imageCount, { .type = XR_TYPE_SWAPCHAIN_IMAGE_VULKAN_KHR });
-        if (auto err = xrEnumerateSwapchainImages(
-                swapchains[i],
-                swapchainImages[i].size(),
-                &imageCount,
-                reinterpret_cast<XrSwapchainImageBaseHeader*>(swapchainImages[i].data()));
-            err != XR_SUCCESS) {
-            throw std::runtime_error(std::format("Failed to initialize OpenXR: xrEnumerateSwapchainImages {}", XrResultToString(instance, err)));
-        }
+
+        renderContexts[gfx.first] = ctx;
     }
+
+    SetRenderContext("default");
 
     viewPose = { { 0, 0, 0, 1 }, { 0, 0, 0 } };
 
@@ -270,32 +303,6 @@ void OpenXR::Init(IDirect3DDevice9* dev, const Config& cfg, IDirect3DVR9** vrdev
     spaceCreateInfo.referenceSpaceType = XR_REFERENCE_SPACE_TYPE_VIEW;
     if (auto err = xrCreateReferenceSpace(session, &spaceCreateInfo, &viewSpace); err != XR_SUCCESS) {
         throw std::runtime_error(std::format("Failed to initialize OpenXR. xrCreateReferenceSpace {}", XrResultToString(instance, err)));
-    }
-
-    InitSurfaces(
-        dev,
-        std::make_tuple(renderWidth[0], renderHeight[0]),
-        std::make_tuple(renderWidth[1], renderHeight[1]),
-        companionWindowWidth,
-        companionWindowHeight);
-
-    for (size_t i = 0; i < views.size(); ++i) {
-        views[i] = { .type = XR_TYPE_VIEW };
-        projectionViews[i] = {
-            .type = XR_TYPE_COMPOSITION_LAYER_PROJECTION_VIEW,
-            .next = nullptr,
-            .subImage = {
-                .swapchain = swapchains[i],
-                .imageRect = {
-                    .offset = { 0, 0 },
-                    .extent = {
-                        .width = static_cast<int>(renderWidth[i]),
-                        .height = static_cast<int>(renderHeight[i]),
-                    },
-                },
-                .imageArrayIndex = 0,
-            }
-        };
     }
 
     bool sessionRunning = false;
@@ -340,6 +347,8 @@ void OpenXR::Init(IDirect3DDevice9* dev, const Config& cfg, IDirect3DVR9** vrdev
         }
     }
 
+    // In OpenXR we don't have separate matrices for eye positions
+    // The eye position is taken account in the projection matrix already
     eyePos[LeftEye] = glm::identity<glm::mat4x4>();
     eyePos[RightEye] = glm::identity<glm::mat4x4>();
 }
@@ -384,11 +393,11 @@ XrSwapchainImageVulkanKHR& OpenXR::AcquireSwapchainImage(RenderTarget tgt)
     };
 
     uint32_t idx;
-    if (auto err = xrAcquireSwapchainImage(swapchains[tgt], &acqInfo, &idx); err != XR_SUCCESS) {
+    if (auto err = xrAcquireSwapchainImage(XrContext()->swapchains[tgt], &acqInfo, &idx); err != XR_SUCCESS) {
         Dbg(std::format("Could not acquire swapchain image: {}", XrResultToString(instance, err)));
     }
 
-    return swapchainImages[tgt][idx];
+    return XrContext()->swapchainImages[tgt][idx];
 }
 
 void OpenXR::PrepareFramesForHMD(IDirect3DDevice9* dev)
@@ -399,13 +408,13 @@ void OpenXR::PrepareFramesForHMD(IDirect3DDevice9* dev)
         // Technically it would be possible I think but this will do for now.
 
         IDirect3DSurface9* leftEye;
-        if (dxTexture[LeftEye]->GetSurfaceLevel(0, &leftEye) != D3D_OK) {
+        if (currentRenderContext->dxTexture[LeftEye]->GetSurfaceLevel(0, &leftEye) != D3D_OK) {
             Dbg("Could not get surface level");
             leftEye = nullptr;
         }
 
         if (leftEye) {
-            dev->StretchRect(dxSurface[LeftEye], nullptr, leftEye, nullptr, D3DTEXF_NONE);
+            dev->StretchRect(currentRenderContext->dxSurface[LeftEye], nullptr, leftEye, nullptr, D3DTEXF_NONE);
             leftEye->Release();
         }
     }
@@ -423,13 +432,13 @@ void OpenXR::PrepareFramesForHMD(IDirect3DDevice9* dev)
         .next = nullptr,
     };
 
-    if (auto res = xrWaitSwapchainImage(swapchains[LeftEye], &info); res != XR_SUCCESS) {
+    if (auto res = xrWaitSwapchainImage(XrContext()->swapchains[LeftEye], &info); res != XR_SUCCESS) {
         Dbg(std::format("xrWaitSwapchainImage (left): {}", XrResultToString(instance, res)));
         return;
     }
-    if (auto res = xrWaitSwapchainImage(swapchains[RightEye], &info); res != XR_SUCCESS) {
+    if (auto res = xrWaitSwapchainImage(XrContext()->swapchains[RightEye], &info); res != XR_SUCCESS) {
         Dbg(std::format("xrWaitSwapchainImage (right): {}", XrResultToString(instance, res)));
-        xrReleaseSwapchainImage(swapchains[LeftEye], &releaseInfo);
+        xrReleaseSwapchainImage(XrContext()->swapchains[LeftEye], &releaseInfo);
         return;
     }
 
@@ -443,21 +452,21 @@ void OpenXR::PrepareFramesForHMD(IDirect3DDevice9* dev)
     }
 
     gD3DVR->CopySurfaceToVulkanImage(
-        dxSurface[LeftEye],
+        currentRenderContext->dxSurface[LeftEye],
         left.image,
         swapchainFormat,
-        renderWidth[LeftEye],
-        renderHeight[LeftEye]);
+        currentRenderContext->width[LeftEye],
+        currentRenderContext->height[LeftEye]);
 
     gD3DVR->CopySurfaceToVulkanImage(
-        dxSurface[RightEye],
+        currentRenderContext->dxSurface[RightEye],
         right.image,
         swapchainFormat,
-        renderWidth[RightEye],
-        renderHeight[RightEye]);
+        currentRenderContext->width[RightEye],
+        currentRenderContext->height[RightEye]);
 
-    xrReleaseSwapchainImage(swapchains[LeftEye], &releaseInfo);
-    xrReleaseSwapchainImage(swapchains[RightEye], &releaseInfo);
+    xrReleaseSwapchainImage(XrContext()->swapchains[LeftEye], &releaseInfo);
+    xrReleaseSwapchainImage(XrContext()->swapchains[RightEye], &releaseInfo);
 
     if (gCfg.debug && perfQueryFree) [[unlikely]] {
         gpuEndQuery->Issue(D3DISSUE_END);
@@ -467,18 +476,18 @@ void OpenXR::PrepareFramesForHMD(IDirect3DDevice9* dev)
 
 void OpenXR::SubmitFramesToHMD(IDirect3DDevice9* dev)
 {
-    projectionViews[LeftEye].fov = views[LeftEye].fov;
-    projectionViews[LeftEye].pose = views[LeftEye].pose;
-    projectionViews[RightEye].fov = views[RightEye].fov;
-    projectionViews[RightEye].pose = views[RightEye].pose;
+    XrContext()->projectionViews[LeftEye].fov = XrContext()->views[LeftEye].fov;
+    XrContext()->projectionViews[LeftEye].pose = XrContext()->views[LeftEye].pose;
+    XrContext()->projectionViews[RightEye].fov = XrContext()->views[RightEye].fov;
+    XrContext()->projectionViews[RightEye].pose = XrContext()->views[RightEye].pose;
 
     XrCompositionLayerProjection projectionLayer = {
         .type = XR_TYPE_COMPOSITION_LAYER_PROJECTION,
         .next = nullptr,
         .layerFlags = 0,
         .space = space,
-        .viewCount = projectionViews.size(),
-        .views = projectionViews.data(),
+        .viewCount = XrContext()->projectionViews.size(),
+        .views = XrContext()->projectionViews.data(),
     };
 
     XrCompositionLayerBaseHeader* layers[] = {
@@ -516,11 +525,11 @@ std::optional<XrViewState> OpenXR::UpdateViews()
     };
 
     uint32_t viewCount = 0;
-    if (auto err = xrLocateViews(session, &viewLocateInfo, &viewState, views.size(), &viewCount, views.data()); err != XR_SUCCESS) {
+    if (auto err = xrLocateViews(session, &viewLocateInfo, &viewState, XrContext()->views.size(), &viewCount, XrContext()->views.data()); err != XR_SUCCESS) {
         Dbg(std::format("xrLocateViews failed: {}", XrResultToString(instance, err)));
         return std::nullopt;
     }
-    if (viewCount != views.size()) {
+    if (viewCount != XrContext()->views.size()) {
         Dbg(std::format("Unexpected viewcount: {}", viewCount));
         return std::nullopt;
     }
@@ -580,9 +589,9 @@ bool OpenXR::GetProjectionMatrix()
         return false;
     }
     for (auto i = 0; i < 2; ++i) {
-        stageProjection[i] = CreateProjectionMatrix(views[i].fov, zNearStage, zFar);
-        cockpitProjection[i] = CreateProjectionMatrix(views[i].fov, zNearCockpit, zFar);
-        mainMenuProjection[i] = CreateProjectionMatrix(views[i].fov, zNearMainMenu, zFar);
+        stageProjection[i] = CreateProjectionMatrix(XrContext()->views[i].fov, zNearStage, zFar);
+        cockpitProjection[i] = CreateProjectionMatrix(XrContext()->views[i].fov, zNearCockpit, zFar);
+        mainMenuProjection[i] = CreateProjectionMatrix(XrContext()->views[i].fov, zNearMainMenu, zFar);
     }
     return true;
 }
@@ -596,9 +605,9 @@ void OpenXR::UpdatePoses()
     }
 
     auto& vs = viewState.value();
-    for (size_t i = 0; i < views.size(); ++i) {
+    for (size_t i = 0; i < XrContext()->views.size(); ++i) {
         if (vs.viewStateFlags & (XR_VIEW_STATE_POSITION_VALID_BIT | XR_VIEW_STATE_ORIENTATION_VALID_BIT)) {
-            HMDPose[i] = glm::inverse(XrPoseToM4(views[i].pose));
+            HMDPose[i] = glm::inverse(XrPoseToM4(XrContext()->views[i].pose));
         } else {
             Dbg("Invalid VR poses");
             return;
@@ -690,8 +699,12 @@ void OpenXR::ShutdownVR()
 {
     xrDestroySpace(space);
     xrDestroySpace(viewSpace);
-    xrDestroySwapchain(swapchains[LeftEye]);
-    xrDestroySwapchain(swapchains[RightEye]);
+    for (const auto& v : renderContexts) {
+        const auto& ctx = v.second;
+        auto xrCtx = reinterpret_cast<OpenXRRenderContext*>(ctx.ext);
+        xrDestroySwapchain(xrCtx->swapchains[LeftEye]);
+        xrDestroySwapchain(xrCtx->swapchains[RightEye]);
+    }
     xrDestroySession(session);
     xrDestroyInstance(instance);
 }

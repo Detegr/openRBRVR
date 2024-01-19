@@ -44,16 +44,16 @@ bool CreateCompanionWindowBuffer(IDirect3DDevice9* dev)
     return true;
 }
 
-bool VRInterface::CreateRenderTarget(IDirect3DDevice9* dev, RenderTarget tgt, D3DFORMAT fmt, uint32_t w, uint32_t h)
+bool VRInterface::CreateRenderTarget(IDirect3DDevice9* dev, RenderContext& ctx, RenderTarget tgt, D3DFORMAT fmt, uint32_t w, uint32_t h)
 {
     HRESULT ret = 0;
 
     // If anti-aliasing is enabled, we need to first render into an anti-aliased render target.
     // If not, we can render directly to a texture that has D3DUSAGE_RENDERTARGET set.
     if (!IsUsingTextureToRender(tgt)) {
-        ret |= dev->CreateRenderTarget(w, h, fmt, gCfg.msaa, 0, false, &dxSurface[tgt], nullptr);
+        ret |= dev->CreateRenderTarget(w, h, fmt, gCfg.msaa, 0, false, &ctx.dxSurface[tgt], nullptr);
     }
-    ret |= dev->CreateTexture(w, h, 1, D3DUSAGE_RENDERTARGET, fmt, D3DPOOL_DEFAULT, &dxTexture[tgt], nullptr);
+    ret |= dev->CreateTexture(w, h, 1, D3DUSAGE_RENDERTARGET, fmt, D3DPOOL_DEFAULT, &ctx.dxTexture[tgt], nullptr);
     if (ret != D3D_OK) {
         Dbg("D3D initialization failed: CreateRenderTarget");
         return false;
@@ -84,7 +84,7 @@ bool VRInterface::CreateRenderTarget(IDirect3DDevice9* dev, RenderTarget tgt, D3
         }
     }
     auto msaa = IsAAEnabledForRenderTarget(tgt) ? gCfg.msaa : D3DMULTISAMPLE_NONE;
-    ret |= dev->CreateDepthStencilSurface(w, h, depthStencilFormat, msaa, 0, TRUE, &dxDepthStencilSurface[tgt], nullptr);
+    ret |= dev->CreateDepthStencilSurface(w, h, depthStencilFormat, msaa, 0, TRUE, &ctx.dxDepthStencilSurface[tgt], nullptr);
     if (FAILED(ret)) {
         Dbg("D3D initialization failed: CreateRenderTarget");
         return false;
@@ -119,18 +119,18 @@ bool CreateQuad(IDirect3DDevice9* dev, RenderTarget tgt, float aspect)
 IDirect3DSurface9* VRInterface::PrepareVRRendering(IDirect3DDevice9* dev, RenderTarget tgt, bool clear)
 {
     if (IsUsingTextureToRender(tgt)) {
-        if (dxTexture[tgt]->GetSurfaceLevel(0, &dxSurface[tgt]) != D3D_OK) {
+        if (currentRenderContext->dxTexture[tgt]->GetSurfaceLevel(0, &currentRenderContext->dxSurface[tgt]) != D3D_OK) {
             Dbg("PrepareVRRendering: Failed to get surface level");
-            dxSurface[tgt] = nullptr;
+            currentRenderContext->dxSurface[tgt] = nullptr;
             return nullptr;
         }
     }
-    if (dev->SetRenderTarget(0, dxSurface[tgt]) != D3D_OK) {
+    if (dev->SetRenderTarget(0, currentRenderContext->dxSurface[tgt]) != D3D_OK) {
         Dbg("PrepareVRRendering: Failed to set render target");
         FinishVRRendering(dev, tgt);
         return nullptr;
     }
-    if (dev->SetDepthStencilSurface(dxDepthStencilSurface[tgt]) != D3D_OK) {
+    if (dev->SetDepthStencilSurface(currentRenderContext->dxDepthStencilSurface[tgt]) != D3D_OK) {
         Dbg("PrepareVRRendering: Failed to set depth stencil surface");
         FinishVRRendering(dev, tgt);
         return nullptr;
@@ -140,37 +140,41 @@ IDirect3DSurface9* VRInterface::PrepareVRRendering(IDirect3DDevice9* dev, Render
             Dbg("PrepareVRRendering: Failed to clear surface");
         }
     }
-    return dxSurface[tgt];
+    return currentRenderContext->dxSurface[tgt];
 }
 
 void VRInterface::FinishVRRendering(IDirect3DDevice9* dev, RenderTarget tgt)
 {
-    if (IsUsingTextureToRender(tgt) && dxSurface[tgt]) {
-        dxSurface[tgt]->Release();
-        dxSurface[tgt] = nullptr;
+    if (IsUsingTextureToRender(tgt) && currentRenderContext->dxSurface[tgt]) {
+        currentRenderContext->dxSurface[tgt]->Release();
+        currentRenderContext->dxSurface[tgt] = nullptr;
     }
 }
 
-void VRInterface::InitSurfaces(IDirect3DDevice9* dev, std::tuple<uint32_t, uint32_t> resl, std::tuple<uint32_t, uint32_t> resr, uint32_t resx2d, uint32_t resy2d)
+void VRInterface::InitSurfaces(IDirect3DDevice9* dev, RenderContext& ctx, uint32_t resx2d, uint32_t resy2d)
 {
-    if (!CreateRenderTarget(dev, LeftEye, D3DFMT_X8B8G8R8, std::get<0>(resl), std::get<1>(resl)))
+    if (!CreateRenderTarget(dev, ctx, LeftEye, D3DFMT_X8B8G8R8, ctx.width[0], ctx.height[0]))
         throw std::runtime_error("Could not create texture for left eye");
-    if (!CreateRenderTarget(dev, RightEye, D3DFMT_X8B8G8R8, std::get<0>(resr), std::get<1>(resr)))
+    if (!CreateRenderTarget(dev, ctx, RightEye, D3DFMT_X8B8G8R8, ctx.width[1], ctx.height[1]))
         throw std::runtime_error("Could not create texture for right eye");
-    if (!CreateRenderTarget(dev, Menu, D3DFMT_X8B8G8R8, resx2d, resy2d))
+    if (!CreateRenderTarget(dev, ctx, Menu, D3DFMT_X8B8G8R8, resx2d, resy2d))
         throw std::runtime_error("Could not create texture for menus");
-    if (!CreateRenderTarget(dev, Overlay, D3DFMT_A8B8G8R8, resx2d, resy2d))
+    if (!CreateRenderTarget(dev, ctx, Overlay, D3DFMT_A8B8G8R8, resx2d, resy2d))
         throw std::runtime_error("Could not create texture for overlay");
 
-    auto aspectRatio = static_cast<float>(static_cast<double>(resx2d) / static_cast<double>(resy2d));
+    static bool quadsCreated = false;
+    if (!quadsCreated) {
+        auto aspectRatio = static_cast<float>(static_cast<double>(resx2d) / static_cast<double>(resy2d));
 
-    // Create and fill a vertex buffers for the 2D planes
-    if (!CreateQuad(dev, Menu, aspectRatio))
-        throw std::runtime_error("Could not create menu quad");
-    if (!CreateQuad(dev, Overlay, aspectRatio))
-        throw std::runtime_error("Could not create overlay quad");
-    if (!CreateCompanionWindowBuffer(dev))
-        throw std::runtime_error("Could not create desktop window buffer");
+        // Create and fill a vertex buffers for the 2D planes
+        // We can reuse all of these in every rendering context
+        if (!CreateQuad(dev, Menu, aspectRatio))
+            throw std::runtime_error("Could not create menu quad");
+        if (!CreateQuad(dev, Overlay, aspectRatio))
+            throw std::runtime_error("Could not create overlay quad");
+        if (!CreateCompanionWindowBuffer(dev))
+            throw std::runtime_error("Could not create desktop window buffer");
+    }
 }
 
 static void RenderTexture(
@@ -253,7 +257,7 @@ M4 GetHorizonLockMatrix(Quaternion* carQuat, Config::HorizonLock lockSetting)
         glm::vec3 ang = glm::eulerAngles(q);
         auto pitch = (lockSetting & Config::HorizonLock::LOCK_PITCH) ? glm::pitch(q) : 0.0f;
         auto roll = (lockSetting & Config::HorizonLock::LOCK_ROLL) ? glm::yaw(q) : 0.0f; // somehow in glm the axis is yaw
-        glm::quat cancelCarRotation = glm::normalize(glm::quat(glm::vec3(pitch, 0.0f, roll))) * gCfg.horizonLockMultiplier;
+        glm::quat cancelCarRotation = glm::normalize(glm::quat(glm::vec3(pitch, 0.0f, roll))) * static_cast<float>(gCfg.horizonLockMultiplier);
         return glm::mat4_cast(cancelCarRotation);
     } else {
         return glm::identity<M4>();

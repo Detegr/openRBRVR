@@ -47,11 +47,21 @@ struct FrameTimingInfo {
     uint32_t droppedFrames;
 };
 
-class VRInterface {
-protected:
+struct RenderContext {
+    uint32_t width[2];
+    uint32_t height[2];
+
     IDirect3DTexture9* dxTexture[4];
     IDirect3DSurface9* dxSurface[4];
     IDirect3DSurface9* dxDepthStencilSurface[4];
+
+    void* ext;
+};
+
+class VRInterface {
+protected:
+    std::unordered_map<std::string, RenderContext> renderContexts;
+    RenderContext* currentRenderContext;
 
     M4 HMDPose[2];
     M4 eyePos[2];
@@ -60,8 +70,8 @@ protected:
     M4 mainMenuProjection[2];
     M4 horizonLock;
 
-    bool CreateRenderTarget(IDirect3DDevice9* dev, RenderTarget tgt, D3DFORMAT fmt, uint32_t w, uint32_t h);
-    void InitSurfaces(IDirect3DDevice9* dev, std::tuple<uint32_t, uint32_t> resl, std::tuple<uint32_t, uint32_t> resr, uint32_t resx2d, uint32_t resy2d);
+    bool CreateRenderTarget(IDirect3DDevice9* dev, RenderContext& ctx, RenderTarget tgt, D3DFORMAT fmt, uint32_t w, uint32_t h);
+    void InitSurfaces(IDirect3DDevice9* dev, RenderContext& ctx, uint32_t resx2d, uint32_t resy2d);
 
     static constexpr float zFar = 10000.0f;
     static constexpr float zNearStage = 0.35f;
@@ -77,11 +87,9 @@ public:
     virtual void FinishVRRendering(IDirect3DDevice9* dev, RenderTarget tgt);
     virtual void PrepareFramesForHMD(IDirect3DDevice9* dev) = 0;
     virtual void SubmitFramesToHMD(IDirect3DDevice9* dev) = 0;
-    virtual std::tuple<uint32_t, uint32_t> GetRenderResolution(RenderTarget tgt) const
+    std::tuple<uint32_t, uint32_t> GetRenderResolution(RenderTarget tgt) const
     {
-        D3DSURFACE_DESC desc;
-        dxTexture[LeftEye]->GetLevelDesc(0, &desc);
-        return std::make_tuple(desc.Width, desc.Height);
+        return std::make_tuple(currentRenderContext->width[tgt], currentRenderContext->height[tgt]);
     }
     virtual FrameTimingInfo GetFrameTiming() = 0;
 
@@ -101,10 +109,14 @@ public:
     const M4& GetEyePos(RenderTarget tgt) const { return eyePos[tgt]; }
     const M4& GetPose(RenderTarget tgt) const { return HMDPose[tgt]; }
     const M4& GetHorizonLock() const { return horizonLock; }
-    IDirect3DTexture9* GetTexture(RenderTarget tgt) const { return dxTexture[tgt]; }
+    IDirect3DTexture9* GetTexture(RenderTarget tgt) const { return currentRenderContext->dxTexture[tgt]; }
 
     virtual void ResetView() = 0;
     virtual VRRuntime GetRuntimeType() const = 0;
+    virtual void SetRenderContext(const std::string& name)
+    {
+        currentRenderContext = &renderContexts[name];
+    }
 };
 
 bool CreateQuad(IDirect3DDevice9* dev, RenderTarget tgt, float aspect);

@@ -182,9 +182,9 @@ static Menu debugMenu = { "openRBRVR debug settings", {
     .longText = { "Show a lot of technical information on the top-left of the screen." },
     .menuColor = IRBRGame::EMenuColors::MENU_TEXT,
 	.position = Menu::menuItemsStartPos,
-    .leftAction = [] { Toggle(gCfg.debug); },
-    .rightAction = [] { Toggle(gCfg.debug); },
-    .selectAction = [] { Toggle(gCfg.debug); },
+    .leftAction = [] { Toggle(gCfg.debug); gDrawOverlayBorder = gCfg.debug; },
+    .rightAction = [] { Toggle(gCfg.debug); gDrawOverlayBorder = gCfg.debug; },
+    .selectAction = [] { Toggle(gCfg.debug); gDrawOverlayBorder = gCfg.debug; },
   },
   { .text = id("Back to previous menu"),
 	.selectAction = [] { SelectMenu(0); }
@@ -205,12 +205,12 @@ static Menu horizonLockMenu = { "openRBRVR horizon lock settings", {
     .rightAction = [] { ChangeHorizonLock(true); },
     .selectAction = [] { ChangeHorizonLock(true); },
   },
-  { .text = [] { return std::format("Percentage: {}%", static_cast<int>(gCfg.horizonLockMultiplier * 100.0f)); },
+  { .text = [] { return std::format("Percentage: {}%", static_cast<int>(gCfg.horizonLockMultiplier * 100.0)); },
     .longText = {
         "Amount of locking that's happening. 100 means the horizon is always level.",
     },
-    .leftAction = [] { gCfg.horizonLockMultiplier = std::max<float>(0.05f, (gCfg.horizonLockMultiplier * 100.0f - 5) / 100.0f); },
-    .rightAction = [] { gCfg.horizonLockMultiplier = std::min<float>(1.0f, (gCfg.horizonLockMultiplier * 100.0f + 5) / 100.0f); },
+    .leftAction = [] { gCfg.horizonLockMultiplier = std::max<double>(0.05, (gCfg.horizonLockMultiplier * 100.0 - 5) / 100.0); },
+    .rightAction = [] { gCfg.horizonLockMultiplier = std::min<double>(1.0, (gCfg.horizonLockMultiplier * 100.0 + 5) / 100.0); },
   },
   { .text = id("Back to previous menu"),
 	.selectAction = [] { SelectMenu(0); }

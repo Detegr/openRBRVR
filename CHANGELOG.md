@@ -1,3 +1,8 @@
+## 0.6.0
+
+- Implement per-stage supersampling
+- Change config file format from ini to toml
+
 ## 0.5.2
 
 - Do not crash the game if a VR headset is not connected

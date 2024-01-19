@@ -68,9 +68,6 @@ OpenVR::OpenVR(IDirect3DDevice9* dev, const Config& cfg, IDirect3DVR9** vrdev, u
     uint32_t w, h;
     HMD->GetRecommendedRenderTargetSize(&w, &h);
 
-    auto wss = static_cast<uint32_t>(w * cfg.superSampling);
-    auto hss = static_cast<uint32_t>(h * cfg.superSampling);
-
     // This can also be used to get a (slightly different) VR display size, if need arises
     // if (vr::IVRExtendedDisplay* VRExtDisplay = vr::VRExtendedDisplay()) {
     //	int32_t x, y;
@@ -78,40 +75,59 @@ OpenVR::OpenVR(IDirect3DDevice9* dev, const Config& cfg, IDirect3DVR9** vrdev, u
     // }
 
     try {
-        InitSurfaces(dev, std::make_tuple(wss, hss), std::make_tuple(wss, hss), companionWindowWidth, companionWindowHeight);
-
-        IDirect3DSurface9 *leftEye, *rightEye;
-        if (dxTexture[LeftEye]->GetSurfaceLevel(0, &leftEye) != D3D_OK) {
-            Dbg("Failed to get left eye surface");
-            return;
+        for (const auto& gfx : cfg.gfx) {
+            auto superSampling = std::get<0>(gfx.second);
+            auto wss = static_cast<uint32_t>(w * superSampling);
+            auto hss = static_cast<uint32_t>(h * superSampling);
+            RenderContext ctx = {
+                .width = { wss, wss },
+                .height = { hss, hss },
+            };
+            InitSurfaces(dev, ctx, companionWindowWidth, companionWindowHeight);
+            renderContexts[gfx.first] = ctx;
         }
-        if (dxTexture[RightEye]->GetSurfaceLevel(0, &rightEye) != D3D_OK) {
-            Dbg("Failed to get right eye surface");
-            leftEye->Release();
-            return;
-        }
-        if (gD3DVR->GetVRDesc(leftEye, &dxvkTexture[LeftEye]) != D3D_OK) {
-            Dbg("Failed to get left eye descriptor");
-            leftEye->Release();
-            return;
-        }
-        if (gD3DVR->GetVRDesc(rightEye, &dxvkTexture[RightEye]) != D3D_OK) {
-            Dbg("Failed to get right eye descriptor");
-            rightEye->Release();
-            return;
-        }
-
-        openvrTexture[LeftEye].handle = reinterpret_cast<void*>(&dxvkTexture[LeftEye]);
-        openvrTexture[LeftEye].eType = vr::TextureType_Vulkan;
-        openvrTexture[LeftEye].eColorSpace = vr::ColorSpace_Auto;
-        openvrTexture[RightEye].handle = reinterpret_cast<void*>(&dxvkTexture[RightEye]);
-        openvrTexture[RightEye].eType = vr::TextureType_Vulkan;
-        openvrTexture[RightEye].eColorSpace = vr::ColorSpace_Auto;
+        SetRenderContext("default");
     } catch (const std::runtime_error& e) {
         Dbg(e.what());
+        MessageBoxA(nullptr, e.what(), "VR init error", MB_OK);
+        return;
     }
 
     Dbg("VR init successful\n");
+}
+
+void OpenVR::SetRenderContext(const std::string& name)
+{
+    VRInterface::SetRenderContext(name);
+
+    IDirect3DSurface9 *leftEye, *rightEye;
+    if (currentRenderContext->dxTexture[LeftEye]->GetSurfaceLevel(0, &leftEye) != D3D_OK) {
+        Dbg("Failed to get left eye surface");
+        return;
+    }
+    if (currentRenderContext->dxTexture[RightEye]->GetSurfaceLevel(0, &rightEye) != D3D_OK) {
+        Dbg("Failed to get right eye surface");
+        leftEye->Release();
+        return;
+    }
+
+    if (gD3DVR->GetVRDesc(leftEye, &dxvkTexture[LeftEye]) != D3D_OK) {
+        Dbg("Failed to get left eye descriptor");
+        leftEye->Release();
+        return;
+    }
+    if (gD3DVR->GetVRDesc(rightEye, &dxvkTexture[RightEye]) != D3D_OK) {
+        Dbg("Failed to get right eye descriptor");
+        rightEye->Release();
+        return;
+    }
+
+    openvrTexture[LeftEye].handle = reinterpret_cast<void*>(&dxvkTexture[LeftEye]);
+    openvrTexture[LeftEye].eType = vr::TextureType_Vulkan;
+    openvrTexture[LeftEye].eColorSpace = vr::ColorSpace_Auto;
+    openvrTexture[RightEye].handle = reinterpret_cast<void*>(&dxvkTexture[RightEye]);
+    openvrTexture[RightEye].eType = vr::TextureType_Vulkan;
+    openvrTexture[RightEye].eColorSpace = vr::ColorSpace_Auto;
 }
 
 void OpenVR::PrepareFramesForHMD(IDirect3DDevice9* dev)
@@ -120,18 +136,18 @@ void OpenVR::PrepareFramesForHMD(IDirect3DDevice9* dev)
         // Resolve multisampling
         IDirect3DSurface9 *leftEye, *rightEye;
 
-        if (dxTexture[LeftEye]->GetSurfaceLevel(0, &leftEye) != D3D_OK) {
+        if (currentRenderContext->dxTexture[LeftEye]->GetSurfaceLevel(0, &leftEye) != D3D_OK) {
             Dbg("Failed to get left eye surface");
             return;
         }
-        if (dxTexture[RightEye]->GetSurfaceLevel(0, &rightEye) != D3D_OK) {
+        if (currentRenderContext->dxTexture[RightEye]->GetSurfaceLevel(0, &rightEye) != D3D_OK) {
             Dbg("Failed to get right eye surface");
             leftEye->Release();
             return;
         }
 
-        dev->StretchRect(dxSurface[LeftEye], nullptr, leftEye, nullptr, D3DTEXF_NONE);
-        dev->StretchRect(dxSurface[RightEye], nullptr, rightEye, nullptr, D3DTEXF_NONE);
+        dev->StretchRect(currentRenderContext->dxSurface[LeftEye], nullptr, leftEye, nullptr, D3DTEXF_NONE);
+        dev->StretchRect(currentRenderContext->dxSurface[RightEye], nullptr, rightEye, nullptr, D3DTEXF_NONE);
 
         leftEye->Release();
         rightEye->Release();
