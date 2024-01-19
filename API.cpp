@@ -28,6 +28,8 @@ enum ApiOperations : uint64_t {
 
 extern "C" __declspec(dllexport) int64_t openRBRVR_Exec(ApiOperations ops, uint64_t value)
 {
+    Dbg(std::format("Exec: {} {}", (uint64_t)ops, value));
+
     if (ops == API_VERSION) {
         return 1;
     }
@@ -38,12 +40,20 @@ extern "C" __declspec(dllexport) int64_t openRBRVR_Exec(ApiOperations ops, uint6
         gCfg.debug = !gCfg.debug;
     }
     if ((ops & OPENXR_REQUEST_INSTANCE_EXTENSIONS) && gVR && gVR->GetRuntimeType() == OPENXR) {
-        OpenXR* vr = reinterpret_cast<OpenXR*>(gVR.get());
-        return reinterpret_cast<int64_t>(vr->GetInstanceExtensions());
+        try {
+            OpenXR* vr = reinterpret_cast<OpenXR*>(gVR.get());
+            return reinterpret_cast<int64_t>(vr->GetInstanceExtensions());
+        } catch (const std::runtime_error& e) {
+            MessageBoxA(nullptr, std::format("Could not get OpenXR extensions: {}", e.what()).c_str(), "OpenXR init error", MB_OK);
+        }
     }
     if ((ops & OPENXR_REQUEST_DEVICE_EXTENSIONS) && gVR && gVR->GetRuntimeType() == OPENXR) {
-        OpenXR* vr = reinterpret_cast<OpenXR*>(gVR.get());
-        return reinterpret_cast<int64_t>(vr->GetDeviceExtensions());
+        try {
+            OpenXR* vr = reinterpret_cast<OpenXR*>(gVR.get());
+            return reinterpret_cast<int64_t>(vr->GetDeviceExtensions());
+        } catch (const std::runtime_error& e) {
+            MessageBoxA(nullptr, std::format("Could not get OpenXR extensions: {}", e.what()).c_str(), "OpenXR init error", MB_OK);
+        }
     }
     if (ops & GET_VR_RUNTIME) {
         if (!gVR) {
