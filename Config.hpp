@@ -178,7 +178,7 @@ struct Config {
             } else if (key == "lockToHorizon") {
                 cfg.lockToHorizon = static_cast<HorizonLock>(intOrDefault(value, 0));
             } else if (key == "horizonLockMultiplier") {
-                cfg.horizonLockMultiplier = static_cast<HorizonLock>(floatOrDefault(value, 1.0));
+                cfg.horizonLockMultiplier = floatOrDefault(value, 1.0);
             } else if (key == "drawDesktopWindow") {
                 cfg.drawCompanionWindow = (value == "true");
             } else if (key == "drawLoadingScreen") {

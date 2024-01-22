@@ -209,8 +209,8 @@ static Menu horizonLockMenu = { "openRBRVR horizon lock settings", {
     .longText = {
         "Amount of locking that's happening. 100 means the horizon is always level.",
     },
-    .leftAction = [] { gCfg.horizonLockMultiplier = std::max<float>(0.05f, gCfg.horizonLockMultiplier - 0.05f); },
-    .rightAction = [] { gCfg.horizonLockMultiplier = std::min<float>(1.0f, gCfg.horizonLockMultiplier + 0.05f); },
+    .leftAction = [] { gCfg.horizonLockMultiplier = std::max<float>(0.05f, (gCfg.horizonLockMultiplier * 100.0f - 5) / 100.0f); },
+    .rightAction = [] { gCfg.horizonLockMultiplier = std::min<float>(1.0f, (gCfg.horizonLockMultiplier * 100.0f + 5) / 100.0f); },
   },
   { .text = id("Back to previous menu"),
 	.selectAction = [] { SelectMenu(0); }
