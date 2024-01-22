@@ -4,14 +4,14 @@
 
 #include "Config.hpp"
 #include "Quaternion.hpp"
-#include "glm/gtc/quaternion.hpp"
-#include "glm/gtc/type_ptr.hpp"
-#include "glm/mat3x3.hpp"
-#include "glm/mat4x4.hpp"
+#include <gtc/quaternion.hpp>
+#include <gtc/type_ptr.hpp>
+#include <mat3x3.hpp>
+#include <mat4x4.hpp>
 #include <d3d9_vr.h>
 #define XR_USE_GRAPHICS_API_VULKAN
-#include "openvr/openvr.h"
-#include "openxr/openxr.h"
+#include <openvr.h>
+#include <openxr.h>
 #include <d3d9.h>
 
 enum RenderTarget : size_t {

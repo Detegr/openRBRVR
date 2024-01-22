@@ -1,6 +1,6 @@
 #include "Menu.hpp"
 #include "Config.hpp"
-#include "openvr/openvr.h"
+#include <openvr.h>
 
 #include <array>
 #include <format>

@@ -4,8 +4,8 @@
 #include <array>
 #include <d3d9.h>
 #define XR_USE_GRAPHICS_API_VULKAN
-#include "openxr/openxr_platform.h"
-#include "openxr/openxr_reflection.h"
+#include <openxr_platform.h>
+#include <openxr_reflection.h>
 
 class OpenXR : public VRInterface {
 private:

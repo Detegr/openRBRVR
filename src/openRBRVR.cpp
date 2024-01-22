@@ -5,6 +5,7 @@
 #include <ranges>
 #include <unordered_map>
 #include <vector>
+#include <gtx/matrix_decompose.hpp>
 
 #include "Config.hpp"
 #include "D3D.hpp"
@@ -18,7 +19,6 @@
 #include "VR.hpp"
 #include "Version.hpp"
 #include "Vertex.hpp"
-#include "glm/gtx/matrix_decompose.hpp"
 #include "openRBRVR.hpp"
 
 IRBRGame* gGame;

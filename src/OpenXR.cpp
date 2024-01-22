@@ -1,7 +1,7 @@
 #define XR_USE_GRAPHICS_API_VULKAN
 #include "OpenXR.hpp"
 #include "Util.hpp"
-#include "glm/gtx/quaternion.hpp"
+#include <gtx/quaternion.hpp>
 #include <d3d9_interop.h>
 
 #include "D3D.hpp"

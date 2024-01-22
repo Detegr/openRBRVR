@@ -11,7 +11,8 @@
 #include <d3d9.h>
 
 #include "Util.hpp"
-#include "glm/vec3.hpp"
+
+#include <vec3.hpp>
 
 enum VRRuntime {
     OPENVR = 1,

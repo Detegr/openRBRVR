@@ -5,33 +5,31 @@ project(openRBRVR)
 set(CMAKE_CXX_STANDARD 23)
 
 set(SOURCES
-    "API.cpp"
-    "Menu.cpp"
-    "openRBRVR.cpp"
-    "VR.cpp"
-    "Vertex.cpp"
-    "openRBRVR.cpp"
-    "OpenVR.cpp"
-    "OpenXR.cpp"
+    "src/API.cpp"
+    "src/Menu.cpp"
+    "src/openRBRVR.cpp"
+    "src/VR.cpp"
+    "src/Vertex.cpp"
+    "src/openRBRVR.cpp"
+    "src/OpenVR.cpp"
+    "src/OpenXR.cpp"
 )
 
 set(HEADERS
-    "Minhook/Include/MinHook.h"
-    "glm/mat4x4.hpp"
-    "Config.hpp"
-    "D3D.hpp"
-    "Hook.hpp"
-    "IPlugin.h"
-    "Licenses.hpp"
-    "Menu.hpp"
-    "Util.hpp"
-    "VR.hpp"
-    "Vertex.hpp"
-    "openRBRVR.def"
-    "openRBRVR.hpp"
-    "OpenVR.hpp"
-    "OpenXR.hpp"
-    "Quaternion.hpp"
+    "src/Config.hpp"
+    "src/D3D.hpp"
+    "src/Hook.hpp"
+    "src/IPlugin.h"
+    "src/Licenses.hpp"
+    "src/Menu.hpp"
+    "src/Util.hpp"
+    "src/VR.hpp"
+    "src/Vertex.hpp"
+    "src/openRBRVR.def"
+    "src/openRBRVR.hpp"
+    "src/OpenVR.hpp"
+    "src/OpenXR.hpp"
+    "src/Quaternion.hpp"
 )
 
 set(openRBRVR_Major 0)
@@ -41,12 +39,12 @@ set(openRBRVR_Tweak 0)
 # set(openRBRVR_TweakStr "-rc${openRBRVR_Tweak}")
 
 configure_file(
-  ${CMAKE_CURRENT_SOURCE_DIR}/version.rc.in
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/version.rc.in
   ${CMAKE_CURRENT_BINARY_DIR}/version.rc
   @ONLY)
 
 configure_file(
-  ${CMAKE_CURRENT_SOURCE_DIR}/Version.hpp.in
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/Version.hpp.in
   ${CMAKE_CURRENT_BINARY_DIR}/Version.hpp
   @ONLY
 )
@@ -56,14 +54,17 @@ add_library(${PROJECT_NAME} SHARED ${SOURCES} ${HEADERS} ${CMAKE_CURRENT_BINARY_
 target_compile_options(${PROJECT_NAME} PRIVATE /arch:AVX)
 target_compile_definitions(${PROJECT_NAME} PRIVATE WIN32 _WINDOWS _USRDLL _MBCS)
 target_include_directories(${PROJECT_NAME} PRIVATE
-    "${CMAKE_SOURCE_DIR}/minhook/include"
-    "${CMAKE_SOURCE_DIR}/dxvk/src/d3d9"
-    "${CMAKE_SOURCE_DIR}/dxvk/include/vulkan/include"
+    "${CMAKE_SOURCE_DIR}/thirdparty/minhook/include"
+    "${CMAKE_SOURCE_DIR}/thirdparty/dxvk/src/d3d9"
+    "${CMAKE_SOURCE_DIR}/thirdparty/dxvk/include/vulkan/include"
+    "${CMAKE_SOURCE_DIR}/thirdparty/glm"
+    "${CMAKE_SOURCE_DIR}/thirdparty/openvr"
+    "${CMAKE_SOURCE_DIR}/thirdparty/openxr"
     "${CMAKE_CURRENT_BINARY_DIR}"
 )
 target_link_directories(${PROJECT_NAME} PUBLIC
-  ${CMAKE_SOURCE_DIR}/lib
-  ${CMAKE_SOURCE_DIR}/minhook/bin
+  ${CMAKE_SOURCE_DIR}/thirdparty/lib
+  ${CMAKE_SOURCE_DIR}/thirdparty/minhook/bin
 )
 
 # set(OPENXR_LOADER "$<$<CONFIG:Debug>:openxr_loaderd>$<$<NOT:$<CONFIG:Debug>>:openxr_loader>")
