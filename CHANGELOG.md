@@ -1,3 +1,8 @@
+## 0.5.2
+
+- Do not crash the game if a VR headset is not connected
+- Fix a bug in horizon lock amount loading and adjustment
+
 ## 0.5.1
 
 - SteamVR: Improve concurrent Vulkan queue usage
