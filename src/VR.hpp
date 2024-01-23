@@ -4,15 +4,15 @@
 
 #include "Config.hpp"
 #include "Quaternion.hpp"
+#include <d3d9_vr.h>
 #include <gtc/quaternion.hpp>
 #include <gtc/type_ptr.hpp>
 #include <mat3x3.hpp>
 #include <mat4x4.hpp>
-#include <d3d9_vr.h>
 #define XR_USE_GRAPHICS_API_VULKAN
+#include <d3d9.h>
 #include <openvr.h>
 #include <openxr.h>
-#include <d3d9.h>
 
 enum RenderTarget : size_t {
     LeftEye = 0,

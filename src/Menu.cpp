@@ -125,10 +125,10 @@ static class Menu mainMenu = { "openRBRVR", {
     .selectAction = [] {},
   },
   { .text = id("Licenses"), .longText = {"License information of open source libraries used in the plugin's implementation."}, .selectAction = [] { SelectMenu(3); } },
-  { .text = id("Save the current config to openRBRVR.ini"),
+  { .text = id("Save the current config to openRBRVR.toml"),
     .color = [] { return (gCfg == gSavedCfg) ? std::make_tuple(0.5f, 0.5f, 0.5f, 1.0f) : std::make_tuple(1.0f, 1.0f, 1.0f, 1.0f); },
     .selectAction = [] {
-		if (gCfg.Write("Plugins\\openRBRVR.ini")) {
+		if (gCfg.Write("Plugins\\openRBRVR.toml")) {
 			gSavedCfg = gCfg;
 		}
     }

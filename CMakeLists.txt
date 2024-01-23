@@ -54,10 +54,11 @@ add_library(${PROJECT_NAME} SHARED ${SOURCES} ${HEADERS} ${CMAKE_CURRENT_BINARY_
 target_compile_options(${PROJECT_NAME} PRIVATE /arch:AVX)
 target_compile_definitions(${PROJECT_NAME} PRIVATE WIN32 _WINDOWS _USRDLL _MBCS)
 target_include_directories(${PROJECT_NAME} PRIVATE
-    "${CMAKE_SOURCE_DIR}/thirdparty/minhook/include"
-    "${CMAKE_SOURCE_DIR}/thirdparty/dxvk/src/d3d9"
+    "${CMAKE_SOURCE_DIR}/thirdparty"
     "${CMAKE_SOURCE_DIR}/thirdparty/dxvk/include/vulkan/include"
+    "${CMAKE_SOURCE_DIR}/thirdparty/dxvk/src/d3d9"
     "${CMAKE_SOURCE_DIR}/thirdparty/glm"
+    "${CMAKE_SOURCE_DIR}/thirdparty/minhook/include"
     "${CMAKE_SOURCE_DIR}/thirdparty/openvr"
     "${CMAKE_SOURCE_DIR}/thirdparty/openxr"
     "${CMAKE_CURRENT_BINARY_DIR}"

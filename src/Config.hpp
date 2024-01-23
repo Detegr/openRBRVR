@@ -14,6 +14,9 @@
 
 #include <vec3.hpp>
 
+#define TOML_HEADER_ONLY 1
+#include <toml.hpp>
+
 enum VRRuntime {
     OPENVR = 1,
     OPENXR = 2,
@@ -37,7 +40,6 @@ static int intOrDefault(const std::string& value, int def)
     }
 }
 
-// Simplified ini file parser for plugin configuration
 struct Config {
     enum HorizonLock : uint8_t {
         LOCK_NONE = 0x0,
@@ -45,62 +47,25 @@ struct Config {
         LOCK_PITCH = 0x2,
     };
 
-    float menuSize;
-    float overlaySize;
-    glm::vec3 overlayTranslation;
-    float superSampling;
-    HorizonLock lockToHorizon;
-    float horizonLockMultiplier;
-    bool drawCompanionWindow;
-    bool drawLoadingScreen;
-    bool debug;
-    bool renderMainMenu3d;
-    bool renderPauseMenu3d;
-    bool renderPreStage3d;
-    bool renderReplays3d;
-    D3DMULTISAMPLE_TYPE msaa;
-    int anisotropy;
-    bool wmrWorkaround;
-    VRRuntime runtime;
+    float menuSize = 1.0;
+    float overlaySize = 1.0;
+    glm::vec3 overlayTranslation = { 0, 0, 0 };
+    float superSampling = 1.0;
+    HorizonLock lockToHorizon = HorizonLock::LOCK_NONE;
+    float horizonLockMultiplier = 1.0;
+    bool drawCompanionWindow = true;
+    bool drawLoadingScreen = true;
+    bool debug = false;
+    bool renderMainMenu3d = false;
+    bool renderPauseMenu3d = true;
+    bool renderPreStage3d = false;
+    bool renderReplays3d = false;
+    D3DMULTISAMPLE_TYPE msaa = D3DMULTISAMPLE_NONE;
+    int anisotropy = 0;
+    bool wmrWorkaround = false;
+    VRRuntime runtime = OPENVR;
 
     auto operator<=>(const Config&) const = default;
-
-    std::string ToString() const
-    {
-        return std::format(
-            "superSampling = {:.2f}\n"
-            "menuSize = {:.2f}\n"
-            "overlaySize = {:.2f}\n"
-            "overlayTranslateX = {:.2f}\n"
-            "overlayTranslateY = {:.2f}\n"
-            "overlayTranslateZ = {:.2f}\n"
-            "lockToHorizon = {}\n"
-            "horizonLockMultiplier = {}\n"
-            "drawDesktopWindow = {}\n"
-            "drawLoadingScreen = {}\n"
-            "debug = {}\n"
-            "renderMainMenu3d = {}\n"
-            "renderPauseMenu3d = {}\n"
-            "renderPreStage3d = {}\n"
-            "renderReplays3d = {}\n"
-            "runtime = {}",
-            superSampling,
-            menuSize,
-            overlaySize,
-            overlayTranslation.x,
-            overlayTranslation.y,
-            overlayTranslation.z,
-            static_cast<int>(lockToHorizon),
-            horizonLockMultiplier,
-            drawCompanionWindow,
-            drawLoadingScreen,
-            debug,
-            renderMainMenu3d,
-            renderPauseMenu3d,
-            renderPreStage3d,
-            renderReplays3d,
-            runtime == OPENVR ? "steamvr" : (wmrWorkaround ? "openxr-wmr" : "openxr"));
-    }
 
     bool Write(const std::filesystem::path& path) const
     {
@@ -108,42 +73,85 @@ struct Config {
         if (!f.good()) {
             return false;
         }
-        f << ToString();
+        toml::table out {
+            { "superSampling", superSampling },
+            { "menuSize", menuSize },
+            { "overlaySize", overlaySize },
+            { "overlayTranslateX", overlayTranslation.x },
+            { "overlayTranslateY", overlayTranslation.y },
+            { "overlayTranslateZ", overlayTranslation.z },
+            { "lockToHorizon", static_cast<int>(lockToHorizon) },
+            { "horizonLockMultiplier", horizonLockMultiplier },
+            { "drawDesktopWindow", drawCompanionWindow },
+            { "drawLoadingScreen", drawLoadingScreen },
+            { "debug", debug },
+            { "renderMainMenu3d", renderMainMenu3d },
+            { "renderPauseMenu3d", renderPauseMenu3d },
+            { "renderPreStage3d", renderPreStage3d },
+            { "renderReplays3d", renderReplays3d },
+            { "runtime", runtime == OPENVR ? "steamvr" : (wmrWorkaround ? "openxr-wmr" : "openxr") },
+        };
+        f << out;
         f.close();
         return f.good();
     }
 
-    static Config fromFile(const std::filesystem::path& path)
+    static Config fromToml(const std::filesystem::path& path)
     {
-        auto cfg = Config {
-            .menuSize = 1.0,
-            .overlaySize = 1.0,
-            .overlayTranslation = glm::vec3 { 0.0f, 0.0f, 0.0f },
-            .superSampling = 1.0,
-            .lockToHorizon = LOCK_NONE,
-            .horizonLockMultiplier = 1.0,
-            .drawCompanionWindow = true,
-            .drawLoadingScreen = true,
-            .debug = false,
-            .renderMainMenu3d = false,
-            .renderPauseMenu3d = true,
-            .renderPreStage3d = false,
-            .renderReplays3d = false,
-            .msaa = D3DMULTISAMPLE_NONE,
-            .anisotropy = -1,
-            .wmrWorkaround = false,
-            .runtime = OPENVR,
-        };
+        toml::table parsed;
+        auto cfg = Config {};
 
         if (!std::filesystem::exists(path)) {
-            cfg.Write(path);
+            if (!cfg.Write(path)) {
+                MessageBoxA(nullptr, "Could not write openRBRVR.toml", "Error", MB_OK);
+            }
             return cfg;
+        } else {
+            try {
+                parsed = toml::parse_file(path.c_str());
+            } catch (const toml::parse_error& e) {
+                MessageBoxA(nullptr, std::format("Failed to parse openRBRVR.toml: {}. Please check the syntax.", e.what()).c_str(), "Parse error", MB_OK);
+            }
         }
+
+        cfg.menuSize = parsed.get("menuSize")->as_floating_point()->value_or(1.0f);
+        cfg.overlaySize = parsed.get("overlaySize")->as_floating_point()->value_or(1.0f);
+        cfg.overlayTranslation.x = parsed.get("overlayTranslateX")->as_floating_point()->value_or(0.0f);
+        cfg.overlayTranslation.y = parsed.get("overlayTranslateY")->as_floating_point()->value_or(0.0f);
+        cfg.overlayTranslation.z = parsed.get("overlayTranslateZ")->as_floating_point()->value_or(0.0f);
+        cfg.superSampling = parsed.get("superSampling")->as_floating_point()->value_or(1.0f);
+        cfg.lockToHorizon = static_cast<HorizonLock>(parsed.get("lockToHorizon")->as_integer()->value_or(0));
+        cfg.horizonLockMultiplier = parsed.get("horizonLockMultiplier")->as_floating_point()->value_or(1.0f);
+        cfg.drawCompanionWindow = parsed.get("drawDesktopWindow")->as_boolean()->value_or(true);
+        cfg.drawLoadingScreen = parsed.get("drawLoadingScreen")->as_boolean()->value_or(true);
+        cfg.debug = parsed.get("debug")->as_boolean()->value_or(false);
+        cfg.renderMainMenu3d = parsed.get("renderMainMenu3d")->as_boolean()->value_or(false);
+        cfg.renderPauseMenu3d = parsed.get("renderPauseMenu3d")->as_boolean()->value_or(true);
+        cfg.renderPreStage3d = parsed.get("renderPreStage3d")->as_boolean()->value_or(false);
+        cfg.renderReplays3d = parsed.get("renderReplays3d")->as_boolean()->value_or(false);
+        const std::string& runtime = parsed.get("runtime")->as_string()->value_or("steamvr");
+        if (runtime == "openxr") {
+            cfg.runtime = OPENXR;
+            cfg.wmrWorkaround = false;
+        } else if (runtime == "openxr-wmr") {
+            cfg.runtime = OPENXR;
+            cfg.wmrWorkaround = true;
+        } else {
+            cfg.runtime = OPENVR;
+        }
+    }
+
+    static std::optional<Config> fromIni(const std::filesystem::path& path)
+    {
+        if (!std::filesystem::exists(path)) {
+            return std::nullopt;
+        }
+        Config cfg = {};
 
         std::ifstream f(path);
         if (!f.good()) {
             Dbg("Could not open openRBRVR.ini");
-            return cfg;
+            return std::nullopt;
         }
 
         std::string line;
@@ -200,7 +208,7 @@ struct Config {
                 if (value == "openxr") {
                     cfg.runtime = OPENXR;
                     cfg.wmrWorkaround = false;
-                } else if (value == "openxr-wmr") {
+                } else if (value == "openxrwmr") {
                     cfg.runtime = OPENXR;
                     cfg.wmrWorkaround = true;
                 } else {
@@ -209,7 +217,32 @@ struct Config {
             }
         }
 
+        return cfg;
+    }
+
+    void applyIniFields(const Config& iniCfg)
+    {
+        menuSize = iniCfg.menuSize;
+        overlaySize = iniCfg.overlaySize;
+        overlayTranslation = iniCfg.overlayTranslation;
+        superSampling = iniCfg.superSampling;
+        lockToHorizon = iniCfg.lockToHorizon;
+        horizonLockMultiplier = iniCfg.horizonLockMultiplier;
+        drawCompanionWindow = iniCfg.drawCompanionWindow;
+        drawLoadingScreen = iniCfg.drawLoadingScreen;
+        debug = iniCfg.debug;
+        renderMainMenu3d = iniCfg.renderMainMenu3d;
+        renderPauseMenu3d = iniCfg.renderPauseMenu3d;
+        renderPreStage3d = iniCfg.renderPreStage3d;
+        renderReplays3d = iniCfg.renderReplays3d;
+        wmrWorkaround = iniCfg.wmrWorkaround;
+        runtime = iniCfg.runtime;
+    }
+
+    static void parseDxvkConf(Config& cfg)
+    {
         std::ifstream dxvkConfig("dxvk.conf");
+        std::string line;
         if (dxvkConfig.good()) {
             while (std::getline(dxvkConfig, line)) {
                 auto end = std::remove_if(line.begin(), line.end(), isspace);
@@ -232,6 +265,26 @@ struct Config {
         } else {
             cfg.msaa = D3DMULTISAMPLE_NONE;
         }
-        return cfg;
+    }
+
+    static Config fromPath(const std::filesystem::path& path)
+    {
+        auto iniPath = path / "openRBRVR.ini";
+        auto tomlPath = path / "openRBRVR.toml";
+
+        auto tomlCfg = fromToml(tomlPath);
+
+        auto iniModifyTime = std::filesystem::last_write_time(iniPath);
+        auto tomlModifyTime = std::filesystem::last_write_time(tomlPath);
+
+        if (iniModifyTime > tomlModifyTime) {
+            auto iniCfg = fromIni(iniPath);
+            if (iniCfg) {
+                tomlCfg.applyIniFields(iniCfg.value());
+                tomlCfg.Write(tomlPath);
+            }
+        }
+
+        return tomlCfg;
     }
 };

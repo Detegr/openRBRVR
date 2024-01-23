@@ -1,11 +1,11 @@
 #include <MinHook.h>
 #include <d3d9.h>
 #include <format>
+#include <gtx/matrix_decompose.hpp>
 #include <optional>
 #include <ranges>
 #include <unordered_map>
 #include <vector>
-#include <gtx/matrix_decompose.hpp>
 
 #include "Config.hpp"
 #include "D3D.hpp"
@@ -723,7 +723,7 @@ openRBRVR::openRBRVR(IRBRGame* g)
         Dbg(e.what());
         MessageBoxA(nullptr, e.what(), "Hooking failed", MB_OK);
     }
-    gCfg = gSavedCfg = Config::fromFile("Plugins\\openRBRVR.ini");
+    gCfg = gSavedCfg = Config::fromPath("Plugins");
 }
 
 openRBRVR::~openRBRVR()
