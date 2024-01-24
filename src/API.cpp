@@ -7,6 +7,7 @@
 
 extern Config gCfg;
 extern std::unique_ptr<VRInterface> gVR;
+extern bool gDrawOverlayBorder;
 static openRBRVR* gPlugin;
 
 extern "C" __declspec(dllexport) IPlugin* RBR_CreatePlugin(IRBRGame* game)
@@ -38,6 +39,7 @@ extern "C" __declspec(dllexport) int64_t openRBRVR_Exec(ApiOperations ops, uint6
     }
     if (ops & TOGGLE_DEBUG_INFO) {
         gCfg.debug = !gCfg.debug;
+        gDrawOverlayBorder = gCfg.debug;
     }
     if ((ops & OPENXR_REQUEST_INSTANCE_EXTENSIONS) && gVR && gVR->GetRuntimeType() == OPENXR) {
         try {

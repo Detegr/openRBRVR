@@ -2,6 +2,8 @@
 
 - Implement per-stage supersampling
 - Change config file format from ini to toml
+- Add overlay adjustment menu. Show overlay borders while driving when debug
+  mode is active for easier adjustment.
 
 ## 0.5.2
 

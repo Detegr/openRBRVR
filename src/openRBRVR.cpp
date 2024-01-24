@@ -25,6 +25,7 @@ IRBRGame* gGame;
 
 std::unique_ptr<VRInterface> gVR;
 Config gCfg, gSavedCfg;
+bool gDrawOverlayBorder;
 
 static IDirect3DDevice9* gD3Ddev = nullptr;
 
@@ -262,16 +263,17 @@ void RenderVROverlay(RenderTarget renderTarget2D, bool clear)
     const auto& translation = renderTarget2D == Overlay ? gCfg.overlayTranslation : glm::vec3 { 0.0f, -0.1f, 0.0f };
     const auto& horizLock = renderTarget2D == Overlay ? std::make_optional(gVR->GetHorizonLock()) : std::nullopt;
     const auto projType = gGameMode == GameMode::MainMenu ? Projection::MainMenu : Projection::Cockpit;
+    const auto& texture = gVR->GetTexture(renderTarget2D);
 
     if (gVR->PrepareVRRendering(gD3Ddev, LeftEye, clear)) [[likely]] {
-        RenderMenuQuad(gD3Ddev, gVR.get(), LeftEye, renderTarget2D, projType, size, translation, horizLock);
+        RenderMenuQuad(gD3Ddev, gVR.get(), texture, LeftEye, renderTarget2D, projType, size, translation, horizLock);
         gVR->FinishVRRendering(gD3Ddev, LeftEye);
     } else {
         Dbg("Failed to render left eye overlay");
     }
 
     if (gVR->PrepareVRRendering(gD3Ddev, RightEye, clear)) [[likely]] {
-        RenderMenuQuad(gD3Ddev, gVR.get(), RightEye, renderTarget2D, projType, size, translation, horizLock);
+        RenderMenuQuad(gD3Ddev, gVR.get(), texture, RightEye, renderTarget2D, projType, size, translation, horizLock);
         gVR->FinishVRRendering(gD3Ddev, RightEye);
     } else {
         Dbg("Failed to render left eye overlay");
@@ -399,6 +401,9 @@ HRESULT __stdcall DXHook_Present(IDirect3DDevice9* This, const RECT* pSourceRect
     if (gVR && !gVRError) [[likely]] {
         auto shouldRender = gCurrent2DRenderTarget && !(IsLoadingBTBStage() && !gCfg.drawLoadingScreen);
         if (shouldRender) {
+            if (gDrawOverlayBorder) {
+                RenderOverlayBorder(gD3Ddev, gVR->GetCurrentRenderContext()->overlayBorder);
+            }
             gVR->FinishVRRendering(gD3Ddev, gCurrent2DRenderTarget.value());
             RenderVROverlay(gCurrent2DRenderTarget.value(), !gRender3d);
         }
@@ -810,8 +815,9 @@ void openRBRVR::DrawFrontEndPage()
     constexpr auto menuItemsStartHeight = 70.0f;
     const auto idx = gMenu->Index();
     const auto isLicenseMenu = idx < 0;
+    const auto endOfItems = menuItemsStartHeight + gMenu->Entries().size() * gMenu->RowHeight();
 
-    game->DrawBlackOut(0.0f, isLicenseMenu ? 88.0f : 221.0f, 800.0f, 10.0f);
+    game->DrawBlackOut(0.0f, isLicenseMenu ? 88.0f : endOfItems, 800.0f, 10.0f);
     if (!isLicenseMenu) {
         game->DrawSelection(0.0f, menuItemsStartHeight - 2.0f + (static_cast<float>(gMenu->Index()) * gMenu->RowHeight()), 440.0f);
     }
@@ -829,7 +835,7 @@ void openRBRVR::DrawFrontEndPage()
     auto i = 0;
     if (!isLicenseMenu) {
         for (const auto& txt : entries[gMenu->Index()].longText) {
-            game->WriteText(65.0f, 221.0f + ((i + 1) * gMenu->RowHeight()), txt.c_str());
+            game->WriteText(65.0f, endOfItems + ((i + 1) * gMenu->RowHeight()), txt.c_str());
             i++;
         }
     }

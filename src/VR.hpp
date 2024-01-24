@@ -54,6 +54,7 @@ struct RenderContext {
     IDirect3DTexture9* dxTexture[4];
     IDirect3DSurface9* dxSurface[4];
     IDirect3DSurface9* dxDepthStencilSurface[4];
+    IDirect3DTexture9* overlayBorder;
 
     void* ext;
 };
@@ -110,6 +111,7 @@ public:
     const M4& GetPose(RenderTarget tgt) const { return HMDPose[tgt]; }
     const M4& GetHorizonLock() const { return horizonLock; }
     IDirect3DTexture9* GetTexture(RenderTarget tgt) const { return currentRenderContext->dxTexture[tgt]; }
+    RenderContext* GetCurrentRenderContext() const { return currentRenderContext; }
 
     virtual void ResetView() = 0;
     virtual VRRuntime GetRuntimeType() const = 0;
@@ -121,7 +123,8 @@ public:
 
 bool CreateQuad(IDirect3DDevice9* dev, RenderTarget tgt, float aspect);
 bool CreateCompanionWindowBuffer(IDirect3DDevice9* dev);
-void RenderMenuQuad(IDirect3DDevice9* dev, VRInterface* vr, RenderTarget renderTarget3D, RenderTarget renderTarget2D, Projection projType, float size, glm::vec3 translation, const std::optional<M4>& horizonLock);
+void RenderOverlayBorder(IDirect3DDevice9* dev, IDirect3DTexture9* tex);
+void RenderMenuQuad(IDirect3DDevice9* dev, VRInterface* vr, IDirect3DTexture9* texture, RenderTarget renderTarget3D, RenderTarget renderTarget2D, Projection projType, float size, glm::vec3 translation, const std::optional<M4>& horizonLock);
 void RenderCompanionWindowFromRenderTarget(IDirect3DDevice9* dev, VRInterface* vr, RenderTarget tgt);
 M4 GetHorizonLockMatrix(Quaternion* carQuat, Config::HorizonLock lockSetting);
 

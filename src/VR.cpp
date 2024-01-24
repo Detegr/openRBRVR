@@ -16,6 +16,7 @@ IDirect3DVR9* gD3DVR = nullptr;
 static IDirect3DVertexBuffer9* companionWindowVertexBuf;
 static constexpr D3DMATRIX identityMatrix = D3DFromM4(glm::identity<glm::mat4x4>());
 static IDirect3DVertexBuffer9* quadVertexBuf[2];
+static IDirect3DVertexBuffer9* overlayBorderQuad;
 
 constexpr static bool IsAAEnabledForRenderTarget(RenderTarget t)
 {
@@ -92,9 +93,9 @@ bool VRInterface::CreateRenderTarget(IDirect3DDevice9* dev, RenderContext& ctx, 
     return true;
 }
 
-bool CreateQuad(IDirect3DDevice9* dev, RenderTarget tgt, float aspect)
+bool CreateQuad(IDirect3DDevice9* dev, float size, float aspect, IDirect3DVertexBuffer9** dst)
 {
-    constexpr auto w = 0.6f;
+    auto w = size;
     const auto h = w / aspect;
     constexpr auto left = 0.0f;
     constexpr auto rght = 1.0f;
@@ -110,10 +111,7 @@ bool CreateQuad(IDirect3DDevice9* dev, RenderTarget tgt, float aspect)
     };
     // clang-format on
 
-    // We have only 2 quads, so indexing by RenderTarget directly does not work here
-    auto tgtIdx = tgt == Menu ? 0 : 1;
-
-    return CreateVertexBuffer(dev, quad, 4, &quadVertexBuf[tgtIdx]);
+    return CreateVertexBuffer(dev, quad, 4, dst);
 }
 
 IDirect3DSurface9* VRInterface::PrepareVRRendering(IDirect3DDevice9* dev, RenderTarget tgt, bool clear)
@@ -161,19 +159,43 @@ void VRInterface::InitSurfaces(IDirect3DDevice9* dev, RenderContext& ctx, uint32
         throw std::runtime_error("Could not create texture for menus");
     if (!CreateRenderTarget(dev, ctx, Overlay, D3DFMT_A8B8G8R8, resx2d, resy2d))
         throw std::runtime_error("Could not create texture for overlay");
+    if (dev->CreateTexture(resx2d, resy2d, 1, D3DUSAGE_RENDERTARGET, D3DFMT_A8B8G8R8, D3DPOOL_DEFAULT, &ctx.overlayBorder, nullptr) != D3D_OK)
+        throw std::runtime_error("Could not create overlay border texture");
 
+    auto aspectRatio = static_cast<float>(static_cast<double>(resx2d) / static_cast<double>(resy2d));
     static bool quadsCreated = false;
     if (!quadsCreated) {
-        auto aspectRatio = static_cast<float>(static_cast<double>(resx2d) / static_cast<double>(resy2d));
-
         // Create and fill a vertex buffers for the 2D planes
         // We can reuse all of these in every rendering context
-        if (!CreateQuad(dev, Menu, aspectRatio))
+        if (!CreateQuad(dev, 0.6f, aspectRatio, &quadVertexBuf[0]))
             throw std::runtime_error("Could not create menu quad");
-        if (!CreateQuad(dev, Overlay, aspectRatio))
+        if (!CreateQuad(dev, 0.6f, aspectRatio, &quadVertexBuf[1]))
             throw std::runtime_error("Could not create overlay quad");
+        if (!CreateQuad(dev, 1.0f, 1.0f, &overlayBorderQuad))
+            throw std::runtime_error("Could not create overlay border quad");
         if (!CreateCompanionWindowBuffer(dev))
             throw std::runtime_error("Could not create desktop window buffer");
+
+        quadsCreated = true;
+    }
+
+    IDirect3DSurface9* adj;
+    if (ctx.overlayBorder->GetSurfaceLevel(0, &adj) == D3D_OK) {
+        IDirect3DSurface9* orig;
+        dev->GetRenderTarget(0, &orig);
+        dev->SetRenderTarget(0, adj);
+        dev->Clear(0, nullptr, D3DCLEAR_TARGET, D3DCOLOR_RGBA(255, 69, 0, 50), 1.0, 0);
+        constexpr auto borderSize = 0.02;
+        const D3DRECT center = {
+            static_cast<LONG>(borderSize / aspectRatio * resx2d),
+            static_cast<LONG>(borderSize * resy2d),
+            static_cast<LONG>((1.0 - borderSize / aspectRatio) * resx2d),
+            static_cast<LONG>((1.0 - borderSize) * resy2d)
+        };
+        dev->Clear(1, &center, D3DCLEAR_TARGET, D3DCOLOR_RGBA(0, 0, 0, 0), 1.0, 0);
+        adj->Release();
+        dev->SetRenderTarget(0, orig);
+        orig->Release();
     }
 }
 
@@ -214,8 +236,11 @@ static void RenderTexture(
 
     dev->SetTextureStageState(0, D3DTSS_COLOROP, D3DTOP_SELECTARG1);
     dev->SetTextureStageState(0, D3DTSS_COLORARG1, D3DTA_TEXTURE);
+
     dev->SetTextureStageState(0, D3DTSS_ALPHAOP, D3DTOP_SELECTARG1);
     dev->SetTextureStageState(0, D3DTSS_ALPHAARG1, D3DTA_TEXTURE);
+
+    dev->SetRenderState(D3DRS_ZENABLE, false);
 
     dev->SetTexture(0, tex);
 
@@ -225,6 +250,7 @@ static void RenderTexture(
 
     dev->EndScene();
 
+    dev->SetRenderState(D3DRS_ZENABLE, true);
     dev->SetTexture(0, origTex);
     dev->SetVertexShader(vs);
     dev->SetPixelShader(ps);
@@ -233,12 +259,16 @@ static void RenderTexture(
     dev->SetTransform(D3DTS_WORLD, &origWorld);
 }
 
-void RenderMenuQuad(IDirect3DDevice9* dev, VRInterface* vr, RenderTarget renderTarget3D, RenderTarget renderTarget2D, Projection projType, float size, glm::vec3 translation, const std::optional<M4>& horizonLock)
+void RenderOverlayBorder(IDirect3DDevice9* dev, IDirect3DTexture9* tex)
+{
+    RenderTexture(dev, &identityMatrix, &identityMatrix, &identityMatrix, tex, overlayBorderQuad);
+}
+
+void RenderMenuQuad(IDirect3DDevice9* dev, VRInterface* vr, IDirect3DTexture9* texture, RenderTarget renderTarget3D, RenderTarget renderTarget2D, Projection projType, float size, glm::vec3 translation, const std::optional<M4>& horizonLock)
 {
     const auto& projection = vr->GetProjection(renderTarget3D, projType);
     const auto& eyepos = vr->GetEyePos(renderTarget3D);
     const auto& pose = vr->GetPose(renderTarget3D);
-    const auto& texture = vr->GetTexture(renderTarget2D);
 
     const D3DMATRIX mvp = D3DFromM4(projection * glm::translate(glm::scale(eyepos * pose * gFlipZMatrix * horizonLock.value_or(glm::identity<M4>()), { size, size, 1.0f }), translation));
     RenderTexture(dev, &mvp, &identityMatrix, &identityMatrix, texture, quadVertexBuf[renderTarget2D == Menu ? 0 : 1]);

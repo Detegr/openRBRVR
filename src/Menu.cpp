@@ -7,6 +7,7 @@
 
 extern Config gCfg;
 extern Config gSavedCfg;
+extern bool gDrawOverlayBorder;
 
 // Helper function to create an identity function to return its argument
 template <typename T>
@@ -103,6 +104,7 @@ static class Menu mainMenu = { "openRBRVR", {
   { .text = id("Recenter VR view"), .longText = {"Recenters VR view"}, .menuColor = IRBRGame::EMenuColors::MENU_TEXT, .position = Menu::menuItemsStartPos, .selectAction = RecenterVR },
   { .text = id("Horizon lock settings") , .longText = {"Horizon lock settings"}, .selectAction = [] { SelectMenu(4); } },
   { .text = id("Graphics settings") , .longText = {"Graphics settings"}, .selectAction = [] { SelectMenu(1); } },
+  { .text = id("Overlay settings") , .longText = {"Overlay settings"}, .selectAction = [] { SelectMenu(5); } },
   { .text = id("Debug settings"), .longText = {"Not intended to be changed unless there is a problem that needs more information."}, .selectAction = [] { SelectMenu(2); } },
   { .text = [] { return std::format("VR runtime: {}", gCfg.runtime == OPENVR ? "OpenVR (SteamVR)" : (gCfg.wmrWorkaround ? "OpenXR (Reverb compatibility mode)" : "OpenXR")); },
     .longText {
@@ -111,9 +113,9 @@ static class Menu mainMenu = { "openRBRVR", {
         "SteamVR support is more mature and supports more devices.",
         "", "OpenXR is an open-source, royalty-free standard.",
         "It has less overhead and may result in better performance.",
-        "",
         "OpenXR device compatibility is more limited for old 32-bit games like RBR.",
-        "The performance of Reverb compatibility mode is worse than normal OpenXR. Use it only if there's problems with the normal mode."},
+        "The performance of Reverb compatibility mode is worse than normal OpenXR.",
+        "Use it only if there's problems with the normal mode."},
     .leftAction = [] {
         if (gCfg.runtime == OPENXR) { if(gCfg.wmrWorkaround) Toggle(gCfg.wmrWorkaround); else gCfg.runtime = OPENVR; }
         else { gCfg.runtime = OPENXR; gCfg.wmrWorkaround = true; }
@@ -128,12 +130,13 @@ static class Menu mainMenu = { "openRBRVR", {
   { .text = id("Save the current config to openRBRVR.toml"),
     .color = [] { return (gCfg == gSavedCfg) ? std::make_tuple(0.5f, 0.5f, 0.5f, 1.0f) : std::make_tuple(1.0f, 1.0f, 1.0f, 1.0f); },
     .selectAction = [] {
-		if (gCfg.Write("Plugins\\openRBRVR.toml")) {
-			gSavedCfg = gCfg;
-		}
+        if (gCfg.Write("Plugins\\openRBRVR.toml")) {
+            gSavedCfg = gCfg;
+        }
     }
   },
 }};
+
 static Menu graphicsMenu = { "openRBRVR graphics settings", {
   { .text = [] { return std::format("Draw desktop window: {}", gCfg.drawCompanionWindow ? "ON" : "OFF"); },
     .longText = { "Draw game window on the monitor.", "Found to have a performance impact on some machines."},
@@ -177,6 +180,7 @@ static Menu graphicsMenu = { "openRBRVR graphics settings", {
 	.selectAction = [] { SelectMenu(0); }
   },
 }};
+
 static Menu debugMenu = { "openRBRVR debug settings", {
   { .text = [] { return std::format("Debug information: {}", gCfg.debug ? "ON" : "OFF"); },
     .longText = { "Show a lot of technical information on the top-left of the screen." },
@@ -190,7 +194,9 @@ static Menu debugMenu = { "openRBRVR debug settings", {
 	.selectAction = [] { SelectMenu(0); }
   },
 }};
+
 static LicenseMenu licenseMenu;
+
 static Menu horizonLockMenu = { "openRBRVR horizon lock settings", {
   { .text = [] { return std::format("Lock horizon: {}", GetHorizonLockStr()); },
     .longText = {
@@ -199,7 +205,7 @@ static Menu horizonLockMenu = { "openRBRVR horizon lock settings", {
         "Roll means locking the left-right axis.",
         "Pitch means locking the front-back axis."
     },
-	.menuColor = IRBRGame::EMenuColors::MENU_TEXT,
+    .menuColor = IRBRGame::EMenuColors::MENU_TEXT,
     .position = Menu::menuItemsStartPos,
     .leftAction = [] { ChangeHorizonLock(false); },
     .rightAction = [] { ChangeHorizonLock(true); },
@@ -213,7 +219,40 @@ static Menu horizonLockMenu = { "openRBRVR horizon lock settings", {
     .rightAction = [] { gCfg.horizonLockMultiplier = std::min<double>(1.0, (gCfg.horizonLockMultiplier * 100.0 + 5) / 100.0); },
   },
   { .text = id("Back to previous menu"),
-	.selectAction = [] { SelectMenu(0); }
+    .selectAction = [] { SelectMenu(0); }
+  },
+}};
+
+static Menu overlayMenu = { "openRBRVR overlay settings", {
+  { .text = [] { return std::format("Menu size: {:.2f}", gCfg.menuSize); },
+    .longText = { "Adjust menu size." },
+    .menuColor = IRBRGame::EMenuColors::MENU_TEXT,
+	.position = Menu::menuItemsStartPos,
+    .leftAction = [] { gCfg.menuSize = std::max<float>((gCfg.menuSize - 0.05f), 0.05f); },
+    .rightAction = [] { gCfg.menuSize = std::min<float>((gCfg.menuSize + 0.05f), 10.0f); },
+  },
+  { .text = [] { return std::format("Overlay size: {:.2f}", gCfg.overlaySize); },
+    .longText = { "Adjust overlay size. Overlay is the area where 2D content", "is rendered when driving."},
+    .leftAction = [] { gCfg.overlaySize = std::max<float>((gCfg.overlaySize - 0.05f), 0.05f); },
+    .rightAction = [] { gCfg.overlaySize = std::min<float>((gCfg.overlaySize + 0.05f), 10.0f); },
+  },
+  { .text = [] { return std::format("Overlay X position: {:.2f}", gCfg.overlayTranslation.x); },
+    .longText = { "Adjust overlay position. Overlay is the area where 2D content", "is rendered when driving."},
+    .leftAction = [] { gCfg.overlayTranslation.x -= 0.01f; },
+    .rightAction = [] { gCfg.overlayTranslation.x += 0.01f; },
+  },
+  { .text = [] { return std::format("Overlay Y position: {:.2f}", gCfg.overlayTranslation.y); },
+    .longText = { "Adjust overlay position. Overlay is the area where 2D content", "is rendered when driving."},
+    .leftAction = [] { gCfg.overlayTranslation.y -= 0.01f; },
+    .rightAction = [] { gCfg.overlayTranslation.y += 0.01f; },
+  },
+  { .text = [] { return std::format("Overlay Z position: {:.2f}", gCfg.overlayTranslation.z); },
+    .longText = { "Adjust overlay position. Overlay is the area where 2D content", "is rendered when driving."},
+    .leftAction = [] { gCfg.overlayTranslation.z -= 0.01f; },
+    .rightAction = [] { gCfg.overlayTranslation.z += 0.01f; },
+  },
+  { .text = id("Back to previous menu"),
+    .selectAction = [] { SelectMenu(0); },
   },
 }};
 // clang-format on
@@ -224,6 +263,7 @@ static auto menus = std::to_array<Menu*>({
     &debugMenu,
     &licenseMenu,
     &horizonLockMenu,
+    &overlayMenu,
 });
 
 Menu* gMenu = menus[0];
