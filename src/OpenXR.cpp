@@ -300,11 +300,6 @@ void OpenXR::Init(IDirect3DDevice9* dev, const Config& cfg, IDirect3DVR9** vrdev
     if (auto err = xrCreateReferenceSpace(session, &spaceCreateInfo, &space); err != XR_SUCCESS) {
         throw std::runtime_error(std::format("Failed to initialize OpenXR. xrCreateReferenceSpace {}", XrResultToString(instance, err)));
     }
-    spaceCreateInfo.referenceSpaceType = XR_REFERENCE_SPACE_TYPE_VIEW;
-    if (auto err = xrCreateReferenceSpace(session, &spaceCreateInfo, &viewSpace); err != XR_SUCCESS) {
-        throw std::runtime_error(std::format("Failed to initialize OpenXR. xrCreateReferenceSpace {}", XrResultToString(instance, err)));
-    }
-
     bool sessionRunning = false;
     auto retries = 10;
     while (retries-- > 0) {
@@ -646,11 +641,25 @@ void OpenXR::ResetView()
 
 void OpenXR::RecenterView()
 {
+    XrSpace viewSpace;
+    XrReferenceSpaceCreateInfo viewSpaceCreateInfo = {
+        .type = XR_TYPE_REFERENCE_SPACE_CREATE_INFO,
+        .referenceSpaceType = XR_REFERENCE_SPACE_TYPE_VIEW,
+        .poseInReferenceSpace = { { 0, 0, 0, 1 }, { 0, 0, 0 } },
+    };
+    if (auto res = xrCreateReferenceSpace(session, &viewSpaceCreateInfo, &viewSpace); res != XR_SUCCESS) {
+        Dbg(std::format("Failed to recenter VR view: {}", XrResultToString(instance, res)));
+        return;
+    }
+
     XrSpaceLocation spaceLocation = {
         .type = XR_TYPE_SPACE_LOCATION,
         .next = nullptr,
     };
     if (auto res = xrLocateSpace(viewSpace, space, frameState.predictedDisplayTime, &spaceLocation); res != XR_SUCCESS) {
+        if (auto res = xrDestroySpace(viewSpace); res != XR_SUCCESS) {
+            Dbg(std::format("Failed to destroy old viewSpace: {}", XrResultToString(instance, res)));
+        }
         Dbg(std::format("Failed to recenter VR view: {}", XrResultToString(instance, res)));
         return;
     }
@@ -660,6 +669,12 @@ void OpenXR::RecenterView()
     auto orientationDiff = glm::quat(slo.w, 0, slo.y, 0);
     auto poseOrientation = glm::quat(vpo.w, 0, vpo.y, 0);
     auto newOrientation = glm::normalize(poseOrientation * orientationDiff);
+
+    Dbg(std::format("viewPose position {}, {}, {}", viewPose.position.x, viewPose.position.y, viewPose.position.z));
+    Dbg(std::format("spaceLocation position {}, {}, {}", spaceLocation.pose.position.x, spaceLocation.pose.position.y, spaceLocation.pose.position.z));
+    Dbg(std::format("viewPose orientation {}, {}, {}", viewPose.orientation.x, viewPose.orientation.y, viewPose.orientation.z));
+    Dbg(std::format("spaceLocation orientation {}, {}, {}", spaceLocation.pose.orientation.x, spaceLocation.pose.orientation.y, spaceLocation.pose.orientation.z));
+    Dbg(std::format("new orientation: {}, {}, {}, {}", newOrientation.x, newOrientation.y, newOrientation.z, newOrientation.w));
 
     XrPosef pose = {
         .orientation = {
@@ -686,6 +701,9 @@ void OpenXR::RecenterView()
         return;
     }
 
+    if (auto res = xrDestroySpace(viewSpace); res != XR_SUCCESS) {
+        Dbg(std::format("Failed to destroy old viewSpace: {}", XrResultToString(instance, res)));
+    }
     if (auto res = xrDestroySpace(space); res != XR_SUCCESS) {
         Dbg(std::format("Failed to destroy old space: {}", XrResultToString(instance, res)));
         return;
@@ -698,7 +716,6 @@ void OpenXR::RecenterView()
 void OpenXR::ShutdownVR()
 {
     xrDestroySpace(space);
-    xrDestroySpace(viewSpace);
     for (const auto& v : renderContexts) {
         const auto& ctx = v.second;
         auto xrCtx = reinterpret_cast<OpenXRRenderContext*>(ctx.ext);

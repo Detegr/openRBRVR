@@ -4,6 +4,8 @@
 - Change config file format from ini to toml
 - Add overlay adjustment menu. Show overlay borders while driving when debug
   mode is active for easier adjustment.
+- Attempt to fix intermittent recentering issues happening with Reverb in
+  OpenXR mode.
 
 ## 0.5.2
 

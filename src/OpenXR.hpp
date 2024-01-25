@@ -19,7 +19,7 @@ private:
     XrSession session;
     XrInstance instance;
     XrSystemId systemId;
-    XrSpace space, viewSpace;
+    XrSpace space;
     XrFrameState frameState;
     int64_t swapchainFormat;
     XrPosef viewPose;
