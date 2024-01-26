@@ -39,10 +39,10 @@ V následující tabulce se můžete podívat jestli ho váš headset podporuje:
 | Varjo        | Varjo OpenXR                                                            | ⛔          | Nemá 32-bit runtime                                                         |
 | Pico         | ?                                                                       | ❓          | V tento moment netestováno                                                  |
 
-OpenXR runtime zapnete v `Options (Nastavení) -> Plugins -> openRBRVR -> VR runtime` nebo editací `openRBRVR.ini`
-a upravením řádku `runtime = openxr`.
-Pokud máte Reverb headset, vyberte `OpenXR (Reverb compatibility mode)` ve hře a nebo upravte řádek v ini na
-`runtime = openxr-wmr`.
+OpenXR runtime zapnete v `Options (Nastavení) -> Plugins -> openRBRVR -> VR runtime` nebo editací `openRBRVR.toml`
+a upravením řádku `runtime = 'openxr'`.
+Pokud máte Reverb headset, vyberte `OpenXR (Reverb compatibility mode)` ve hře a nebo upravte řádek v toml na
+`runtime = 'openxr-wmr'`.
 
 ## Moje FPS jsou horší než v RBRVR pluginu
 

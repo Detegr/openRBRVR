@@ -32,7 +32,7 @@ když děláte ruční instalaci.
 
 Nastavení pluginu můžete změnit ve hře v `Options -> Plugins -> openRBRVR`
 respektivě `Nastavení -> Plugins -> openRBRVR` a jeho nastavení naleznete v
-souboru `Plugins/openRBRVR.ini`
+souboru `Plugins/openRBRVR.toml`
 
 Při různých nastavení FoV (Field of View) mohou některé objekty zmizet z vašeho
 periferního vidění dřív než se dostanou mimo obraz. V některých etapách je to

@@ -38,8 +38,10 @@ OpenXR est supporté par les casques qui on 32-bit OpenXR runtime disponible. Vo
 | Varjo        | Varjo OpenXR                                                            | ⛔          | 32-bit runtime non disponible                                                 |
 | Pico         | ?                                                                       | ❓          | Pas de test actuellemnt                                                      |
 
-Activer OpenXR runtime depuis `Options -> Plugins -> openRBRVR -> VR runtime` ou éditer `openRBRVR.ini` pour avoir `runtime = openxr`. Pour les casques Reverbs, sélectionner `OpenXR (Reverb compatibility mode)` depuis le jeu ou mettre `runtime =
-openxr-wmr` dans le ini.
+Activer OpenXR runtime depuis `Options -> Plugins -> openRBRVR -> VR runtime`
+ou éditer `openRBRVR.toml` pour avoir `runtime = 'openxr'`. Pour les casques
+Reverbs, sélectionner `OpenXR (Reverb compatibility mode)` depuis le jeu ou
+mettre `runtime = 'openxr-wmr'` dans le toml.
 
 ## Mes FPS sont pire que dans RBRVR
 

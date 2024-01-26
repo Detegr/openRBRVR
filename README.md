@@ -31,7 +31,7 @@ the plugin.
 ## Setup
 
 Plugin settings can be changed from `Options -> Plugins -> openRBRVR` and saved
-to `Plugins/openRBRVR.ini` via the menu.
+to `Plugins/openRBRVR.toml` via the menu.
 
 With the desktop FoV, objects might disappear from your peripheral vision
 before they go out of frame. On some stages this is more apparent than others.

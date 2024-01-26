@@ -44,9 +44,9 @@ Please refer to the following table to check if your device is supported:
 | Pico         | ?                                                                       | ❓          | Untested at the moment                                                      |
 
 Enable OpenXR runtime from `Options -> Plugins -> openRBRVR -> VR runtime` or
-edit `openRBRVR.ini` to contain `runtime = openxr`. For Reverb headsets, select
+edit `openRBRVR.toml` to contain `runtime = 'openxr'`. For Reverb headsets, select
 `OpenXR (Reverb compatibility mode)` from the game or put `runtime =
-openxr-wmr` in the ini.
+'openxr-wmr'` in the toml.
 
 ## My FPS is worse than what it is in RBRVR
 
