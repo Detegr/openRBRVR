@@ -1,6 +1,7 @@
 ## 0.6.1
 
 - Add adjustment menu and settings for the desktop window viewport.
+- Fix incorrect rendering of broken windshield texture.
 
 ## 0.6.0
 

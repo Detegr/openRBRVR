@@ -578,7 +578,7 @@ uint32_t __stdcall RBRHook_LoadTexture(void* p, const char* texName, uint32_t a,
         | std::ranges::views::transform([](char c) { return std::tolower(c); })
         | std::ranges::to<std::string>();
 
-    if (ret == 0 && (tex.starts_with("cars\\") || tex.starts_with("cars/"))) {
+    if (ret == 0 && (tex.starts_with("cars\\") || tex.starts_with("cars/") || tex.starts_with("textures/ws_broken") || tex.starts_with("textures\\ws_broken"))) {
         gCarTextures[tex] = *ppTexture;
     }
     return ret;
