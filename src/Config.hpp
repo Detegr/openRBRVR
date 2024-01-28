@@ -19,10 +19,7 @@
 #define TOML_HEADER_ONLY 1
 #include <toml.hpp>
 
-enum VRRuntime {
-    OPENVR = 1,
-    OPENXR = 2,
-};
+#include "VR.hpp"
 
 static float floatOrDefault(const std::string& value, float def)
 {
@@ -43,12 +40,6 @@ static int intOrDefault(const std::string& value, int def)
 }
 
 struct Config {
-    enum HorizonLock : uint8_t {
-        LOCK_NONE = 0x0,
-        LOCK_ROLL = 0x1,
-        LOCK_PITCH = 0x2,
-    };
-
     float menuSize = 1.0;
     float overlaySize = 1.0;
     glm::vec3 overlayTranslation = { 0, 0, 0 };
@@ -65,10 +56,11 @@ struct Config {
     D3DMULTISAMPLE_TYPE msaa = D3DMULTISAMPLE_NONE;
     int anisotropy = 0;
     bool wmrWorkaround = false;
-    VRRuntime runtime = OPENVR;
+    VRRuntime runtime = VRRuntime::OPENVR;
     std::unordered_map<std::string, std::tuple<float, std::vector<int>>> gfx = { { "default", std::make_tuple(1.0f, std::vector<int> {}) } };
     glm::dvec2 companionOffset;
     double companionSize = 1.0;
+    RenderTarget companionEye = LeftEye;
 
     Config& operator=(const Config& rhs)
     {
@@ -78,6 +70,7 @@ struct Config {
         gfx = rhs.gfx;
         companionOffset = rhs.companionOffset;
         companionSize = rhs.companionSize;
+        companionEye = rhs.companionEye;
         return *this;
     }
 
@@ -100,7 +93,8 @@ struct Config {
             && wmrWorkaround == rhs.wmrWorkaround
             && runtime == rhs.runtime
             && companionOffset == rhs.companionOffset
-            && companionSize == rhs.companionSize;
+            && companionSize == rhs.companionSize
+            && companionEye == rhs.companionEye;
     }
 
     bool Write(const std::filesystem::path& path) const
@@ -130,6 +124,7 @@ struct Config {
             { "desktopWindowOffsetX", round(companionOffset.x) },
             { "desktopWindowOffsetY", round(companionOffset.y) },
             { "desktopWindowSize", round(companionSize) },
+            { "desktopEye", static_cast<int>(companionEye) },
         };
 
         toml::table gfxTbl;
@@ -194,6 +189,8 @@ struct Config {
         cfg.renderReplays3d = parsed["renderReplays3d"].value_or(false);
         cfg.companionOffset = { parsed["desktopWindowOffsetX"].value_or(0.0), parsed["desktopWindowOffsetY"].value_or(0.0) };
         cfg.companionSize = parsed["desktopWindowSize"].value_or(0.0);
+        cfg.companionEye = static_cast<RenderTarget>(std::clamp(parsed["desktopEye"].value_or(0), 0, 1));
+
         const std::string& runtime = parsed["runtime"].value_or("steamvr");
         if (runtime == "openxr") {
             cfg.runtime = OPENXR;

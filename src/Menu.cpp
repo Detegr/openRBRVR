@@ -49,13 +49,13 @@ void RecenterVR()
 static std::string GetHorizonLockStr()
 {
     switch (gCfg.lockToHorizon) {
-        case Config::HorizonLock::LOCK_NONE:
+        case HorizonLock::LOCK_NONE:
             return "Off";
-        case Config::HorizonLock::LOCK_ROLL:
+        case HorizonLock::LOCK_ROLL:
             return "Roll";
-        case Config::HorizonLock::LOCK_PITCH:
+        case HorizonLock::LOCK_PITCH:
             return "Pitch";
-        case (Config::HorizonLock::LOCK_ROLL | Config::HorizonLock::LOCK_PITCH):
+        case (HorizonLock::LOCK_ROLL | HorizonLock::LOCK_PITCH):
             return "Pitch and roll";
         default:
             return "Unknown";
@@ -65,20 +65,20 @@ static std::string GetHorizonLockStr()
 static void ChangeHorizonLock(bool forward)
 {
     switch (gCfg.lockToHorizon) {
-        case Config::HorizonLock::LOCK_NONE:
-            gCfg.lockToHorizon = forward ? Config::HorizonLock::LOCK_ROLL : static_cast<Config::HorizonLock>((Config::HorizonLock::LOCK_ROLL | Config::HorizonLock::LOCK_PITCH));
+        case HorizonLock::LOCK_NONE:
+            gCfg.lockToHorizon = forward ? HorizonLock::LOCK_ROLL : static_cast<HorizonLock>((HorizonLock::LOCK_ROLL | HorizonLock::LOCK_PITCH));
             break;
-        case Config::HorizonLock::LOCK_ROLL:
-            gCfg.lockToHorizon = forward ? Config::HorizonLock::LOCK_PITCH : Config::HorizonLock::LOCK_NONE;
+        case HorizonLock::LOCK_ROLL:
+            gCfg.lockToHorizon = forward ? HorizonLock::LOCK_PITCH : HorizonLock::LOCK_NONE;
             break;
-        case Config::HorizonLock::LOCK_PITCH:
-            gCfg.lockToHorizon = forward ? static_cast<Config::HorizonLock>((Config::HorizonLock::LOCK_ROLL | Config::HorizonLock::LOCK_PITCH)) : Config::HorizonLock::LOCK_ROLL;
+        case HorizonLock::LOCK_PITCH:
+            gCfg.lockToHorizon = forward ? static_cast<HorizonLock>((HorizonLock::LOCK_ROLL | HorizonLock::LOCK_PITCH)) : HorizonLock::LOCK_ROLL;
             break;
-        case (Config::HorizonLock::LOCK_ROLL | Config::HorizonLock::LOCK_PITCH):
-            gCfg.lockToHorizon = forward ? Config::HorizonLock::LOCK_NONE : Config::HorizonLock::LOCK_PITCH;
+        case (HorizonLock::LOCK_ROLL | HorizonLock::LOCK_PITCH):
+            gCfg.lockToHorizon = forward ? HorizonLock::LOCK_NONE : HorizonLock::LOCK_PITCH;
             break;
         default:
-            gCfg.lockToHorizon = Config::HorizonLock::LOCK_NONE;
+            gCfg.lockToHorizon = HorizonLock::LOCK_NONE;
             break;
     }
 }
@@ -304,6 +304,11 @@ static class Menu companionMenu = { "openRBRVR desktop window settings", {
         gCfg.companionOffset.y = std::clamp(gCfg.companionOffset.y + windowStep, 0.0, 1.0 - gCfg.companionSize / gVR->aspectRatio);
         gVR->CreateCompanionWindowBuffer(gD3Ddev);
     },
+  },
+  { .text = [] { return std::format("Eye: {}", gCfg.companionEye == LeftEye ? "Left eye" : "Right eye"); },
+    .longText = { "Eye that is being used to render the desktop window." },
+    .leftAction = [] { gCfg.companionEye = gCfg.companionEye == LeftEye ? RightEye : LeftEye; },
+    .rightAction = [] { gCfg.companionEye = gCfg.companionEye == LeftEye ? RightEye : LeftEye; },
   },
   { .text = id("Back to previous menu"),
     .selectAction = [] { SelectMenu(0); },

@@ -1,5 +1,6 @@
 #define XR_USE_GRAPHICS_API_VULKAN
 #include "OpenXR.hpp"
+#include "Config.hpp"
 #include "Util.hpp"
 #include <d3d9_interop.h>
 #include <gtx/quaternion.hpp>
@@ -402,15 +403,15 @@ void OpenXR::PrepareFramesForHMD(IDirect3DDevice9* dev)
         // We can't show the swapchain image because of DXVK/Vulkan/OpenXR incompatibilities
         // Technically it would be possible I think but this will do for now.
 
-        IDirect3DSurface9* leftEye;
-        if (currentRenderContext->dxTexture[LeftEye]->GetSurfaceLevel(0, &leftEye) != D3D_OK) {
+        IDirect3DSurface9* eye;
+        if (currentRenderContext->dxTexture[gCfg.companionEye]->GetSurfaceLevel(0, &eye) != D3D_OK) {
             Dbg("Could not get surface level");
-            leftEye = nullptr;
+            eye = nullptr;
         }
 
-        if (leftEye) {
-            dev->StretchRect(currentRenderContext->dxSurface[LeftEye], nullptr, leftEye, nullptr, D3DTEXF_NONE);
-            leftEye->Release();
+        if (eye) {
+            dev->StretchRect(currentRenderContext->dxSurface[gCfg.companionEye], nullptr, eye, nullptr, D3DTEXF_NONE);
+            eye->Release();
         }
     }
 
@@ -532,7 +533,7 @@ std::optional<XrViewState> OpenXR::UpdateViews()
     return viewState;
 }
 
-bool OpenXR::UpdateVRPoses(Quaternion* carQuat, Config::HorizonLock lockSetting)
+bool OpenXR::UpdateVRPoses(Quaternion* carQuat, HorizonLock lockSetting)
 {
     frameState = {
         .type = XR_TYPE_FRAME_STATE,

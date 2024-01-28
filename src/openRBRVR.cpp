@@ -341,7 +341,7 @@ void __fastcall RBRHook_Render(void* p)
     }
 
     if (gVR) [[likely]] {
-        if (gDriving && (gCfg.lockToHorizon != Config::HorizonLock::LOCK_NONE) && !gCarQuat) [[unlikely]] {
+        if (gDriving && (gCfg.lockToHorizon != HorizonLock::LOCK_NONE) && !gCarQuat) [[unlikely]] {
             uintptr_t p = *reinterpret_cast<uintptr_t*>(RBRCarQuatPtrAddr) + 0x100;
             gCarQuat = reinterpret_cast<Quaternion*>(p);
         } else if (gCarQuat && !gDriving) [[unlikely]] {
@@ -421,7 +421,7 @@ HRESULT __stdcall DXHook_Present(IDirect3DDevice9* This, const RECT* pSourceRect
     auto ret = 0;
     if (gVR) {
         if (gCfg.drawCompanionWindow || !gDriving) {
-            RenderCompanionWindowFromRenderTarget(gD3Ddev, gVR.get(), gRender3d ? LeftEye : Menu);
+            RenderCompanionWindowFromRenderTarget(gD3Ddev, gVR.get(), gRender3d ? gCfg.companionEye : Menu);
         }
         gVR->PrepareFramesForHMD(gD3Ddev);
     }

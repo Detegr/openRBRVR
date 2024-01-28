@@ -1,5 +1,6 @@
 #pragma once
 
+#include "Config.hpp"
 #include "VR.hpp"
 
 class OpenVR : public VRInterface {
@@ -27,7 +28,7 @@ public:
         compositor = nullptr;
     }
     void PrepareFramesForHMD(IDirect3DDevice9* dev) override;
-    bool UpdateVRPoses(Quaternion* carQuat, Config::HorizonLock lockSetting) override;
+    bool UpdateVRPoses(Quaternion* carQuat, HorizonLock lockSetting) override;
     void SubmitFramesToHMD(IDirect3DDevice9* dev) override;
     FrameTimingInfo GetFrameTiming() override;
     void ResetView() override

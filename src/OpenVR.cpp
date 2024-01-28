@@ -1,4 +1,5 @@
 #include "OpenVR.hpp"
+#include "Config.hpp"
 #include "D3D.hpp"
 
 extern Config gCfg;
@@ -167,7 +168,7 @@ void OpenVR::SubmitFramesToHMD(IDirect3DDevice9* dev)
     gD3DVR->EndVRSubmit();
 }
 
-bool OpenVR::UpdateVRPoses(Quaternion* carQuat, Config::HorizonLock lockSetting)
+bool OpenVR::UpdateVRPoses(Quaternion* carQuat, HorizonLock lockSetting)
 {
     // WaitGetPoses might access the Vulkan queue so we need to lock it
     gD3DVR->LockSubmissionQueue();

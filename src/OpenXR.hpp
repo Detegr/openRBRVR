@@ -1,11 +1,13 @@
 #pragma once
 
+#include "Config.hpp"
 #include "VR.hpp"
 #include <array>
 #include <d3d9.h>
 #define XR_USE_GRAPHICS_API_VULKAN
 #include <openxr_platform.h>
 #include <openxr_reflection.h>
+#include <optional>
 
 struct OpenXRRenderContext {
     XrSwapchain swapchains[2];
@@ -59,7 +61,7 @@ public:
     }
 
     void ShutdownVR() override;
-    bool UpdateVRPoses(Quaternion* carQuat, Config::HorizonLock lockSetting) override;
+    bool UpdateVRPoses(Quaternion* carQuat, HorizonLock lockSetting) override;
     void PrepareFramesForHMD(IDirect3DDevice9* dev) override;
     void SubmitFramesToHMD(IDirect3DDevice9* dev) override;
     void ResetView() override;

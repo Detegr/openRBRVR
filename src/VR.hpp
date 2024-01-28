@@ -2,7 +2,6 @@
 
 #define GLM_FORCE_SIMD_AVX2
 
-#include "Config.hpp"
 #include "Quaternion.hpp"
 #include <d3d9_vr.h>
 #include <gtc/quaternion.hpp>
@@ -13,6 +12,19 @@
 #include <d3d9.h>
 #include <openvr.h>
 #include <openxr.h>
+#include <optional>
+#include <unordered_map>
+
+enum HorizonLock : uint8_t {
+    LOCK_NONE = 0x0,
+    LOCK_ROLL = 0x1,
+    LOCK_PITCH = 0x2,
+};
+
+enum VRRuntime {
+    OPENVR = 1,
+    OPENXR = 2,
+};
 
 enum RenderTarget : size_t {
     LeftEye = 0,
@@ -85,7 +97,7 @@ public:
     double aspectRatio; // Desktop window aspect ratio
 
     virtual void ShutdownVR() = 0;
-    virtual bool UpdateVRPoses(Quaternion* carQuat, Config::HorizonLock lockSetting) = 0;
+    virtual bool UpdateVRPoses(Quaternion* carQuat, HorizonLock lockSetting) = 0;
     virtual IDirect3DSurface9* PrepareVRRendering(IDirect3DDevice9* dev, RenderTarget tgt, bool clear = true);
     virtual void FinishVRRendering(IDirect3DDevice9* dev, RenderTarget tgt);
     virtual void PrepareFramesForHMD(IDirect3DDevice9* dev) = 0;
@@ -128,7 +140,7 @@ bool CreateQuad(IDirect3DDevice9* dev, RenderTarget tgt, float aspect);
 void RenderOverlayBorder(IDirect3DDevice9* dev, IDirect3DTexture9* tex);
 void RenderMenuQuad(IDirect3DDevice9* dev, VRInterface* vr, IDirect3DTexture9* texture, RenderTarget renderTarget3D, RenderTarget renderTarget2D, Projection projType, float size, glm::vec3 translation, const std::optional<M4>& horizonLock);
 void RenderCompanionWindowFromRenderTarget(IDirect3DDevice9* dev, VRInterface* vr, RenderTarget tgt);
-M4 GetHorizonLockMatrix(Quaternion* carQuat, Config::HorizonLock lockSetting);
+M4 GetHorizonLockMatrix(Quaternion* carQuat, HorizonLock lockSetting);
 
 constexpr M4 gFlipZMatrix = {
     { 1, 0, 0, 0 },

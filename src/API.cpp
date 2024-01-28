@@ -1,5 +1,6 @@
 #pragma once
 
+#include "Config.hpp"
 #include "IPlugin.h"
 #include "OpenXR.hpp"
 #include "VR.hpp"
