@@ -82,6 +82,8 @@ protected:
     bool IsUsingTextureToRender(RenderTarget t);
 
 public:
+    double aspectRatio; // Desktop window aspect ratio
+
     virtual void ShutdownVR() = 0;
     virtual bool UpdateVRPoses(Quaternion* carQuat, Config::HorizonLock lockSetting) = 0;
     virtual IDirect3DSurface9* PrepareVRRendering(IDirect3DDevice9* dev, RenderTarget tgt, bool clear = true);
@@ -112,6 +114,7 @@ public:
     const M4& GetHorizonLock() const { return horizonLock; }
     IDirect3DTexture9* GetTexture(RenderTarget tgt) const { return currentRenderContext->dxTexture[tgt]; }
     RenderContext* GetCurrentRenderContext() const { return currentRenderContext; }
+    bool CreateCompanionWindowBuffer(IDirect3DDevice9* dev);
 
     virtual void ResetView() = 0;
     virtual VRRuntime GetRuntimeType() const = 0;
@@ -122,7 +125,6 @@ public:
 };
 
 bool CreateQuad(IDirect3DDevice9* dev, RenderTarget tgt, float aspect);
-bool CreateCompanionWindowBuffer(IDirect3DDevice9* dev);
 void RenderOverlayBorder(IDirect3DDevice9* dev, IDirect3DTexture9* tex);
 void RenderMenuQuad(IDirect3DDevice9* dev, VRInterface* vr, IDirect3DTexture9* texture, RenderTarget renderTarget3D, RenderTarget renderTarget2D, Projection projType, float size, glm::vec3 translation, const std::optional<M4>& horizonLock);
 void RenderCompanionWindowFromRenderTarget(IDirect3DDevice9* dev, VRInterface* vr, RenderTarget tgt);

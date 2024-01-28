@@ -1,3 +1,7 @@
+## 0.6.1
+
+- Add adjustment menu and settings for the desktop window viewport.
+
 ## 0.6.0
 
 - Implement per-stage supersampling

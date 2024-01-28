@@ -13,6 +13,7 @@
 
 #include "Util.hpp"
 
+#include <vec2.hpp>
 #include <vec3.hpp>
 
 #define TOML_HEADER_ONLY 1
@@ -66,6 +67,8 @@ struct Config {
     bool wmrWorkaround = false;
     VRRuntime runtime = OPENVR;
     std::unordered_map<std::string, std::tuple<float, std::vector<int>>> gfx = { { "default", std::make_tuple(1.0f, std::vector<int> {}) } };
+    glm::dvec2 companionOffset;
+    double companionSize = 1.0;
 
     Config& operator=(const Config& rhs)
     {
@@ -73,18 +76,36 @@ struct Config {
         msaa = rhs.msaa;
         anisotropy = rhs.anisotropy;
         gfx = rhs.gfx;
+        companionOffset = rhs.companionOffset;
+        companionSize = rhs.companionSize;
         return *this;
     }
 
     bool operator==(const Config& rhs) const
     {
         // We need to compare ini fields only as gfx is not modifiable through the game
-        return menuSize == rhs.menuSize && overlaySize == rhs.overlaySize && overlayTranslation == rhs.overlayTranslation && superSampling == rhs.superSampling && lockToHorizon == rhs.lockToHorizon && horizonLockMultiplier == rhs.horizonLockMultiplier && drawCompanionWindow == rhs.drawCompanionWindow && drawLoadingScreen == rhs.drawLoadingScreen && debug == rhs.debug && renderMainMenu3d == rhs.renderMainMenu3d && renderPauseMenu3d == rhs.renderPauseMenu3d && renderPreStage3d == rhs.renderPreStage3d && renderReplays3d == rhs.renderReplays3d && wmrWorkaround == rhs.wmrWorkaround && runtime == rhs.runtime;
+        return menuSize == rhs.menuSize
+            && overlaySize == rhs.overlaySize
+            && overlayTranslation == rhs.overlayTranslation
+            && superSampling == rhs.superSampling
+            && lockToHorizon == rhs.lockToHorizon
+            && horizonLockMultiplier == rhs.horizonLockMultiplier
+            && drawCompanionWindow == rhs.drawCompanionWindow
+            && drawLoadingScreen == rhs.drawLoadingScreen
+            && debug == rhs.debug
+            && renderMainMenu3d == rhs.renderMainMenu3d
+            && renderPauseMenu3d == rhs.renderPauseMenu3d
+            && renderPreStage3d == rhs.renderPreStage3d
+            && renderReplays3d == rhs.renderReplays3d
+            && wmrWorkaround == rhs.wmrWorkaround
+            && runtime == rhs.runtime
+            && companionOffset == rhs.companionOffset
+            && companionSize == rhs.companionSize;
     }
 
     bool Write(const std::filesystem::path& path) const
     {
-        constexpr auto round = [](double v) { return std::ceil(v * 100.0f) / 100.0f; };
+        constexpr auto round = [](double v) -> double { return std::round(v * 100.0) / 100.0; };
 
         std::ofstream f(path);
         if (!f.good()) {
@@ -93,9 +114,9 @@ struct Config {
         toml::table out {
             { "menuSize", round(menuSize) },
             { "overlaySize", round(overlaySize) },
-            { "overlayTranslateX", overlayTranslation.x },
-            { "overlayTranslateY", overlayTranslation.y },
-            { "overlayTranslateZ", overlayTranslation.z },
+            { "overlayTranslateX", round(overlayTranslation.x) },
+            { "overlayTranslateY", round(overlayTranslation.y) },
+            { "overlayTranslateZ", round(overlayTranslation.z) },
             { "lockToHorizon", static_cast<int>(lockToHorizon) },
             { "horizonLockMultiplier", round(horizonLockMultiplier) },
             { "drawDesktopWindow", drawCompanionWindow },
@@ -106,6 +127,9 @@ struct Config {
             { "renderPreStage3d", renderPreStage3d },
             { "renderReplays3d", renderReplays3d },
             { "runtime", runtime == OPENVR ? "steamvr" : (wmrWorkaround ? "openxr-wmr" : "openxr") },
+            { "desktopWindowOffsetX", round(companionOffset.x) },
+            { "desktopWindowOffsetY", round(companionOffset.y) },
+            { "desktopWindowSize", round(companionSize) },
         };
 
         toml::table gfxTbl;
@@ -168,6 +192,8 @@ struct Config {
         cfg.renderPauseMenu3d = parsed["renderPauseMenu3d"].value_or(true);
         cfg.renderPreStage3d = parsed["renderPreStage3d"].value_or(false);
         cfg.renderReplays3d = parsed["renderReplays3d"].value_or(false);
+        cfg.companionOffset = { parsed["desktopWindowOffsetX"].value_or(0.0), parsed["desktopWindowOffsetY"].value_or(0.0) };
+        cfg.companionSize = parsed["desktopWindowSize"].value_or(0.0);
         const std::string& runtime = parsed["runtime"].value_or("steamvr");
         if (runtime == "openxr") {
             cfg.runtime = OPENXR;

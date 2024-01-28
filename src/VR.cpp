@@ -13,7 +13,7 @@ extern Config gCfg;
 
 IDirect3DVR9* gD3DVR = nullptr;
 
-static IDirect3DVertexBuffer9* companionWindowVertexBuf;
+static IDirect3DVertexBuffer9 *companionWindowVertexBufMenu, *companionWindowVertexBuf3D;
 static constexpr D3DMATRIX identityMatrix = D3DFromM4(glm::identity<glm::mat4x4>());
 static IDirect3DVertexBuffer9* quadVertexBuf[2];
 static IDirect3DVertexBuffer9* overlayBorderQuad;
@@ -28,7 +28,7 @@ bool VRInterface::IsUsingTextureToRender(RenderTarget t)
     return !(IsAAEnabledForRenderTarget(t) || (GetRuntimeType() == OPENXR && t < 2));
 }
 
-bool CreateCompanionWindowBuffer(IDirect3DDevice9* dev)
+static bool CreateMenuScreenCompanionWindowBuffer(IDirect3DDevice9* dev)
 {
     // clang-format off
     Vertex quad[] = {
@@ -38,7 +38,32 @@ bool CreateCompanionWindowBuffer(IDirect3DDevice9* dev)
         { 1, -1, 1, 1, 1 } // Bottom-right
     };
     // clang-format on
-    if (!CreateVertexBuffer(dev, quad, 4, &companionWindowVertexBuf)) {
+    if (!CreateVertexBuffer(dev, quad, 4, &companionWindowVertexBufMenu)) {
+        Dbg("Could not create vertex buffer for companion window");
+        return false;
+    }
+    return true;
+}
+
+bool VRInterface::CreateCompanionWindowBuffer(IDirect3DDevice9* dev)
+{
+    const auto size = static_cast<float>(gCfg.companionSize);
+    const auto x = static_cast<float>(gCfg.companionOffset.x);
+    const auto y = static_cast<float>(gCfg.companionOffset.y);
+    const auto aspect = static_cast<float>(aspectRatio);
+
+    // clang-format off
+    Vertex quad[] = {
+        { -1, 1, 1, x, y, }, // Top-left
+        { 1, 1, 1, x+size, y, }, // Top-right
+        { -1, -1, 1, x, y+size / aspect }, // Bottom-left
+        { 1, -1, 1, x+size, y+size / aspect } // Bottom-right
+    };
+    // clang-format on
+    if (companionWindowVertexBuf3D) {
+        companionWindowVertexBuf3D->Release();
+    }
+    if (!CreateVertexBuffer(dev, quad, 4, &companionWindowVertexBuf3D)) {
         Dbg("Could not create vertex buffer for companion window");
         return false;
     }
@@ -165,6 +190,8 @@ void VRInterface::InitSurfaces(IDirect3DDevice9* dev, RenderContext& ctx, uint32
     auto aspectRatio = static_cast<float>(static_cast<double>(resx2d) / static_cast<double>(resy2d));
     static bool quadsCreated = false;
     if (!quadsCreated) {
+        this->aspectRatio = aspectRatio;
+
         // Create and fill a vertex buffers for the 2D planes
         // We can reuse all of these in every rendering context
         if (!CreateQuad(dev, 0.6f, aspectRatio, &quadVertexBuf[0]))
@@ -175,10 +202,13 @@ void VRInterface::InitSurfaces(IDirect3DDevice9* dev, RenderContext& ctx, uint32
             throw std::runtime_error("Could not create overlay border quad");
         if (!CreateCompanionWindowBuffer(dev))
             throw std::runtime_error("Could not create desktop window buffer");
+        if (!CreateMenuScreenCompanionWindowBuffer(dev))
+            throw std::runtime_error("Could not create menu screen desktop window buffer");
 
         quadsCreated = true;
     }
 
+    // Render overlay border to a texture for later use
     IDirect3DSurface9* adj;
     if (ctx.overlayBorder->GetSurfaceLevel(0, &adj) == D3D_OK) {
         IDirect3DSurface9* orig;
@@ -276,7 +306,7 @@ void RenderMenuQuad(IDirect3DDevice9* dev, VRInterface* vr, IDirect3DTexture9* t
 
 void RenderCompanionWindowFromRenderTarget(IDirect3DDevice9* dev, VRInterface* vr, RenderTarget tgt)
 {
-    RenderTexture(dev, &identityMatrix, &identityMatrix, &identityMatrix, vr->GetTexture(tgt), companionWindowVertexBuf);
+    RenderTexture(dev, &identityMatrix, &identityMatrix, &identityMatrix, vr->GetTexture(tgt), tgt == Menu ? companionWindowVertexBufMenu : companionWindowVertexBuf3D);
 }
 
 M4 GetHorizonLockMatrix(Quaternion* carQuat, Config::HorizonLock lockSetting)

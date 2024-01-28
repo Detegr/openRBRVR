@@ -1,10 +1,13 @@
 #include "Menu.hpp"
 #include "Config.hpp"
+#include "VR.hpp"
 #include <openvr.h>
 
 #include <array>
 #include <format>
 
+extern IDirect3DDevice9* gD3Ddev;
+extern std::unique_ptr<VRInterface> gVR;
 extern Config gCfg;
 extern Config gSavedCfg;
 extern bool gDrawOverlayBorder;
@@ -104,7 +107,12 @@ static class Menu mainMenu = { "openRBRVR", {
   { .text = id("Recenter VR view"), .longText = {"Recenters VR view"}, .menuColor = IRBRGame::EMenuColors::MENU_TEXT, .position = Menu::menuItemsStartPos, .selectAction = RecenterVR },
   { .text = id("Horizon lock settings") , .longText = {"Horizon lock settings"}, .selectAction = [] { SelectMenu(4); } },
   { .text = id("Graphics settings") , .longText = {"Graphics settings"}, .selectAction = [] { SelectMenu(1); } },
-  { .text = id("Overlay settings") , .longText = {"Overlay settings"}, .selectAction = [] { SelectMenu(5); } },
+  { .text = id("Overlay settings") , .longText = {"Adjust the size and position of the 2D content shown on", "top of the 3D view while driving."}, .selectAction = [] { SelectMenu(5); } },
+  { .text = id("Desktop window settings") ,
+    .longText = {"Adjust the size and position of the image shown", "on the desktop window while driving."},
+    .color = [] { return (gVR) ? std::make_tuple(1.0f, 1.0f, 1.0f, 1.0f) : std::make_tuple(0.5f, 0.5f, 0.5f, 1.0f); },
+    .selectAction = [] { if(gVR) SelectMenu(6); }
+  },
   { .text = id("Debug settings"), .longText = {"Not intended to be changed unless there is a problem that needs more information."}, .selectAction = [] { SelectMenu(2); } },
   { .text = [] { return std::format("VR runtime: {}", gCfg.runtime == OPENVR ? "OpenVR (SteamVR)" : (gCfg.wmrWorkaround ? "OpenXR (Reverb compatibility mode)" : "OpenXR")); },
     .longText {
@@ -137,7 +145,7 @@ static class Menu mainMenu = { "openRBRVR", {
   },
 }};
 
-static Menu graphicsMenu = { "openRBRVR graphics settings", {
+static class Menu graphicsMenu = { "openRBRVR graphics settings", {
   { .text = [] { return std::format("Draw desktop window: {}", gCfg.drawCompanionWindow ? "ON" : "OFF"); },
     .longText = { "Draw game window on the monitor.", "Found to have a performance impact on some machines."},
     .menuColor = IRBRGame::EMenuColors::MENU_TEXT,
@@ -181,7 +189,7 @@ static Menu graphicsMenu = { "openRBRVR graphics settings", {
   },
 }};
 
-static Menu debugMenu = { "openRBRVR debug settings", {
+static class Menu debugMenu = { "openRBRVR debug settings", {
   { .text = [] { return std::format("Debug information: {}", gCfg.debug ? "ON" : "OFF"); },
     .longText = { "Show a lot of technical information on the top-left of the screen." },
     .menuColor = IRBRGame::EMenuColors::MENU_TEXT,
@@ -197,7 +205,7 @@ static Menu debugMenu = { "openRBRVR debug settings", {
 
 static LicenseMenu licenseMenu;
 
-static Menu horizonLockMenu = { "openRBRVR horizon lock settings", {
+static class Menu horizonLockMenu = { "openRBRVR horizon lock settings", {
   { .text = [] { return std::format("Lock horizon: {}", GetHorizonLockStr()); },
     .longText = {
         "Enable to rotate the car around the headset instead of rotating the headset with the car.",
@@ -223,7 +231,7 @@ static Menu horizonLockMenu = { "openRBRVR horizon lock settings", {
   },
 }};
 
-static Menu overlayMenu = { "openRBRVR overlay settings", {
+static class Menu overlayMenu = { "openRBRVR overlay settings", {
   { .text = [] { return std::format("Menu size: {:.2f}", gCfg.menuSize); },
     .longText = { "Adjust menu size." },
     .menuColor = IRBRGame::EMenuColors::MENU_TEXT,
@@ -255,18 +263,65 @@ static Menu overlayMenu = { "openRBRVR overlay settings", {
     .selectAction = [] { SelectMenu(0); },
   },
 }};
+
+static const auto windowStep = 0.01;
+static class Menu companionMenu = { "openRBRVR desktop window settings", {
+  {.text = [] { return std::format("Desktop window rendering area size: {} ({:.0f}x{:.0f} pixels)", static_cast<int>(gCfg.companionSize * 100.0), std::round(std::get<0>(gVR->GetRenderResolution(LeftEye)) * gCfg.companionSize), std::round(std::get<1>(gVR->GetRenderResolution(LeftEye)) * gCfg.companionSize / gVR->aspectRatio)); },
+    .longText = { "Adjust rendering area size. The value is percentage of the width.", "For example, setting this to 50 will render half width of the full resolution", "resolution VR texture." },
+    .menuColor = IRBRGame::EMenuColors::MENU_TEXT,
+    .position = Menu::menuItemsStartPos,
+    .leftAction = [] {
+        gCfg.companionSize = std::clamp(gCfg.companionSize - windowStep, 0.1, 1.0);
+        gCfg.companionOffset.x = std::clamp(gCfg.companionOffset.x, gCfg.companionOffset.x, 1.0 - gCfg.companionSize);
+        gCfg.companionOffset.y = std::clamp(gCfg.companionOffset.y, gCfg.companionOffset.y, 1.0 - gCfg.companionSize / gVR->aspectRatio);
+        gVR->CreateCompanionWindowBuffer(gD3Ddev);
+    },
+    .rightAction = [] {
+        gCfg.companionSize = std::clamp(gCfg.companionSize + windowStep, 0.1, 1.0);
+        gCfg.companionOffset.x = std::clamp(gCfg.companionOffset.x, gCfg.companionOffset.x, 1.0 - gCfg.companionSize);
+        gCfg.companionOffset.y = std::clamp(gCfg.companionOffset.y, gCfg.companionOffset.y, 1.0 - gCfg.companionSize / gVR->aspectRatio);
+        gVR->CreateCompanionWindowBuffer(gD3Ddev);
+    },
+  },
+  {.text = [] { return std::format("X offset: {} ({:.0f} pixels)", static_cast<int>(gCfg.companionOffset.x * 100.0), std::round(std::get<0>(gVR->GetRenderResolution(LeftEye)) * gCfg.companionOffset.x)); },
+    .longText = { "X offset in percents from the left side of the screen." },
+    .leftAction = [] {
+        gCfg.companionOffset.x = std::clamp(gCfg.companionOffset.x - windowStep, 0.0, 1.0 - gCfg.companionSize);
+        gVR->CreateCompanionWindowBuffer(gD3Ddev);
+    },
+    .rightAction = [] {
+        gCfg.companionOffset.x = std::clamp(gCfg.companionOffset.x + windowStep, 0.0, 1.0 - gCfg.companionSize);
+        gVR->CreateCompanionWindowBuffer(gD3Ddev);
+    },
+  },
+  { .text = [] { return std::format("Y offset: {} ({:.0f} pixels)", static_cast<int>(gCfg.companionOffset.y * 100.0), std::round(std::get<1>(gVR->GetRenderResolution(LeftEye)) * gCfg.companionOffset.y)); },
+    .longText = { "Y offset in percents from the top of the screen." },
+    .leftAction = [] {
+        gCfg.companionOffset.y = std::clamp(gCfg.companionOffset.y - windowStep, 0.0, 1.0 - gCfg.companionSize / gVR->aspectRatio);
+		gVR->CreateCompanionWindowBuffer(gD3Ddev);
+    },
+    .rightAction = [] {
+        gCfg.companionOffset.y = std::clamp(gCfg.companionOffset.y + windowStep, 0.0, 1.0 - gCfg.companionSize / gVR->aspectRatio);
+        gVR->CreateCompanionWindowBuffer(gD3Ddev);
+    },
+  },
+  { .text = id("Back to previous menu"),
+    .selectAction = [] { SelectMenu(0); },
+  },
+}};
 // clang-format on
 
-static auto menus = std::to_array<Menu*>({
+static auto menus = std::to_array<class Menu*>({
     &mainMenu,
     &graphicsMenu,
     &debugMenu,
     &licenseMenu,
     &horizonLockMenu,
     &overlayMenu,
+    &companionMenu,
 });
 
-Menu* gMenu = menus[0];
+class Menu* gMenu = menus[0];
 
 void SelectMenu(size_t menuIdx)
 {

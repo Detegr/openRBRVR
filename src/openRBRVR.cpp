@@ -27,7 +27,7 @@ std::unique_ptr<VRInterface> gVR;
 Config gCfg, gSavedCfg;
 bool gDrawOverlayBorder;
 
-static IDirect3DDevice9* gD3Ddev = nullptr;
+IDirect3DDevice9* gD3Ddev = nullptr;
 
 namespace shader {
     static M4 gCurrentProjectionMatrix;
