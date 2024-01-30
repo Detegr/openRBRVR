@@ -1,7 +1,11 @@
-## 0.6.1
+## 0.7.0
 
+- Render the desktop window with the desktop window's aspect ratio.
 - Add adjustment menu and settings for the desktop window viewport.
 - Fix incorrect rendering of broken windshield texture.
+- Add a way to render the desktop view using 2D camera. This can be for example
+  used to set a seat position for a co-driver to play using the desktop window
+  while the driver plays in VR.
 
 ## 0.6.0
 
