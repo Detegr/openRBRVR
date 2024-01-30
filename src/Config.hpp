@@ -46,7 +46,7 @@ struct Config {
     float superSampling = 1.0;
     HorizonLock lockToHorizon = HorizonLock::LOCK_NONE;
     double horizonLockMultiplier = 1.0;
-    bool drawCompanionWindow = true;
+    CompanionMode companionMode;
     bool drawLoadingScreen = true;
     bool debug = false;
     bool renderMainMenu3d = false;
@@ -71,6 +71,7 @@ struct Config {
         companionOffset = rhs.companionOffset;
         companionSize = rhs.companionSize;
         companionEye = rhs.companionEye;
+        companionMode = rhs.companionMode;
         return *this;
     }
 
@@ -83,7 +84,7 @@ struct Config {
             && superSampling == rhs.superSampling
             && lockToHorizon == rhs.lockToHorizon
             && horizonLockMultiplier == rhs.horizonLockMultiplier
-            && drawCompanionWindow == rhs.drawCompanionWindow
+            && companionMode == rhs.companionMode
             && drawLoadingScreen == rhs.drawLoadingScreen
             && debug == rhs.debug
             && renderMainMenu3d == rhs.renderMainMenu3d
@@ -113,7 +114,7 @@ struct Config {
             { "overlayTranslateZ", round(overlayTranslation.z) },
             { "lockToHorizon", static_cast<int>(lockToHorizon) },
             { "horizonLockMultiplier", round(horizonLockMultiplier) },
-            { "drawDesktopWindow", drawCompanionWindow },
+            { "desktopWindowMode", CompanionModeStr(companionMode) },
             { "drawLoadingScreen", drawLoadingScreen },
             { "debug", debug },
             { "renderMainMenu3d", renderMainMenu3d },
@@ -180,7 +181,7 @@ struct Config {
         cfg.overlayTranslation.z = parsed["overlayTranslateZ"].value_or(0.0f);
         cfg.lockToHorizon = static_cast<HorizonLock>(parsed["lockToHorizon"].value_or(0));
         cfg.horizonLockMultiplier = parsed["horizonLockMultiplier"].value_or(1.0);
-        cfg.drawCompanionWindow = parsed["drawDesktopWindow"].value_or(true);
+        cfg.companionMode = CompanionModeFromStr(parsed["desktopWindowMode"].value_or("vreye"));
         cfg.drawLoadingScreen = parsed["drawLoadingScreen"].value_or(true);
         cfg.debug = parsed["debug"].value_or(false);
         cfg.renderMainMenu3d = parsed["renderMainMenu3d"].value_or(false);
@@ -270,7 +271,7 @@ struct Config {
             } else if (key == "horizonLockMultiplier") {
                 cfg.horizonLockMultiplier = floatOrDefault(value, 1.0);
             } else if (key == "drawDesktopWindow") {
-                cfg.drawCompanionWindow = (value == "true");
+                cfg.companionMode = (value == "true") ? CompanionMode::VREye : CompanionMode::Off;
             } else if (key == "drawLoadingScreen") {
                 cfg.drawLoadingScreen = (value == "true");
             } else if (key == "debug") {
@@ -309,7 +310,7 @@ struct Config {
         superSampling = iniCfg.superSampling;
         lockToHorizon = iniCfg.lockToHorizon;
         horizonLockMultiplier = iniCfg.horizonLockMultiplier;
-        drawCompanionWindow = iniCfg.drawCompanionWindow;
+        companionMode = iniCfg.companionMode;
         drawLoadingScreen = iniCfg.drawLoadingScreen;
         debug = iniCfg.debug;
         renderMainMenu3d = iniCfg.renderMainMenu3d;

@@ -100,13 +100,34 @@ static void ChangeRenderIn3dSettings(bool forward)
     }
 }
 
+static void ChangeCompanionMode(bool forward)
+{
+    if (forward) {
+        if (gCfg.companionMode == CompanionMode::Off) {
+            gCfg.companionMode = CompanionMode::VREye;
+        } else if (gCfg.companionMode == CompanionMode::VREye) {
+            gCfg.companionMode = CompanionMode::Static;
+        } else {
+            gCfg.companionMode = CompanionMode::Off;
+        }
+    } else {
+        if (gCfg.companionMode == CompanionMode::Off) {
+            gCfg.companionMode = CompanionMode::Static;
+        } else if (gCfg.companionMode == CompanionMode::Static) {
+            gCfg.companionMode = CompanionMode::VREye;
+        } else {
+            gCfg.companionMode = CompanionMode::Off;
+        }
+    }
+}
+
 void Toggle(bool& value) { value = !value; }
 
 // clang-format off
 static class Menu mainMenu = { "openRBRVR", {
   { .text = id("Recenter VR view"), .longText = {"Recenters VR view"}, .menuColor = IRBRGame::EMenuColors::MENU_TEXT, .position = Menu::menuItemsStartPos, .selectAction = RecenterVR },
   { .text = id("Horizon lock settings") , .longText = {"Horizon lock settings"}, .selectAction = [] { SelectMenu(4); } },
-  { .text = id("Graphics settings") , .longText = {"Graphics settings"}, .selectAction = [] { SelectMenu(1); } },
+  { .text = id("Rendering settings") , .longText = {"Selection of different rendering settings"}, .selectAction = [] { SelectMenu(1); } },
   { .text = id("Overlay settings") , .longText = {"Adjust the size and position of the 2D content shown on", "top of the 3D view while driving."}, .selectAction = [] { SelectMenu(5); } },
   { .text = id("Desktop window settings") ,
     .longText = {"Adjust the size and position of the image shown", "on the desktop window while driving."},
@@ -145,17 +166,11 @@ static class Menu mainMenu = { "openRBRVR", {
   },
 }};
 
-static class Menu graphicsMenu = { "openRBRVR graphics settings", {
-  { .text = [] { return std::format("Draw desktop window: {}", gCfg.drawCompanionWindow ? "ON" : "OFF"); },
-    .longText = { "Draw game window on the monitor.", "Found to have a performance impact on some machines."},
+static class Menu graphicsMenu = { "openRBRVR rendering settings", {
+  { .text = [] { return std::format("Render loading screen: {}", gCfg.drawLoadingScreen ? "ON" : "OFF"); },
+    .longText = { "If the screen flickers while loading, turn this OFF to have a black screen while loading."},
     .menuColor = IRBRGame::EMenuColors::MENU_TEXT,
     .position = Menu::menuItemsStartPos,
-    .leftAction = [] { Toggle(gCfg.drawCompanionWindow); },
-    .rightAction = [] { Toggle(gCfg.drawCompanionWindow); },
-    .selectAction = [] { Toggle(gCfg.drawCompanionWindow); },
-  },
-  { .text = [] { return std::format("Draw loading screen: {}", gCfg.drawLoadingScreen ? "ON" : "OFF"); },
-    .longText = { "If the screen flickers while loading, turn this OFF to have a black screen while loading."},
     .leftAction = [] { Toggle(gCfg.drawLoadingScreen); },
     .rightAction = [] { Toggle(gCfg.drawLoadingScreen); },
     .selectAction = [] { Toggle(gCfg.drawLoadingScreen); },
@@ -266,10 +281,16 @@ static class Menu overlayMenu = { "openRBRVR overlay settings", {
 
 static const auto windowStep = 0.01;
 static class Menu companionMenu = { "openRBRVR desktop window settings", {
-  {.text = [] { return std::format("Desktop window rendering area size: {} ({:.0f}x{:.0f} pixels)", static_cast<int>(gCfg.companionSize * 100.0), std::round(std::get<0>(gVR->GetRenderResolution(LeftEye)) * gCfg.companionSize), std::round(std::get<1>(gVR->GetRenderResolution(LeftEye)) * gCfg.companionSize / gVR->aspectRatio)); },
-    .longText = { "Adjust rendering area size. The value is percentage of the width.", "For example, setting this to 50 will render half width of the full resolution", "resolution VR texture." },
+  { .text = [] { return std::format("Desktop window mode: {}", CompanionModeStrPretty(gCfg.companionMode)); },
+    .longText = { "Choose what is visible on the desktop monitor while driving.", "Off: Don't draw anything", "VR view: Draw what is seen in the VR headset", "Bonnet camera: Use normal 2D bonnet camera"},
     .menuColor = IRBRGame::EMenuColors::MENU_TEXT,
     .position = Menu::menuItemsStartPos,
+    .leftAction = [] { ChangeCompanionMode(false); },
+    .rightAction = [] { ChangeCompanionMode(true); },
+  },
+  {.text = [] { return std::format("Desktop window rendering area size: {} ({:.0f}x{:.0f} pixels)", static_cast<int>(gCfg.companionSize * 100.0), std::round(std::get<0>(gVR->GetRenderResolution(LeftEye)) * gCfg.companionSize), std::round(std::get<1>(gVR->GetRenderResolution(LeftEye)) * gCfg.companionSize / gVR->aspectRatio)); },
+    .longText = { "Adjust rendering area size. The value is percentage of the width.", "For example, setting this to 50 will render half width of the full resolution", "resolution VR texture." },
+    .color = [] { return (gCfg.companionMode == CompanionMode::VREye) ? std::make_tuple(1.0f, 1.0f, 1.0f, 1.0f) : std::make_tuple(0.5f, 0.5f, 0.5f, 1.0f); },
     .leftAction = [] {
         gCfg.companionSize = std::clamp(gCfg.companionSize - windowStep, 0.1, 1.0);
         gCfg.companionOffset.x = std::clamp(gCfg.companionOffset.x, gCfg.companionOffset.x, 1.0 - gCfg.companionSize);
@@ -285,6 +306,7 @@ static class Menu companionMenu = { "openRBRVR desktop window settings", {
   },
   {.text = [] { return std::format("X offset: {} ({:.0f} pixels)", static_cast<int>(gCfg.companionOffset.x * 100.0), std::round(std::get<0>(gVR->GetRenderResolution(LeftEye)) * gCfg.companionOffset.x)); },
     .longText = { "X offset in percents from the left side of the screen." },
+    .color = [] { return (gCfg.companionMode == CompanionMode::VREye) ? std::make_tuple(1.0f, 1.0f, 1.0f, 1.0f) : std::make_tuple(0.5f, 0.5f, 0.5f, 1.0f); },
     .leftAction = [] {
         gCfg.companionOffset.x = std::clamp(gCfg.companionOffset.x - windowStep, 0.0, 1.0 - gCfg.companionSize);
         gVR->CreateCompanionWindowBuffer(gD3Ddev);
@@ -296,6 +318,7 @@ static class Menu companionMenu = { "openRBRVR desktop window settings", {
   },
   { .text = [] { return std::format("Y offset: {} ({:.0f} pixels)", static_cast<int>(gCfg.companionOffset.y * 100.0), std::round(std::get<1>(gVR->GetRenderResolution(LeftEye)) * gCfg.companionOffset.y)); },
     .longText = { "Y offset in percents from the top of the screen." },
+    .color = [] { return (gCfg.companionMode == CompanionMode::VREye) ? std::make_tuple(1.0f, 1.0f, 1.0f, 1.0f) : std::make_tuple(0.5f, 0.5f, 0.5f, 1.0f); },
     .leftAction = [] {
         gCfg.companionOffset.y = std::clamp(gCfg.companionOffset.y - windowStep, 0.0, 1.0 - gCfg.companionSize / gVR->aspectRatio);
 		gVR->CreateCompanionWindowBuffer(gD3Ddev);
@@ -307,10 +330,12 @@ static class Menu companionMenu = { "openRBRVR desktop window settings", {
   },
   { .text = [] { return std::format("Eye: {}", gCfg.companionEye == LeftEye ? "Left eye" : "Right eye"); },
     .longText = { "Eye that is being used to render the desktop window." },
+    .color = [] { return (gCfg.companionMode == CompanionMode::VREye) ? std::make_tuple(1.0f, 1.0f, 1.0f, 1.0f) : std::make_tuple(0.5f, 0.5f, 0.5f, 1.0f); },
     .leftAction = [] { gCfg.companionEye = gCfg.companionEye == LeftEye ? RightEye : LeftEye; },
     .rightAction = [] { gCfg.companionEye = gCfg.companionEye == LeftEye ? RightEye : LeftEye; },
   },
   { .text = id("Back to previous menu"),
+    .menuColor = IRBRGame::EMenuColors::MENU_TEXT,
     .selectAction = [] { SelectMenu(0); },
   },
 }};

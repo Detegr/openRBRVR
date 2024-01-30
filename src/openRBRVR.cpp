@@ -70,6 +70,22 @@ void __fastcall RBRHook_Render(void* p);
 uint32_t __stdcall RBRHook_LoadTexture(void* p, const char* texName, uint32_t a, uint32_t b, uint32_t c, uint32_t d, uint32_t e, uint32_t f, uint32_t g, uint32_t h, uint32_t i, uint32_t j, uint32_t k, IDirect3DTexture9** ppTexture);
 void __stdcall RBRHook_RenderCar(void* a, void* b);
 void __fastcall RBRHook_RenderParticles(void* This);
+using RBRChangeCameraFunc = void(__thiscall*)(void* p, int cameraType, uint32_t a);
+using RBRPrepareCameraFunc = void(__thiscall*)(void* This, uint32_t a);
+static RBRChangeCameraFunc RBRChangeCamera = reinterpret_cast<RBRChangeCameraFunc>(GetRBRAddress(0x487680));
+static RBRPrepareCameraFunc RBRApplyCameraPosition = reinterpret_cast<RBRPrepareCameraFunc>(GetRBRAddress(0x4825B0));
+static RBRPrepareCameraFunc RBRApplyCameraFoV = reinterpret_cast<RBRPrepareCameraFunc>(GetRBRAddress(0x4BF690));
+
+static void ChangeCamera(void* p, uint32_t cameraType)
+{
+    const auto cameraData = *reinterpret_cast<uintptr_t*>(*reinterpret_cast<uintptr_t*>(RBRCarInfoAddr) + 0x758);
+    const auto cameraInfo = reinterpret_cast<void*>(*reinterpret_cast<uintptr_t*>(cameraData + 0x10));
+    const auto cameraFoVThis = *reinterpret_cast<void**>(reinterpret_cast<uintptr_t>(p) + 0xcf4);
+
+    RBRChangeCamera(cameraInfo, cameraType, 1);
+    RBRApplyCameraPosition(p, 0);
+    RBRApplyCameraFoV(cameraFoVThis, 0);
+}
 
 namespace hooks {
     Hook<decltype(&Direct3DCreate9)> create;
@@ -362,6 +378,20 @@ void __fastcall RBRHook_Render(void* p)
         if (gRender3d) {
             RenderVREye(p, LeftEye);
             RenderVREye(p, RightEye);
+
+            if (gCfg.companionMode == CompanionMode::Static) {
+                auto origCamera = *gCameraType;
+                ChangeCamera(p, 4);
+                if (gD3Ddev->SetRenderTarget(0, gOriginalScreenTgt) != D3D_OK) {
+                    Dbg("Failed to reset render target to original");
+                }
+                if (gD3Ddev->SetDepthStencilSurface(gOriginalDepthStencil) != D3D_OK) {
+                    Dbg("Failed to reset depth stencil surface to original");
+                }
+                hooks::render.call(p);
+                ChangeCamera(p, origCamera);
+            }
+
             if (gVR->PrepareVRRendering(gD3Ddev, Overlay)) {
                 gCurrent2DRenderTarget = Overlay;
             } else {
@@ -420,7 +450,7 @@ HRESULT __stdcall DXHook_Present(IDirect3DDevice9* This, const RECT* pSourceRect
 
     auto ret = 0;
     if (gVR) {
-        if (gCfg.drawCompanionWindow || !gDriving) {
+        if (gCfg.companionMode == CompanionMode::VREye || !gDriving) {
             RenderCompanionWindowFromRenderTarget(gD3Ddev, gVR.get(), gRender3d ? gCfg.companionEye : Menu);
         }
         gVR->PrepareFramesForHMD(gD3Ddev);

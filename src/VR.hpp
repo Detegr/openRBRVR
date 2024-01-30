@@ -39,6 +39,43 @@ enum class Projection {
     MainMenu,
 };
 
+enum class CompanionMode {
+    Off,
+    VREye,
+    Static,
+};
+
+inline const std::string CompanionModeStr(CompanionMode m)
+{
+    switch (m) {
+        case CompanionMode::Off: return "off";
+        case CompanionMode::VREye: return "vreye";
+        case CompanionMode::Static: return "static";
+    }
+    std::unreachable();
+}
+
+inline const std::string CompanionModeStrPretty(CompanionMode m)
+{
+    switch (m) {
+        case CompanionMode::Off: return "Off";
+        case CompanionMode::VREye: return "VR view";
+        case CompanionMode::Static: return "Bonnet camera";
+    }
+    std::unreachable();
+}
+
+inline CompanionMode CompanionModeFromStr(const std::string& s)
+{
+    if (s == "off")
+        return CompanionMode::Off;
+    if (s == "vreye")
+        return CompanionMode::VREye;
+    if (s == "static")
+        return CompanionMode::Static;
+    return CompanionMode::VREye;
+}
+
 using M4 = glm::mat4x4;
 
 extern IDirect3DVR9* gD3DVR;

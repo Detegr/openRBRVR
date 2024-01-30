@@ -398,7 +398,7 @@ XrSwapchainImageVulkanKHR& OpenXR::AcquireSwapchainImage(RenderTarget tgt)
 
 void OpenXR::PrepareFramesForHMD(IDirect3DDevice9* dev)
 {
-    if (gCfg.drawCompanionWindow) {
+    if (gCfg.companionMode != CompanionMode::Off) {
         // To draw the companion window, we must have the scene drawn to the texture
         // We can't show the swapchain image because of DXVK/Vulkan/OpenXR incompatibilities
         // Technically it would be possible I think but this will do for now.
