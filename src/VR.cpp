@@ -307,7 +307,7 @@ void RenderMenuQuad(IDirect3DDevice9* dev, VRInterface* vr, IDirect3DTexture9* t
 
 void RenderCompanionWindowFromRenderTarget(IDirect3DDevice9* dev, VRInterface* vr, RenderTarget tgt)
 {
-    RenderTexture(dev, &identityMatrix, &identityMatrix, &identityMatrix, vr->GetTexture(tgt), tgt == Menu ? companionWindowVertexBufMenu : companionWindowVertexBuf3D);
+    RenderTexture(dev, &identityMatrix, &identityMatrix, &identityMatrix, vr->GetTexture(tgt), (tgt == Menu || tgt == Overlay) ? companionWindowVertexBufMenu : companionWindowVertexBuf3D);
 }
 
 M4 GetHorizonLockMatrix(Quaternion* carQuat, HorizonLock lockSetting)

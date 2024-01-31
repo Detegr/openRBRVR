@@ -445,12 +445,13 @@ HRESULT __stdcall DXHook_Present(IDirect3DDevice9* This, const RECT* pSourceRect
     if (gD3Ddev->SetDepthStencilSurface(gOriginalDepthStencil) != D3D_OK) {
         Dbg("Failed to reset depth stencil surface to original");
     }
-    gOriginalScreenTgt->Release();
-    gOriginalDepthStencil->Release();
-
     auto ret = 0;
     if (gVR) {
-        if (gCfg.companionMode == CompanionMode::VREye || !gDriving) {
+        if (gCfg.companionMode == CompanionMode::Static && (gDriving || gGameMode == Pause || gGameMode == Replay)) {
+            // Render the overlay over the 3D content, if we're running the static view on desktop window
+            // Otherwise, the help texts, pause menu, pacenote plugin UI etc. won't be visible
+            RenderCompanionWindowFromRenderTarget(gD3Ddev, gVR.get(), Overlay);
+        } else if (gCfg.companionMode == CompanionMode::VREye || !gDriving) {
             RenderCompanionWindowFromRenderTarget(gD3Ddev, gVR.get(), gRender3d ? gCfg.companionEye : Menu);
         }
         gVR->PrepareFramesForHMD(gD3Ddev);
@@ -468,6 +469,9 @@ HRESULT __stdcall DXHook_Present(IDirect3DDevice9* This, const RECT* pSourceRect
             DrawDebugInfo(cpuFrameTime.count());
         }
     }
+
+    gOriginalScreenTgt->Release();
+    gOriginalDepthStencil->Release();
 
     if (gVR && (gCurrentStageId != *gStageId)) {
         gCurrentStageId = *gStageId;
