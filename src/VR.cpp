@@ -48,9 +48,9 @@ static bool CreateMenuScreenCompanionWindowBuffer(IDirect3DDevice9* dev)
 
 bool VRInterface::CreateCompanionWindowBuffer(IDirect3DDevice9* dev)
 {
-    const auto size = static_cast<float>(gCfg.companionSize);
-    const auto x = static_cast<float>(gCfg.companionOffset.x);
-    const auto y = static_cast<float>(gCfg.companionOffset.y);
+    const auto size = gCfg.companionSize / 100.0f;
+    const auto x = gCfg.companionOffset.x / 100.0f;
+    const auto y = gCfg.companionOffset.y / 100.0f;
     const auto aspect = static_cast<float>(aspectRatio);
 
     // clang-format off

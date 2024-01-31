@@ -279,7 +279,7 @@ static class Menu overlayMenu = { "openRBRVR overlay settings", {
   },
 }};
 
-static const auto windowStep = 0.01;
+static const auto windowStep = 1;
 static class Menu companionMenu = { "openRBRVR desktop window settings", {
   { .text = [] { return std::format("Desktop window mode: {}", CompanionModeStrPretty(gCfg.companionMode)); },
     .longText = { "Choose what is visible on the desktop monitor while driving.", "Off: Don't draw anything", "VR view: Draw what is seen in the VR headset", "Bonnet camera: Use normal 2D bonnet camera"},
@@ -288,43 +288,43 @@ static class Menu companionMenu = { "openRBRVR desktop window settings", {
     .leftAction = [] { ChangeCompanionMode(false); },
     .rightAction = [] { ChangeCompanionMode(true); },
   },
-  {.text = [] { return std::format("Desktop window rendering area size: {} ({:.0f}x{:.0f} pixels)", static_cast<int>(gCfg.companionSize * 100.0), std::round(std::get<0>(gVR->GetRenderResolution(LeftEye)) * gCfg.companionSize), std::round(std::get<1>(gVR->GetRenderResolution(LeftEye)) * gCfg.companionSize / gVR->aspectRatio)); },
+  {.text = [] { return std::format("Desktop window rendering area size: {} ({:.0f}x{:.0f} pixels)", gCfg.companionSize, std::round(std::get<0>(gVR->GetRenderResolution(LeftEye)) * (gCfg.companionSize / 100.0)), std::round(std::get<1>(gVR->GetRenderResolution(LeftEye)) * (gCfg.companionSize / 100.0 / gVR->aspectRatio))); },
     .longText = { "Adjust rendering area size. The value is percentage of the width.", "For example, setting this to 50 will render half width of the full resolution", "resolution VR texture." },
     .color = [] { return (gCfg.companionMode == CompanionMode::VREye) ? std::make_tuple(1.0f, 1.0f, 1.0f, 1.0f) : std::make_tuple(0.5f, 0.5f, 0.5f, 1.0f); },
     .leftAction = [] {
-        gCfg.companionSize = std::clamp(gCfg.companionSize - windowStep, 0.1, 1.0);
-        gCfg.companionOffset.x = std::clamp(gCfg.companionOffset.x, gCfg.companionOffset.x, 1.0 - gCfg.companionSize);
-        gCfg.companionOffset.y = std::clamp(gCfg.companionOffset.y, gCfg.companionOffset.y, 1.0 - gCfg.companionSize / gVR->aspectRatio);
+        gCfg.companionSize = std::clamp(gCfg.companionSize - windowStep, 10, 100);
+        gCfg.companionOffset.x = std::min(gCfg.companionOffset.x, 100 - gCfg.companionSize);
+        gCfg.companionOffset.y = std::min(gCfg.companionOffset.y, 100 - static_cast<int>(std::round(gCfg.companionSize / gVR->aspectRatio)));
         gVR->CreateCompanionWindowBuffer(gD3Ddev);
     },
     .rightAction = [] {
-        gCfg.companionSize = std::clamp(gCfg.companionSize + windowStep, 0.1, 1.0);
-        gCfg.companionOffset.x = std::clamp(gCfg.companionOffset.x, gCfg.companionOffset.x, 1.0 - gCfg.companionSize);
-        gCfg.companionOffset.y = std::clamp(gCfg.companionOffset.y, gCfg.companionOffset.y, 1.0 - gCfg.companionSize / gVR->aspectRatio);
+        gCfg.companionSize = std::clamp(gCfg.companionSize + windowStep, 10, 100);
+        gCfg.companionOffset.x = std::min(gCfg.companionOffset.x, 100 - gCfg.companionSize);
+        gCfg.companionOffset.y = std::min(gCfg.companionOffset.y, 100 - static_cast<int>(std::round(gCfg.companionSize / gVR->aspectRatio)));
         gVR->CreateCompanionWindowBuffer(gD3Ddev);
     },
   },
-  {.text = [] { return std::format("X offset: {} ({:.0f} pixels)", static_cast<int>(gCfg.companionOffset.x * 100.0), std::round(std::get<0>(gVR->GetRenderResolution(LeftEye)) * gCfg.companionOffset.x)); },
+  {.text = [] { return std::format("X offset: {} ({:.0f} pixels)", gCfg.companionOffset.x, std::floor(std::get<0>(gVR->GetRenderResolution(LeftEye)) * gCfg.companionOffset.x / 100.0f)); },
     .longText = { "X offset in percents from the left side of the screen." },
     .color = [] { return (gCfg.companionMode == CompanionMode::VREye) ? std::make_tuple(1.0f, 1.0f, 1.0f, 1.0f) : std::make_tuple(0.5f, 0.5f, 0.5f, 1.0f); },
     .leftAction = [] {
-        gCfg.companionOffset.x = std::clamp(gCfg.companionOffset.x - windowStep, 0.0, 1.0 - gCfg.companionSize);
+        gCfg.companionOffset.x = std::clamp(gCfg.companionOffset.x - windowStep, 0, 100 - gCfg.companionSize);
         gVR->CreateCompanionWindowBuffer(gD3Ddev);
     },
     .rightAction = [] {
-        gCfg.companionOffset.x = std::clamp(gCfg.companionOffset.x + windowStep, 0.0, 1.0 - gCfg.companionSize);
+        gCfg.companionOffset.x = std::clamp(gCfg.companionOffset.x + windowStep, 0, 100 - gCfg.companionSize);
         gVR->CreateCompanionWindowBuffer(gD3Ddev);
     },
   },
-  { .text = [] { return std::format("Y offset: {} ({:.0f} pixels)", static_cast<int>(gCfg.companionOffset.y * 100.0), std::round(std::get<1>(gVR->GetRenderResolution(LeftEye)) * gCfg.companionOffset.y)); },
+  { .text = [] { return std::format("Y offset: {} ({:.0f} pixels)", gCfg.companionOffset.y, std::floor(std::get<1>(gVR->GetRenderResolution(LeftEye)) * gCfg.companionOffset.y / 100.0f)); },
     .longText = { "Y offset in percents from the top of the screen." },
     .color = [] { return (gCfg.companionMode == CompanionMode::VREye) ? std::make_tuple(1.0f, 1.0f, 1.0f, 1.0f) : std::make_tuple(0.5f, 0.5f, 0.5f, 1.0f); },
     .leftAction = [] {
-        gCfg.companionOffset.y = std::clamp(gCfg.companionOffset.y - windowStep, 0.0, 1.0 - gCfg.companionSize / gVR->aspectRatio);
+        gCfg.companionOffset.y = std::clamp(gCfg.companionOffset.y - windowStep, 0, 100 - static_cast<int>(std::round(gCfg.companionSize / gVR->aspectRatio)));
 		gVR->CreateCompanionWindowBuffer(gD3Ddev);
     },
     .rightAction = [] {
-        gCfg.companionOffset.y = std::clamp(gCfg.companionOffset.y + windowStep, 0.0, 1.0 - gCfg.companionSize / gVR->aspectRatio);
+        gCfg.companionOffset.y = std::clamp(gCfg.companionOffset.y + windowStep, 0, 100 - static_cast<int>(std::round(gCfg.companionSize / gVR->aspectRatio)));
         gVR->CreateCompanionWindowBuffer(gD3Ddev);
     },
   },

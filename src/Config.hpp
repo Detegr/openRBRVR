@@ -58,8 +58,8 @@ struct Config {
     bool wmrWorkaround = false;
     VRRuntime runtime = VRRuntime::OPENVR;
     std::unordered_map<std::string, std::tuple<float, std::vector<int>>> gfx = { { "default", std::make_tuple(1.0f, std::vector<int> {}) } };
-    glm::dvec2 companionOffset;
-    double companionSize = 1.0;
+    glm::ivec2 companionOffset;
+    int companionSize = 100;
     RenderTarget companionEye = LeftEye;
 
     Config& operator=(const Config& rhs)
@@ -122,9 +122,9 @@ struct Config {
             { "renderPreStage3d", renderPreStage3d },
             { "renderReplays3d", renderReplays3d },
             { "runtime", runtime == OPENVR ? "steamvr" : (wmrWorkaround ? "openxr-wmr" : "openxr") },
-            { "desktopWindowOffsetX", round(companionOffset.x) },
-            { "desktopWindowOffsetY", round(companionOffset.y) },
-            { "desktopWindowSize", round(companionSize) },
+            { "desktopWindowOffsetX", companionOffset.x },
+            { "desktopWindowOffsetY", companionOffset.y },
+            { "desktopWindowSize", companionSize },
             { "desktopEye", static_cast<int>(companionEye) },
         };
 
@@ -188,8 +188,8 @@ struct Config {
         cfg.renderPauseMenu3d = parsed["renderPauseMenu3d"].value_or(true);
         cfg.renderPreStage3d = parsed["renderPreStage3d"].value_or(false);
         cfg.renderReplays3d = parsed["renderReplays3d"].value_or(false);
-        cfg.companionOffset = { parsed["desktopWindowOffsetX"].value_or(0.0), parsed["desktopWindowOffsetY"].value_or(0.0) };
-        cfg.companionSize = parsed["desktopWindowSize"].value_or(0.0);
+        cfg.companionOffset = { parsed["desktopWindowOffsetX"].value_or(0), parsed["desktopWindowOffsetY"].value_or(0) };
+        cfg.companionSize = parsed["desktopWindowSize"].value_or(100);
         cfg.companionEye = static_cast<RenderTarget>(std::clamp(parsed["desktopEye"].value_or(0), 0, 1));
 
         const std::string& runtime = parsed["runtime"].value_or("steamvr");
