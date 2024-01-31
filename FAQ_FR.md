@@ -33,7 +33,7 @@ OpenXR est supporté par les casques qui on 32-bit OpenXR runtime disponible. Vo
 | Pimax        | [Pimax-OpenXR](https://github.com/mbucchia/Pimax-OpenXR)                | ✅          |                                                                             |
 | Oculus       | Oculus OpenXR                                                           | ✅          |                                                                             |
 | Reverb       | WMR avec [OpenXR-Vk-D3D12](https://github.com/mbucchia/OpenXR-Vk-D3D12) | ✅*         | A besoin de contourner la synchronisation qui peut potentiellement avoir un impact sur les performances  |
-| Oculus       | [VDXR](https://github.com/mbucchia/VirtualDesktop-OpenXR)               | ⚠️           | Echec de la création de swapchain. Probablement une incompatibilité avec VirtualDesktop          |
+| Oculus       | [VDXR](https://github.com/mbucchia/VirtualDesktop-OpenXR)               | ✅          |                                                                             |
 | Valve        | SteamVR OpenXR                                                          | ⛔          | 32-bit runtime non disponible                                                 |
 | Varjo        | Varjo OpenXR                                                            | ⛔          | 32-bit runtime non disponible                                                 |
 | Pico         | ?                                                                       | ❓          | Pas de test actuellemnt                                                      |

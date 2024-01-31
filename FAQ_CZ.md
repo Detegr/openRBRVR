@@ -34,7 +34,7 @@ V následující tabulce se můžete podívat jestli ho váš headset podporuje:
 | Pimax        | [Pimax-OpenXR](https://github.com/mbucchia/Pimax-OpenXR)                | ✅          |                                                                             |
 | Oculus       | Oculus OpenXR                                                           | ✅          |                                                                             |
 | Reverb       | WMR with [OpenXR-Vk-D3D12](https://github.com/mbucchia/OpenXR-Vk-D3D12) | ✅*         | Potřebuje řešení synchronizace, které ale může mít dopad na výkon           |
-| Oculus       | [VDXR](https://github.com/mbucchia/VirtualDesktop-OpenXR)               | ⚠️           | Swapchain creation fails. Nejspíš nekompatibilita s VirtualDesktop          |
+| Oculus       | [VDXR](https://github.com/mbucchia/VirtualDesktop-OpenXR)               | ✅          |                                                                             |
 | Valve        | SteamVR OpenXR                                                          | ⛔          | Nemá 32-bit runtime                                                         |
 | Varjo        | Varjo OpenXR                                                            | ⛔          | Nemá 32-bit runtime                                                         |
 | Pico         | ?                                                                       | ❓          | V tento moment netestováno                                                  |

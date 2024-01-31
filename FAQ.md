@@ -38,7 +38,7 @@ Please refer to the following table to check if your device is supported:
 | Pimax        | [Pimax-OpenXR](https://github.com/mbucchia/Pimax-OpenXR)                | ✅          |                                                                             |
 | Oculus       | Oculus OpenXR                                                           | ✅          |                                                                             |
 | Reverb       | WMR with [OpenXR-Vk-D3D12](https://github.com/mbucchia/OpenXR-Vk-D3D12) | ✅*         | Needs a synchronization workaround that has a potential performance impact  |
-| Oculus       | [VDXR](https://github.com/mbucchia/VirtualDesktop-OpenXR)               | ⚠️           | Swapchain creation fails. Perhaps a VirtualDesktop incompatibility          |
+| Oculus       | [VDXR](https://github.com/mbucchia/VirtualDesktop-OpenXR)               | ✅          |                                                                             |
 | Valve        | SteamVR OpenXR                                                          | ⛔          | No 32-bit runtime available                                                 |
 | Varjo        | Varjo OpenXR                                                            | ⛔          | No 32-bit runtime available                                                 |
 | Pico         | ?                                                                       | ❓          | Untested at the moment                                                      |
