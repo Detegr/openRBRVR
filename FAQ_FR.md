@@ -28,15 +28,14 @@ Si cela ne fonctionne pas, essayer les étapes suivantes :
 
 OpenXR est supporté par les casques qui on 32-bit OpenXR runtime disponible. Voir le tableau ci-dessous pour vérifier que votre casque est compatible :
 
-| Fabriquant | Runtime                                                                 | Support     | Comments                                                                    |
-| ------------ | ----------------------------------------------------------------------- | ----------- | --------------------------------------------------------------------------- |
-| Pimax        | [Pimax-OpenXR](https://github.com/mbucchia/Pimax-OpenXR)                | ✅          |                                                                             |
-| Oculus       | Oculus OpenXR                                                           | ✅          |                                                                             |
-| Reverb       | WMR avec [OpenXR-Vk-D3D12](https://github.com/mbucchia/OpenXR-Vk-D3D12) | ✅*         | A besoin de contourner la synchronisation qui peut potentiellement avoir un impact sur les performances  |
-| Oculus       | [VDXR](https://github.com/mbucchia/VirtualDesktop-OpenXR)               | ✅          |                                                                             |
-| Valve        | SteamVR OpenXR                                                          | ⛔          | 32-bit runtime non disponible                                                 |
-| Varjo        | Varjo OpenXR                                                            | ⛔          | 32-bit runtime non disponible                                                 |
-| Pico         | ?                                                                       | ❓          | Pas de test actuellemnt                                                      |
+| Fabriquant   | Runtime                                                                   | Support     | Comments                                                                    |
+| ------------ | ------------------------------------------------------------------------- | ----------- | --------------------------------------------------------------------------- |
+| Pimax        | [Pimax-OpenXR](https://github.com/mbucchia/Pimax-OpenXR)                  | ✅          |                                                                             |
+| Oculus       | Oculus OpenXR / [VDXR](https://github.com/mbucchia/VirtualDesktop-OpenXR) | ✅          |                                                                             |
+| Pico         | [VDXR](https://github.com/mbucchia/VirtualDesktop-OpenXR)                 | ✅          |                                                                             |
+| Reverb       | WMR avec [OpenXR-Vk-D3D12](https://github.com/mbucchia/OpenXR-Vk-D3D12)   | ✅*         | A besoin de contourner la synchronisation qui peut potentiellement avoir un impact sur les performances  |
+| Valve        | SteamVR OpenXR                                                            | ⛔          | 32-bit runtime non disponible                                               |
+| Varjo        | Varjo OpenXR                                                              | ⛔          | 32-bit runtime non disponible                                               |
 
 Activer OpenXR runtime depuis `Options -> Plugins -> openRBRVR -> VR runtime`
 ou éditer `openRBRVR.toml` pour avoir `runtime = 'openxr'`. Pour les casques
