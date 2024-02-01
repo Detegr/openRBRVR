@@ -1,3 +1,11 @@
+## 0.7.1
+
+- Fix a bug where the co-driver mode did not work if "Render pre-stage in 3D"
+  option was active.
+- Fix Call For Help camera being a wrong one in the co-driver mode.
+- Fix replays being always stuck to co-driver camera if the co-driver mode was
+  active.
+
 ## 0.7.0
 
 - Render the desktop window with the desktop window's aspect ratio.

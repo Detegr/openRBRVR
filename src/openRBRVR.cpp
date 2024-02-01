@@ -379,9 +379,12 @@ void __fastcall RBRHook_Render(void* p)
             RenderVREye(p, LeftEye);
             RenderVREye(p, RightEye);
 
-            if (gCfg.companionMode == CompanionMode::Static) {
+            if (gCfg.companionMode == CompanionMode::Static && gGameMode != PreStage && gGameMode != Replay) {
                 auto origCamera = *gCameraType;
-                ChangeCamera(p, 4);
+                // 13 is the CFH camera. We don't want to change the camera while it is active.
+                if (origCamera != 13) {
+                    ChangeCamera(p, 4);
+                }
                 if (gD3Ddev->SetRenderTarget(0, gOriginalScreenTgt) != D3D_OK) {
                     Dbg("Failed to reset render target to original");
                 }
@@ -389,7 +392,9 @@ void __fastcall RBRHook_Render(void* p)
                     Dbg("Failed to reset depth stencil surface to original");
                 }
                 hooks::render.call(p);
-                ChangeCamera(p, origCamera);
+                if (origCamera != 13) {
+                    ChangeCamera(p, origCamera);
+                }
             }
 
             if (gVR->PrepareVRRendering(gD3Ddev, Overlay)) {
@@ -447,10 +452,16 @@ HRESULT __stdcall DXHook_Present(IDirect3DDevice9* This, const RECT* pSourceRect
     }
     auto ret = 0;
     if (gVR) {
-        if (gCfg.companionMode == CompanionMode::Static && (gDriving || gGameMode == Pause || gGameMode == Replay)) {
-            // Render the overlay over the 3D content, if we're running the static view on desktop window
-            // Otherwise, the help texts, pause menu, pacenote plugin UI etc. won't be visible
-            RenderCompanionWindowFromRenderTarget(gD3Ddev, gVR.get(), Overlay);
+        if (gCfg.companionMode == CompanionMode::Static) {
+            if (gDriving || gGameMode == Pause) {
+                // Render the overlay over the 3D content, if we're running the static view on desktop window
+                // Otherwise, the help texts, pause menu, pacenote plugin UI etc. won't be visible
+                RenderCompanionWindowFromRenderTarget(gD3Ddev, gVR.get(), Overlay);
+            } else if (gGameMode == PreStage) {
+                RenderCompanionWindowFromRenderTarget(gD3Ddev, gVR.get(), gCfg.renderPreStage3d ? gCfg.companionEye : Menu);
+            } else if (!gDriving) {
+                RenderCompanionWindowFromRenderTarget(gD3Ddev, gVR.get(), gRender3d ? gCfg.companionEye : Menu);
+            }
         } else if (gCfg.companionMode == CompanionMode::VREye || !gDriving) {
             RenderCompanionWindowFromRenderTarget(gD3Ddev, gVR.get(), gRender3d ? gCfg.companionEye : Menu);
         }
