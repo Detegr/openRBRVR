@@ -26,37 +26,8 @@ constexpr static M4 M4FromSteamVRMatrix(const vr::HmdMatrix34_t& m)
         { m.m[0][3], m.m[1][3], m.m[2][3], 1.0f });
 }
 
-OpenVR::OpenVR(IDirect3DDevice9* dev, const Config& cfg, IDirect3DVR9** vrdev, uint32_t companionWindowWidth, uint32_t companionWindowHeight)
-    : HMD(nullptr)
-    , compositor(nullptr)
+void OpenVR::Init(IDirect3DDevice9* dev, const Config& cfg, IDirect3DVR9** vrdev, uint32_t companionWindowWidth, uint32_t companionWindowHeight)
 {
-    if (!vr::VR_IsHmdPresent()) {
-        throw std::runtime_error("HMD not present, not initializing OpenVR");
-    }
-
-    vr::EVRInitError e = vr::VRInitError_None;
-    HMD = vr::VR_Init(&e, vr::VRApplication_Scene);
-    if (!HMD || e != vr::VRInitError_None) {
-        throw std::runtime_error(std::format("VR init failed: {}", vr::VR_GetVRInitErrorAsEnglishDescription(e)));
-    }
-
-    compositor = vr::VRCompositor();
-    if (!compositor) {
-        vr::VR_Shutdown();
-        throw std::runtime_error("Could not initialize VR compositor");
-    }
-    compositor->SetTrackingSpace(vr::ETrackingUniverseOrigin::TrackingUniverseSeated);
-
-    stageProjection[LeftEye] = GetProjectionMatrix(LeftEye, zNearStage, zFar);
-    stageProjection[RightEye] = GetProjectionMatrix(RightEye, zNearStage, zFar);
-    cockpitProjection[LeftEye] = GetProjectionMatrix(LeftEye, zNearCockpit, zFar);
-    cockpitProjection[RightEye] = GetProjectionMatrix(RightEye, zNearCockpit, zFar);
-    mainMenuProjection[LeftEye] = GetProjectionMatrix(LeftEye, zNearMainMenu, zFar);
-    mainMenuProjection[RightEye] = GetProjectionMatrix(RightEye, zNearMainMenu, zFar);
-
-    eyePos[LeftEye] = glm::inverse(M4FromSteamVRMatrix(HMD->GetEyeToHeadTransform(static_cast<vr::EVREye>(LeftEye))));
-    eyePos[RightEye] = glm::inverse(M4FromSteamVRMatrix(HMD->GetEyeToHeadTransform(static_cast<vr::EVREye>(RightEye))));
-
     Direct3DCreateVR(dev, vrdev);
 
     // WaitGetPoses might access the Vulkan queue so we need to lock it
@@ -95,6 +66,39 @@ OpenVR::OpenVR(IDirect3DDevice9* dev, const Config& cfg, IDirect3DVR9** vrdev, u
     }
 
     Dbg("VR init successful\n");
+}
+
+OpenVR::OpenVR()
+    : HMD(nullptr)
+    , compositor(nullptr)
+{
+    if (!vr::VR_IsHmdPresent()) {
+        throw std::runtime_error("HMD not present, not initializing OpenVR");
+    }
+
+    vr::EVRInitError e = vr::VRInitError_None;
+    HMD = vr::VR_Init(&e, vr::VRApplication_Scene);
+    if (!HMD || e != vr::VRInitError_None) {
+        throw std::runtime_error(std::format("VR init failed: {}", vr::VR_GetVRInitErrorAsEnglishDescription(e)));
+    }
+
+    compositor = vr::VRCompositor();
+    if (!compositor) {
+        vr::VR_Shutdown();
+        throw std::runtime_error("Could not initialize VR compositor");
+    }
+    compositor->SetTrackingSpace(vr::ETrackingUniverseOrigin::TrackingUniverseSeated);
+
+    stageProjection[LeftEye] = GetProjectionMatrix(LeftEye, zNearStage, zFar);
+    stageProjection[RightEye] = GetProjectionMatrix(RightEye, zNearStage, zFar);
+    cockpitProjection[LeftEye] = GetProjectionMatrix(LeftEye, zNearCockpit, zFar);
+    cockpitProjection[RightEye] = GetProjectionMatrix(RightEye, zNearCockpit, zFar);
+    mainMenuProjection[LeftEye] = GetProjectionMatrix(LeftEye, zNearMainMenu, zFar);
+    mainMenuProjection[RightEye] = GetProjectionMatrix(RightEye, zNearMainMenu, zFar);
+
+    eyePos[LeftEye] = glm::inverse(M4FromSteamVRMatrix(HMD->GetEyeToHeadTransform(static_cast<vr::EVREye>(LeftEye))));
+    eyePos[RightEye] = glm::inverse(M4FromSteamVRMatrix(HMD->GetEyeToHeadTransform(static_cast<vr::EVREye>(RightEye))));
+
 }
 
 void OpenVR::SetRenderContext(const std::string& name)

@@ -723,7 +723,7 @@ HRESULT __stdcall DXHook_CreateDevice(
         if (gVR && gVR->GetRuntimeType() == OPENXR) {
             reinterpret_cast<OpenXR*>(gVR.get())->Init(dev, gCfg, &gD3DVR, winBounds.right, winBounds.bottom);
         } else {
-            gVR = std::make_unique<OpenVR>(dev, gCfg, &gD3DVR, winBounds.right, winBounds.bottom);
+            reinterpret_cast<OpenVR*>(gVR.get())->Init(dev, gCfg, &gD3DVR, winBounds.right, winBounds.bottom);
         }
     } catch (const std::runtime_error& e) {
         MessageBoxA(hFocusWindow, e.what(), "VR init failed", MB_OK);
@@ -755,6 +755,15 @@ IDirect3D9* __stdcall DXHook_Direct3DCreate9(UINT SDKVersion)
             gVR = std::make_unique<OpenXR>();
         } catch (const std::runtime_error& e) {
             MessageBoxA(nullptr, e.what(), "OpenXR init failed", MB_OK);
+        }
+    } else {
+        // OpenVR must be initialized before creating the d3d device
+        // otherwise it cause a crash when the Reshade VK layer is used
+        // while SteamVR is already running and vrclient.dll loaded
+        try {
+            gVR = std::make_unique<OpenVR>();
+        } catch (const std::runtime_error& e) {
+            MessageBoxA(nullptr, e.what(), "OpenVR init failed", MB_OK);
         }
     }
 

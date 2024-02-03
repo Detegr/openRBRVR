@@ -15,11 +15,13 @@ private:
     constexpr M4 GetProjectionMatrix(RenderTarget eye, float zNear, float zFar);
 
 public:
-    OpenVR(IDirect3DDevice9* dev, const Config& cfg, IDirect3DVR9** vrdev, uint32_t companionWindowWidth, uint32_t companionWindowHeight);
+    OpenVR();
     virtual ~OpenVR()
     {
         ShutdownVR();
     }
+
+    void Init(IDirect3DDevice9* dev, const Config& cfg, IDirect3DVR9** vrdev, uint32_t companionWindowWidth, uint32_t companionWindowHeight);
 
     void ShutdownVR() override
     {
