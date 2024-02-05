@@ -161,18 +161,17 @@ namespace dx {
         const auto& size = render_target_2d == GameMenu ? g::cfg.menu_size : g::cfg.overlay_size;
         const auto& translation = render_target_2d == Overlay ? g::cfg.overlay_translation : glm::vec3 { 0.0f, -0.1f, 0.0f };
         const auto& horizon_lock = render_target_2d == Overlay ? std::make_optional(rbr::get_horizon_lock_matrix()) : std::nullopt;
-        const auto projection_type = rbr::get_game_mode() == GameMode::MainMenu ? Projection::MainMenu : Projection::Cockpit;
         const auto& texture = g::vr->get_texture(render_target_2d);
 
         if (g::vr->prepare_vr_rendering(g::d3d_dev, LeftEye, clear)) [[likely]] {
-            render_menu_quad(g::d3d_dev, g::vr, texture, LeftEye, render_target_2d, projection_type, size, translation, horizon_lock);
+            render_menu_quad(g::d3d_dev, g::vr, texture, LeftEye, render_target_2d, size, translation, horizon_lock);
             g::vr->finish_vr_rendering(g::d3d_dev, LeftEye);
         } else {
             dbg("Failed to render left eye overlay");
         }
 
         if (g::vr->prepare_vr_rendering(g::d3d_dev, RightEye, clear)) [[likely]] {
-            render_menu_quad(g::d3d_dev, g::vr, texture, RightEye, render_target_2d, projection_type, size, translation, horizon_lock);
+            render_menu_quad(g::d3d_dev, g::vr, texture, RightEye, render_target_2d, size, translation, horizon_lock);
             g::vr->finish_vr_rendering(g::d3d_dev, RightEye);
         } else {
             dbg("Failed to render left eye overlay");
@@ -180,14 +179,14 @@ namespace dx {
 
         if (g::vr->is_using_quad_view_rendering()) {
             if (g::vr->prepare_vr_rendering(g::d3d_dev, FocusLeft, clear)) {
-                render_menu_quad(g::d3d_dev, g::vr, texture, FocusLeft, render_target_2d, projection_type, size, translation, horizon_lock);
+                render_menu_quad(g::d3d_dev, g::vr, texture, FocusLeft, render_target_2d, size, translation, horizon_lock);
                 g::vr->finish_vr_rendering(g::d3d_dev, FocusLeft);
             } else {
                 dbg("Failed to render left eye overlay");
             }
 
             if (g::vr->prepare_vr_rendering(g::d3d_dev, FocusRight, clear)) {
-                render_menu_quad(g::d3d_dev, g::vr, texture, FocusRight, render_target_2d, projection_type, size, translation, horizon_lock);
+                render_menu_quad(g::d3d_dev, g::vr, texture, FocusRight, render_target_2d, size, translation, horizon_lock);
                 g::vr->finish_vr_rendering(g::d3d_dev, FocusRight);
             } else {
                 dbg("Failed to render left eye overlay");
@@ -278,17 +277,11 @@ namespace dx {
             shader->Release();
 
         if (is_base_shader && g::vr_render_target && Vector4fCount == 4) {
-            // The cockpit of the car is drawn with a projection matrix that has smaller near Z value
-            // Otherwise with wide FoV headsets part of the car will be clipped out.
-            // Separate projection matrix is used because if the small near Z value is used for all shaders
-            // it will cause Z fighting (flickering) in the trackside objects. With this we get best of both worlds.
             IDirect3DBaseTexture9* texture;
             if (auto ret = g::d3d_dev->GetTexture(0, &texture); ret != D3D_OK) {
                 dbg("Could not get texture");
                 return ret;
             }
-
-            auto is_rendering_cockpit = rbr::is_using_cockpit_camera() && (rbr::is_rendering_car() || rbr::is_car_texture(texture) || rbr::is_rendering_particles() || rbr::is_rendering_wet_windscreen());
 
             if (texture) {
                 texture->Release();
@@ -296,7 +289,7 @@ namespace dx {
 
             if (StartRegister == 0) {
                 const auto orig = glm::transpose(m4_from_shader_constant_ptr(pConstantData));
-                const auto& projection = g::vr->get_projection(g::vr_render_target.value(), is_rendering_cockpit ? Projection::Cockpit : Projection::Stage);
+                const auto& projection = g::vr->get_projection(g::vr_render_target.value());
                 const auto& eyepos = g::vr->get_eye_pos(g::vr_render_target.value());
                 const auto& pose = g::vr->get_pose(g::vr_render_target.value());
 
@@ -333,12 +326,12 @@ namespace dx {
     HRESULT __stdcall SetTransform(IDirect3DDevice9* This, D3DTRANSFORMSTATETYPE State, const D3DMATRIX* pMatrix)
     {
         if (g::vr_render_target && State == D3DTS_PROJECTION) {
+            // Store the inverse of the matrix passed to the function in order to cancel it out later on
             shader::current_projection_matrix = m4_from_d3d(*pMatrix);
             shader::current_projection_matrix_inverse = glm::inverse(shader::current_projection_matrix);
 
-            // Use the large space z-value projection matrix by default. The car specific parts
-            // are patched to be rendered in gCockpitProjection in DrawIndexedPrimitive.
-            const auto& projection = g::vr->get_projection(g::vr_render_target.value(), Projection::Stage);
+            // Change projection matrix to current VR render target matrix
+            const auto& projection = g::vr->get_projection(g::vr_render_target.value());
             fixedfunction::current_projection_matrix = d3d_from_m4(projection);
             return g::hooks::set_transform.call(g::d3d_dev, State, &fixedfunction::current_projection_matrix);
         } else if (g::vr_render_target && State == D3DTS_VIEW) {
@@ -394,14 +387,6 @@ namespace dx {
                 // if car shadows are enabled.
                 return 0;
             }
-            // Some parts of the car are drawn without a shader and without a texture (just black meshes)
-            // We need to render these with the cockpit Z clipping values in order for them to look correct
-            const auto projection = fixedfunction::current_projection_matrix;
-            const auto cockpit_projection = d3d_from_m4(g::vr->get_projection(g::vr_render_target.value(), Projection::Cockpit));
-            g::hooks::set_transform.call(This, D3DTS_PROJECTION, &cockpit_projection);
-            auto ret = g::hooks::draw_indexed_primitive.call(g::d3d_dev, PrimitiveType, BaseVertexIndex, MinVertexIndex, NumVertices, startIndex, primCount);
-            g::hooks::set_transform.call(This, D3DTS_PROJECTION, &fixedfunction::current_projection_matrix);
-            return ret;
         } else {
             if (shader)
                 shader->Release();
@@ -425,16 +410,51 @@ namespace dx {
                     //   that well.
                     return 0;
                 }
-
-                // For the water droplets we use the cockpit projection
-                const auto projection = fixedfunction::current_projection_matrix;
-                const auto cockpit_projection = d3d_from_m4(g::vr->get_projection(g::vr_render_target.value(), Projection::Cockpit));
-                g::hooks::set_transform.call(This, D3DTS_PROJECTION, &cockpit_projection);
-                auto ret = g::hooks::draw_indexed_primitive.call(g::d3d_dev, PrimitiveType, BaseVertexIndex, MinVertexIndex, NumVertices, startIndex, primCount);
-                g::hooks::set_transform.call(This, D3DTS_PROJECTION, &fixedfunction::current_projection_matrix);
-                return ret;
             }
-            return g::hooks::draw_indexed_primitive.call(g::d3d_dev, PrimitiveType, BaseVertexIndex, MinVertexIndex, NumVertices, startIndex, primCount);
+        }
+        return g::hooks::draw_indexed_primitive.call(g::d3d_dev, PrimitiveType, BaseVertexIndex, MinVertexIndex, NumVertices, startIndex, primCount);
+    }
+
+    HRESULT __stdcall SetRenderState(IDirect3DDevice9* This, D3DRENDERSTATETYPE State, DWORD Value)
+    {
+        DWORD val = Value;
+
+        if (rbr::should_use_reverse_z_buffer()) [[likely]] {
+            if (State == D3DRS_ZFUNC) {
+                // Invert the function if reverse Z buffer is in use
+                switch (Value) {
+                    case D3DCMP_LESSEQUAL:
+                        val = D3DCMP_GREATEREQUAL;
+                        break;
+                    case D3DCMP_LESS:
+                        val = D3DCMP_GREATER;
+                        break;
+                    case D3DCMP_GREATEREQUAL:
+                        val = D3DCMP_LESSEQUAL;
+                        break;
+                    case D3DCMP_GREATER:
+                        val = D3DCMP_LESS;
+                        break;
+                    default:
+                        val = Value;
+                }
+            } else if (State == D3DRS_DEPTHBIAS) {
+                // Invert depth bias if reversed Z buffer is in use
+                val = static_cast<DWORD>(-static_cast<float>(Value));
+            }
+        }
+
+        return g::hooks::set_render_state.call(This, State, val);
+    }
+
+    HRESULT __stdcall Clear(IDirect3DDevice9* This, DWORD Count, const D3DRECT* pRects, DWORD Flags, D3DCOLOR Color, float Z, DWORD Stencil)
+    {
+        // Invert the Z value if reverse Z buffer is in use
+
+        if (rbr::should_use_reverse_z_buffer()) [[likely]] {
+            return g::hooks::clear.call(This, Count, pRects, Flags, Color, 1.0f - Z, Stencil);
+        } else {
+            return g::hooks::clear.call(This, Count, pRects, Flags, Color, Z, Stencil);
         }
     }
 
@@ -479,6 +499,8 @@ namespace dx {
             g::hooks::create_vertex_shader = Hook(devvtbl->CreateVertexShader, CreateVertexShader);
             g::hooks::draw_indexed_primitive = Hook(devvtbl->DrawIndexedPrimitive, DrawIndexedPrimitive);
             g::hooks::draw_primitive = Hook(devvtbl->DrawPrimitive, DrawPrimitive);
+            g::hooks::set_render_state = Hook(devvtbl->SetRenderState, SetRenderState);
+            g::hooks::clear = Hook(devvtbl->Clear, Clear);
         } catch (const std::runtime_error& e) {
             dbg(e.what());
             MessageBoxA(hFocusWindow, e.what(), "Hooking failed", MB_OK);

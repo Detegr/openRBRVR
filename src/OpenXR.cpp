@@ -26,9 +26,8 @@ T get_extension(XrInstance instance, const std::string& fnName)
     return fn;
 }
 
-static glm::mat4 create_projection_matrix(const XrFovf& fov, float near_z, float far_z)
+static glm::mat4 create_projection_matrix(const XrFovf& fov, float z_near, float z_far, bool reverse_z)
 {
-    // Convert angles from radians to degrees
     const auto tan_left = std::tanf(fov.angleLeft);
     const auto tan_right = std::tanf(fov.angleRight);
     const auto tan_down = std::tanf(fov.angleDown);
@@ -42,9 +41,16 @@ static glm::mat4 create_projection_matrix(const XrFovf& fov, float near_z, float
     projection[1][1] = 2.0f / tan_height;
     projection[2][0] = (tan_right + tan_left) / tan_width;
     projection[2][1] = (tan_up + tan_down) / tan_height;
-    projection[2][2] = -(far_z + near_z) / (far_z - near_z);
-    projection[2][3] = -1.0f;
-    projection[3][2] = -(2.0f * far_z * near_z) / (far_z - near_z);
+
+    if (reverse_z) {
+        projection[2][2] = z_near / (z_near - z_far);
+        projection[2][3] = -1.0f;
+        projection[3][2] = z_near;
+    } else {
+        projection[2][2] = -(z_far + z_near) / (z_far - z_near);
+        projection[2][3] = -1.0f;
+        projection[3][2] = -(2.0f * z_far * z_near) / (z_far - z_near);
+    }
 
     return projection;
 }
@@ -89,8 +95,8 @@ static void set_openrbrvr_api_layer_path()
 
 OpenXR::OpenXR()
     : session()
-    , has_projection(false)
     , reset_view_requested(false)
+    , has_views(false)
 {
     XrApplicationInfo appInfo = {
         .applicationName = "openRBRVR",
@@ -941,11 +947,7 @@ bool OpenXR::update_vr_poses()
         dbg(std::format("xrBeginFrame: {}", XrResultToString(instance, res)));
     }
 
-    if (!has_projection) {
-        // TODO: Should this be called every frame or is it okay to do
-        // like OpenVR does and just fetch the projection matrices once?
-        has_projection = get_projection_matrix();
-    }
+    get_projection_matrix();
 
     update_poses();
 
@@ -959,16 +961,18 @@ bool OpenXR::update_vr_poses()
 
 bool OpenXR::get_projection_matrix()
 {
-    auto view_state = update_views();
-    if (!view_state) {
-        dbg("Failed to update OpenXR views");
-        return false;
+    if (!has_views) {
+        auto view_state = update_views();
+        if (!view_state) {
+            dbg("Failed to update OpenXR views");
+            return false;
+        }
+        has_views = true;
     }
+
     const auto view_count = xr_context()->views.size();
     for (size_t i = 0; i < view_count; ++i) {
-        stage_projection[i] = create_projection_matrix(xr_context()->views[i].fov, zNearStage, zFar);
-        cockpit_projection[i] = create_projection_matrix(xr_context()->views[i].fov, zNearCockpit, zFar);
-        mainmenu_projection[i] = create_projection_matrix(xr_context()->views[i].fov, zNearMainMenu, zFar);
+        projection[i] = create_projection_matrix(xr_context()->views[i].fov, z_near, z_far, rbr::should_use_reverse_z_buffer());
     }
     return true;
 }

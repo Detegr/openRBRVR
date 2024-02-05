@@ -36,6 +36,8 @@ namespace g {
         Hook<decltype(IDirect3DDevice9Vtbl::SetRenderTarget)> btb_set_render_target;
         Hook<decltype(IDirect3DDevice9Vtbl::DrawIndexedPrimitive)> draw_indexed_primitive;
         Hook<decltype(IDirect3DDevice9Vtbl::DrawPrimitive)> draw_primitive;
+        Hook<decltype(IDirect3DDevice9Vtbl::SetRenderState)> set_render_state;
+        Hook<decltype(IDirect3DDevice9Vtbl::Clear)> clear;
 
         // RBR functions
         Hook<decltype(&rbr::load_texture)> load_texture;

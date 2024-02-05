@@ -38,6 +38,8 @@ namespace rbr {
     void change_camera(void* p, uint32_t cameraType);
     const M4& get_horizon_lock_matrix();
 
+    bool should_use_reverse_z_buffer();
+
     // Hookable functions
     void __fastcall render(void* p);
     uint32_t __stdcall load_texture(void* p, const char* texName, uint32_t a, uint32_t b, uint32_t c, uint32_t d, uint32_t e, uint32_t f, uint32_t g, uint32_t h, uint32_t i, uint32_t j, uint32_t k, IDirect3DTexture9** ppTexture);

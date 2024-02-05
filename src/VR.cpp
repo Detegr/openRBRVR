@@ -266,11 +266,11 @@ void render_overlay_border(IDirect3DDevice9* dev, IDirect3DTexture9* tex)
     render_texture(dev, &g::identity_matrix, &g::identity_matrix, &g::identity_matrix, tex, g::overlay_border_quad);
 }
 
-void render_menu_quad(IDirect3DDevice9* dev, VRInterface* vr, IDirect3DTexture9* texture, RenderTarget renderTarget3D, RenderTarget render_target_2d, Projection projection_type, float size, glm::vec3 translation, const std::optional<M4>& horizon_lock)
+void render_menu_quad(IDirect3DDevice9* dev, VRInterface* vr, IDirect3DTexture9* texture, RenderTarget render_target_3d, RenderTarget render_target_2d, float size, glm::vec3 translation, const std::optional<M4>& horizon_lock)
 {
-    const auto& projection = vr->get_projection(renderTarget3D, projection_type);
-    const auto& eyepos = vr->get_eye_pos(renderTarget3D);
-    const auto& pose = vr->get_pose(renderTarget3D);
+    const auto& projection = vr->get_projection(render_target_3d);
+    const auto& eyepos = vr->get_eye_pos(render_target_3d);
+    const auto& pose = vr->get_pose(render_target_3d);
 
     const D3DMATRIX mvp = d3d_from_m4(projection * glm::translate(glm::scale(eyepos * pose * g::flip_z_matrix * horizon_lock.value_or(glm::identity<M4>()), { size, size, 1.0f }), translation));
     render_texture(dev, &mvp, &g::identity_matrix, &g::identity_matrix, texture, g::quad_vertex_buf[render_target_2d == GameMenu ? 0 : 1]);

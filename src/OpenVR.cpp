@@ -37,15 +37,23 @@ static constexpr std::string vr_compositor_error_str(vr::VRCompositorError e)
     }
 }
 
-constexpr M4 OpenVR::get_projection_matrix(RenderTarget eye, float zNear, float zFar)
+constexpr M4 OpenVR::get_projection_matrix(RenderTarget eye, float z_near, float z_far, bool reverse_z)
 {
-    vr::HmdMatrix44_t mat = hmd->GetProjectionMatrix(static_cast<vr::EVREye>(eye), zNear, zFar);
+    vr::HmdMatrix44_t mat = hmd->GetProjectionMatrix(static_cast<vr::EVREye>(eye), z_near, z_far);
 
-    return M4(
+    auto ret = M4(
         { mat.m[0][0], mat.m[1][0], mat.m[2][0], mat.m[3][0] },
         { mat.m[0][1], mat.m[1][1], mat.m[2][1], mat.m[3][1] },
         { mat.m[0][2], mat.m[1][2], mat.m[2][2], mat.m[3][2] },
         { mat.m[0][3], mat.m[1][3], mat.m[2][3], mat.m[3][3] });
+
+    if (reverse_z) [[likely]] {
+        ret[2][2] = z_near / (z_near - z_far);
+        ret[2][3] = -1.0f;
+        ret[3][2] = z_near;
+    }
+
+    return ret;
 }
 
 constexpr static M4 m4_from_steamvr_matrix(const vr::HmdMatrix34_t& m)
@@ -121,13 +129,6 @@ OpenVR::OpenVR()
         throw std::runtime_error("Could not initialize VR compositor");
     }
     compositor->SetTrackingSpace(vr::ETrackingUniverseOrigin::TrackingUniverseSeated);
-
-    stage_projection[LeftEye] = get_projection_matrix(LeftEye, zNearStage, zFar);
-    stage_projection[RightEye] = get_projection_matrix(RightEye, zNearStage, zFar);
-    cockpit_projection[LeftEye] = get_projection_matrix(LeftEye, zNearCockpit, zFar);
-    cockpit_projection[RightEye] = get_projection_matrix(RightEye, zNearCockpit, zFar);
-    mainmenu_projection[LeftEye] = get_projection_matrix(LeftEye, zNearMainMenu, zFar);
-    mainmenu_projection[RightEye] = get_projection_matrix(RightEye, zNearMainMenu, zFar);
 
     eye_pos[LeftEye] = glm::inverse(m4_from_steamvr_matrix(hmd->GetEyeToHeadTransform(static_cast<vr::EVREye>(LeftEye))));
     eye_pos[RightEye] = glm::inverse(m4_from_steamvr_matrix(hmd->GetEyeToHeadTransform(static_cast<vr::EVREye>(RightEye))));
@@ -219,6 +220,9 @@ bool OpenVR::update_vr_poses()
         hmd_pose[LeftEye] = glm::inverse(m4_from_steamvr_matrix(pose->mDeviceToAbsoluteTracking));
         hmd_pose[RightEye] = hmd_pose[LeftEye];
     }
+
+    projection[LeftEye] = get_projection_matrix(LeftEye, z_near, z_far, rbr::should_use_reverse_z_buffer());
+    projection[RightEye] = get_projection_matrix(RightEye, z_near, z_far, rbr::should_use_reverse_z_buffer());
 
     return true;
 }

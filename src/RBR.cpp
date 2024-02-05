@@ -156,6 +156,11 @@ namespace rbr {
         return g::horizon_lock_matrix;
     }
 
+    bool should_use_reverse_z_buffer()
+    {
+        return g::game_mode == GameMode::Driving || g::game_mode == GameMode::Replay;
+    }
+
     void update_horizon_lock_matrix()
     {
         auto horizon_lock_game_mode = is_using_cockpit_camera() && (g::game_mode == Driving || g::game_mode == Replay);

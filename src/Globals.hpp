@@ -111,6 +111,8 @@ namespace g {
         extern Hook<decltype(IDirect3DDevice9Vtbl::SetRenderTarget)> btb_set_render_target;
         extern Hook<decltype(IDirect3DDevice9Vtbl::DrawIndexedPrimitive)> draw_indexed_primitive;
         extern Hook<decltype(IDirect3DDevice9Vtbl::DrawPrimitive)> draw_primitive;
+        extern Hook<decltype(IDirect3DDevice9Vtbl::SetRenderState)> set_render_state;
+        extern Hook<decltype(IDirect3DDevice9Vtbl::Clear)> clear;
 
         // RBR functions
         extern Hook<decltype(&rbr::load_texture)> load_texture;

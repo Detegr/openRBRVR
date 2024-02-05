@@ -54,8 +54,8 @@ private:
     XrPosef view_pose;
     XrViewConfigurationType primary_view_config_type;
     InputState input_state; // For sending poses to OpenXR-MotionCompensation https://github.com/BuzzteeBear/OpenXR-MotionCompensation
-    bool has_projection;
     bool reset_view_requested;
+    bool has_views;
 
     struct {
         uint64_t value;

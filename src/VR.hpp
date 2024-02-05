@@ -108,16 +108,12 @@ protected:
 
     M4 hmd_pose[4];
     M4 eye_pos[4];
-    M4 cockpit_projection[4];
-    M4 stage_projection[4];
-    M4 mainmenu_projection[4];
+    M4 projection[4];
 
     void init_surfaces(IDirect3DDevice9* dev, RenderContext& ctx, uint32_t res_x_2d, uint32_t res_y_2d);
 
-    static constexpr float zFar = 10000.0f;
-    static constexpr float zNearStage = 0.15f;
-    static constexpr float zNearCockpit = 0.01f;
-    static constexpr float zNearMainMenu = 0.1f;
+    static constexpr float z_near = 0.01f;
+    static constexpr float z_far = 10000.0f;
 
 public:
     virtual ~VRInterface()
@@ -141,18 +137,9 @@ public:
     }
     virtual FrameTimingInfo get_frame_timing() = 0;
 
-    const M4& get_projection(RenderTarget tgt, Projection p) const
+    const M4& get_projection(RenderTarget tgt) const
     {
-        switch (p) {
-            case Projection::Stage:
-                return stage_projection[tgt];
-            case Projection::Cockpit:
-                return cockpit_projection[tgt];
-            case Projection::MainMenu:
-                return mainmenu_projection[tgt];
-            default:
-                std::unreachable();
-        }
+        return projection[tgt];
     }
     const M4& get_eye_pos(RenderTarget tgt) const { return eye_pos[tgt]; }
     const M4& get_pose(RenderTarget tgt) const { return hmd_pose[tgt]; }
@@ -167,5 +154,5 @@ public:
 
 bool create_quad(IDirect3DDevice9* dev, float size, float aspect, IDirect3DVertexBuffer9** dst);
 void render_overlay_border(IDirect3DDevice9* dev, IDirect3DTexture9* tex);
-void render_menu_quad(IDirect3DDevice9* dev, VRInterface* vr, IDirect3DTexture9* texture, RenderTarget renderTarget3D, RenderTarget render_target_2d, Projection projection_type, float size, glm::vec3 translation, const std::optional<M4>& horizon_lock);
+void render_menu_quad(IDirect3DDevice9* dev, VRInterface* vr, IDirect3DTexture9* texture, RenderTarget renderTarget3D, RenderTarget render_target_2d, float size, glm::vec3 translation, const std::optional<M4>& horizon_lock);
 void render_companion_window_from_render_target(IDirect3DDevice9* dev, VRInterface* vr, RenderTarget tgt);
