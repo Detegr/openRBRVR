@@ -23,6 +23,11 @@ If this does not help, try the following steps:
   and choose "Update Existing Installation" (make sure the RBRVR and openRBRVR
   are ticked in the list of components).
 
+## OpenComposite error: unsupported apptype
+
+openRBRVR does not work with OpenComposite. It has a real OpenXR
+implementation. Please disable OpenComposite when using openRBRVR.
+
 ### Game just crashes to desktop right away
 
 - Make sure Light plugin is not enabled. This plugin is not compatible with it.
