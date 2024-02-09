@@ -1,6 +1,6 @@
 # Často kladené dotazy
 
-[🇬🇧](FAQ.md) - [🇨🇿](FAQ_CZ.md)
+[🇬🇧](FAQ.md) - [🇨🇿](FAQ_CZ.md) - [🇫🇷](FAQ_FR.md)
 
 ## Plugin se nespustí
 
@@ -14,15 +14,21 @@ Pro vyřešení problému zkuste následující postup:
 - Ukončete RBR
 - Změňte nastavení VR pluginu na RBRVR a pak zpět na openRBRVR (pokud máte oba nainstalovaný).
 
-Pokud tohle nepomůže, zkuste:
+Pokud to nepomůže, zkuste:
 
 - Ukončete RBR
 - Vypněte VR mód v RSF launcheru a ujistěte se, že 2D fullscreen mód je nastaven na "Normal" a NE na "Vulkan".
 - Zavřete RSF launcher a spusťte RSF instalátor a vyberte "Update Existing Installation" (nezapomeňte zaškrtnout RBRVR i openRBRVR plugin v seznamu).
 
+## OpenComposite error: unsupported apptype
+
+openRBRVR nefunguje s OpenComposite, protože má reálnou implementaci OpenXR.
+Vypněte prosím OpenComposite pokud chcete používat openRBRVR.
+
 ### Hra hned spadne na plochu (desktop)
 
 - Pokud máte Light plugin, tak se ujistěte, že ho máte zakázaný. openRBRVR není s tímto pluginem kompatibilní.
+- Jestli používáte openXR, tak se ujistětem že je váš headset podporován.
 
 ## Můžu použít OpenXR místo OpenVR/SteamVR?
 
@@ -73,7 +79,7 @@ Použitelné hodnoty: 0, 2, 4, 8 nebo 16
 
 ## Texty v menu ve hře nejsou vidět
 
-- Zvyšte 2D rozlišení na 800x600 nebo i víc.
+- Zvyšte 2D rozlišení na 800x600 nebo větší.
 
 ## Hru vidíte vždy jakoby na obrazovce a ne ve 3D v brýlích
 
@@ -81,7 +87,7 @@ Použitelné hodnoty: 0, 2, 4, 8 nebo 16
 
 ## Jaké nastavení grafiky mám použít?
 
-- Hodně záleží na vaší PC sestavě. Používám SteamVR render resolution na 100% a anizotropní filtrování na 16
+- Hodně záleží na vaší PC sestavě. Používám SteamVR render resolution na 100% a anizotropní filtrování na 16x
 s tímto nastavením v RSF launcheru:
 
 ![Příklad nastavení](img/example_settings.png)
