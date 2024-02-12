@@ -2,6 +2,7 @@
 
 - Fix a crash when using SteamVR with Reshade
 - Improve OpenXR recentering logic
+- Fix strange floating shadows on BTB stages
 
 ## 0.7.1
 
