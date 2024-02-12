@@ -1,3 +1,8 @@
+## 0.7.2
+
+- Fix a crash when using SteamVR with Reshade
+- Improve OpenXR recentering logic
+
 ## 0.7.1
 
 - Fix a bug where the co-driver mode did not work if "Render pre-stage in 3D"
