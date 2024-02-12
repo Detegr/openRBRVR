@@ -98,7 +98,6 @@ OpenVR::OpenVR()
 
     eyePos[LeftEye] = glm::inverse(M4FromSteamVRMatrix(HMD->GetEyeToHeadTransform(static_cast<vr::EVREye>(LeftEye))));
     eyePos[RightEye] = glm::inverse(M4FromSteamVRMatrix(HMD->GetEyeToHeadTransform(static_cast<vr::EVREye>(RightEye))));
-
 }
 
 void OpenVR::SetRenderContext(const std::string& name)

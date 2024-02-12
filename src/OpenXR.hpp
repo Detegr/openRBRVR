@@ -22,6 +22,7 @@ private:
     XrInstance instance;
     XrSystemId systemId;
     XrSpace space;
+    XrSpace viewSpace;
     XrFrameState frameState;
     int64_t swapchainFormat;
     XrPosef viewPose;
