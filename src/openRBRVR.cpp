@@ -98,6 +98,7 @@ namespace hooks {
     Hook<decltype(IDirect3DDevice9Vtbl::SetRenderTarget)> btbsetrendertarget;
     Hook<decltype(&RBRHook_LoadTexture)> loadtexture;
     Hook<decltype(IDirect3DDevice9Vtbl::DrawIndexedPrimitive)> drawindexedprimitive;
+    Hook<decltype(IDirect3DDevice9Vtbl::DrawPrimitive)> drawprimitive;
     Hook<decltype(&RBRHook_RenderCar)> rendercar;
     Hook<decltype(&RBRHook_RenderParticles)> renderparticles;
 }
@@ -629,6 +630,27 @@ uint32_t __stdcall RBRHook_LoadTexture(void* p, const char* texName, uint32_t a,
     return ret;
 }
 
+HRESULT __stdcall DXHook_DrawPrimitive(IDirect3DDevice9* This, D3DPRIMITIVETYPE PrimitiveType, UINT StartVertex, UINT PrimitiveCount)
+{
+    if (gBTBTrackStatus && *gBTBTrackStatus == 1) {
+        IDirect3DVertexShader9* shader;
+        gD3Ddev->GetVertexShader(&shader);
+
+        if (shader) {
+            // Shader #39 causes strange "shadows" on BTB stages
+            // Clearly visible during CFH, and otherwise visible too when looking up
+            // Probably some projection matrix issue, but changing the projection matrix like
+            // we do normally had no effect, so on BTB stages we just won't draw this primitive with this shader.
+            auto shouldSkipDrawing = shader == gOriginalShaders[39];
+            shader->Release();
+            if (shouldSkipDrawing) {
+                return 0;
+            }
+        }
+    }
+    return hooks::drawprimitive.call(This, PrimitiveType, StartVertex, PrimitiveCount);
+}
+
 HRESULT __stdcall DXHook_DrawIndexedPrimitive(IDirect3DDevice9* This, D3DPRIMITIVETYPE PrimitiveType, INT BaseVertexIndex, UINT MinVertexIndex, UINT NumVertices, UINT startIndex, UINT primCount)
 {
     IDirect3DVertexShader9* shader;
@@ -709,6 +731,7 @@ HRESULT __stdcall DXHook_CreateDevice(
         hooks::present = Hook(devvtbl->Present, DXHook_Present);
         hooks::createvertexshader = Hook(devvtbl->CreateVertexShader, DXHook_CreateVertexShader);
         hooks::drawindexedprimitive = Hook(devvtbl->DrawIndexedPrimitive, DXHook_DrawIndexedPrimitive);
+        hooks::drawprimitive = Hook(devvtbl->DrawPrimitive, DXHook_DrawPrimitive);
     } catch (const std::runtime_error& e) {
         Dbg(e.what());
         MessageBoxA(hFocusWindow, e.what(), "Hooking failed", MB_OK);
