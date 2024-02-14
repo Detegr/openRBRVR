@@ -746,10 +746,12 @@ HRESULT __stdcall DXHook_CreateDevice(
     GetWindowRect(hFocusWindow, &winBounds);
 
     try {
-        if (gVR && gVR->GetRuntimeType() == OPENXR) {
-            reinterpret_cast<OpenXR*>(gVR.get())->Init(dev, gCfg, &gD3DVR, winBounds.right, winBounds.bottom);
-        } else {
-            reinterpret_cast<OpenVR*>(gVR.get())->Init(dev, gCfg, &gD3DVR, winBounds.right, winBounds.bottom);
+        if (gVR) {
+            if (gVR->GetRuntimeType() == OPENXR) {
+                reinterpret_cast<OpenXR*>(gVR.get())->Init(dev, gCfg, &gD3DVR, winBounds.right, winBounds.bottom);
+            } else {
+                reinterpret_cast<OpenVR*>(gVR.get())->Init(dev, gCfg, &gD3DVR, winBounds.right, winBounds.bottom);
+            }
         }
     } catch (const std::runtime_error& e) {
         MessageBoxA(hFocusWindow, e.what(), "VR init failed", MB_OK);
