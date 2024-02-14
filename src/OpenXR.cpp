@@ -541,6 +541,33 @@ std::optional<XrViewState> OpenXR::UpdateViews()
         return std::nullopt;
     }
 
+    auto& views = XrContext()->views;
+
+    // Adjust "World scale" if needed
+    if (gCfg.worldScale != 1000 && viewCount >= 2) {
+        // Ported from:
+        // https://github.com/mbucchia/OpenXR-Toolkit/blob/main/XR_APILAYER_MBUCCHIA_toolkit/layer.cpp#L1775-L1782
+        // MIT License
+        // Copyright (c) 2021-2022 Matthieu Bucchianeri
+        // Copyright (c) 2021-2022 Jean-Luc Dupiot - Reality XP
+
+        auto& pos0xr = views[0].pose.position;
+        auto& pos1xr = views[1].pose.position;
+        const auto pos0 = glm::vec3(pos0xr.x, pos0xr.y, pos0xr.z);
+        const auto pos1 = glm::vec3(pos1xr.x, pos1xr.y, pos1xr.z);
+        const auto vec = pos1 - pos0;
+        const auto ipd = glm::length(vec);
+        const float newIpd = (ipd * 1000) / gCfg.worldScale;
+        const auto center = pos0 + (vec * 0.5f);
+        const auto offset = glm::normalize(vec) * (newIpd * 0.5f);
+
+        const auto left = center - offset;
+        const auto right = center + offset;
+
+        views[0].pose.position = XrVector3f { left.x, left.y, left.z };
+        views[1].pose.position = XrVector3f { right.x, right.y, right.z };
+    }
+
     return viewState;
 }
 

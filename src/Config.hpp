@@ -61,6 +61,7 @@ struct Config {
     glm::ivec2 companionOffset;
     int companionSize = 100;
     RenderTarget companionEye = LeftEye;
+    int worldScale = 1000;
 
     Config& operator=(const Config& rhs)
     {
@@ -72,6 +73,7 @@ struct Config {
         companionSize = rhs.companionSize;
         companionEye = rhs.companionEye;
         companionMode = rhs.companionMode;
+        worldScale = rhs.worldScale;
         return *this;
     }
 
@@ -95,7 +97,8 @@ struct Config {
             && runtime == rhs.runtime
             && companionOffset == rhs.companionOffset
             && companionSize == rhs.companionSize
-            && companionEye == rhs.companionEye;
+            && companionEye == rhs.companionEye
+            && worldScale == rhs.worldScale;
     }
 
     bool Write(const std::filesystem::path& path) const
@@ -146,6 +149,10 @@ struct Config {
             gfxTbl.insert(v.first, t);
         }
         out.insert("gfx", gfxTbl);
+
+        toml::table OXRTbl;
+        OXRTbl.insert("worldScale", worldScale);
+        out.insert("OpenXR", OXRTbl);
 
         f << out;
         f.close();
@@ -218,6 +225,11 @@ struct Config {
                 }
                 cfg.gfx[k] = std::make_tuple(ss, stages);
             });
+        }
+
+        auto oxrnode = parsed["OpenXR"];
+        if (oxrnode.is_table()) {
+            cfg.worldScale = std::clamp(oxrnode["worldScale"].value_or(1000), 500, 1500);
         }
 
         return cfg;

@@ -1,7 +1,8 @@
 #pragma once
 #include <array>
 
-const auto gLicenseInformation = std::to_array({ "openRBRVR:",
+const auto gLicenseInformation = std::to_array({
+    "openRBRVR:",
     "This software is licensed under the terms of the Mozilla Public License 2.0 (MPL-2.0).",
     "",
     "For the full text of the license, please see the LICENSE file included with this software distribution.",
@@ -96,4 +97,27 @@ const auto gLicenseInformation = std::to_array({ "openRBRVR:",
     "PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE",
     "FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,",
     "TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR",
-    "OTHER DEALINGS IN THE SOFTWARE." });
+    "OTHER DEALINGS IN THE SOFTWARE.",
+    "",
+    "OpenXR toolkit:",
+    "MIT License",
+    "",
+    "Copyright(c) 2021 - 2022 Matthieu Bucchianeri",
+    "Copyright(c) 2021 - 2022 Jean - Luc Dupiot - Reality XP",
+    "",
+    "Permission is hereby granted, free of charge, to any person obtaining a copy of this",
+    "software and associated documentation files(the \"Software\"), to deal in the Software",
+    "without restriction, including without limitation the rights to use, copy, modify, merge,",
+    "publish, distribute, sublicense, and /or sell copies of the Software, and to permit",
+    "persons to whom the Software is furnished to do so, subject to the following conditions:",
+    "",
+    "The above copyright notice and this permission notice shall be included in all copies or",
+    "substantial portions of the Software.",
+    "",
+    "THE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED,",
+    "INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR",
+    "PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE",
+    "FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,",
+    "TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR",
+    "OTHER DEALINGS IN THE SOFTWARE.",
+});
