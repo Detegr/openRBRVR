@@ -131,8 +131,8 @@ static class Menu mainMenu = { "openRBRVR", {
   { .text = id("Overlay settings") , .longText = {"Adjust the size and position of the 2D content shown on", "top of the 3D view while driving."}, .selectAction = [] { SelectMenu(5); } },
   { .text = id("Desktop window settings") ,
     .longText = {"Adjust the size and position of the image shown", "on the desktop window while driving."},
-    .color = [] { return (gVR) ? std::make_tuple(1.0f, 1.0f, 1.0f, 1.0f) : std::make_tuple(0.5f, 0.5f, 0.5f, 1.0f); },
-    .selectAction = [] { if(gVR) SelectMenu(6); }
+    .selectAction = [] { if(gVR) SelectMenu(6); },
+    .visible = [] { return gVR != nullptr; }
   },
   { .text = id("Debug settings"), .longText = {"Not intended to be changed unless there is a problem that needs more information."}, .selectAction = [] { SelectMenu(2); } },
   { .text = [] { return std::format("VR runtime: {}", gCfg.runtime == OPENVR ? "OpenVR (SteamVR)" : (gCfg.wmrWorkaround ? "OpenXR (Reverb compatibility mode)" : "OpenXR")); },
@@ -140,7 +140,7 @@ static class Menu mainMenu = { "openRBRVR", {
         "Selects VR runtime. Requires game restart.",
         "",
         "SteamVR support is more mature and supports more devices.",
-        "", "OpenXR is an open-source, royalty-free standard.",
+        "OpenXR is an open-source, royalty-free standard.",
         "It has less overhead and may result in better performance.",
         "OpenXR device compatibility is more limited for old 32-bit games like RBR.",
         "The performance of Reverb compatibility mode is worse than normal OpenXR.",
@@ -155,6 +155,7 @@ static class Menu mainMenu = { "openRBRVR", {
     },
     .selectAction = [] {},
   },
+  { .text = id("OpenXR settings"), .longText = {"OpenXR settings"}, .selectAction = [] { SelectMenu(7); }, .visible = [] { return gCfg.runtime == VRRuntime::OPENXR; }},
   { .text = id("Licenses"), .longText = {"License information of open source libraries used in the plugin's implementation."}, .selectAction = [] { SelectMenu(3); } },
   { .text = id("Save the current config to openRBRVR.toml"),
     .color = [] { return (gCfg == gSavedCfg) ? std::make_tuple(0.5f, 0.5f, 0.5f, 1.0f) : std::make_tuple(1.0f, 1.0f, 1.0f, 1.0f); },
@@ -282,7 +283,7 @@ static class Menu overlayMenu = { "openRBRVR overlay settings", {
 static const auto windowStep = 1;
 static class Menu companionMenu = { "openRBRVR desktop window settings", {
   { .text = [] { return std::format("Desktop window mode: {}", CompanionModeStrPretty(gCfg.companionMode)); },
-    .longText = { "Choose what is visible on the desktop monitor while driving.", "Off: Don't draw anything", "VR view: Draw what is seen in the VR headset", "Bonnet camera: Use normal 2D bonnet camera"},
+    .longText = { "Choose what is visible on the desktop monitor while driving.", "Off: Don't draw anything", "VR view: Draw what is seen in the VR headset", "Bonnet camera: Use normal 2D bonnet camera (WITH SIGNIFICANT PERFORMANCE COST)"},
     .menuColor = IRBRGame::EMenuColors::MENU_TEXT,
     .position = Menu::menuItemsStartPos,
     .leftAction = [] { ChangeCompanionMode(false); },
@@ -339,6 +340,21 @@ static class Menu companionMenu = { "openRBRVR desktop window settings", {
     .selectAction = [] { SelectMenu(0); },
   },
 }};
+
+constexpr auto worldScaleStep = 1;
+static class Menu openXRMenu = { "openRBRVR OpenXR settings", {
+  { .text = [] { return std::format("World scale: {:.01f}", gCfg.worldScale / 10.0); },
+    .longText = { "Adjust VR world scaling"},
+    .menuColor = IRBRGame::EMenuColors::MENU_TEXT,
+    .position = Menu::menuItemsStartPos,
+    .leftAction = [] { gCfg.worldScale = std::max(gCfg.worldScale - worldScaleStep, 500); },
+    .rightAction = [] { gCfg.worldScale = std::min(gCfg.worldScale + worldScaleStep, 1500); },
+  },
+  { .text = id("Back to previous menu"),
+    .menuColor = IRBRGame::EMenuColors::MENU_TEXT,
+    .selectAction = [] { SelectMenu(0); },
+  },
+}};
 // clang-format on
 
 static auto menus = std::to_array<class Menu*>({
@@ -349,6 +365,7 @@ static auto menus = std::to_array<class Menu*>({
     &horizonLockMenu,
     &overlayMenu,
     &companionMenu,
+    &openXRMenu,
 });
 
 class Menu* gMenu = menus[0];

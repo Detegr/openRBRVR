@@ -865,6 +865,10 @@ void openRBRVR::DrawMenuEntries(const std::ranges::forward_range auto& entries, 
     auto x = 0.0f;
     auto y = 0.0f;
     for (const auto& entry : entries) {
+        if (entry.visible && !entry.visible.value()()) {
+            // Skip hidden entries
+            continue;
+        }
         if (entry.font) {
             game->SetFont(entry.font.value());
         }
@@ -892,7 +896,10 @@ void openRBRVR::DrawFrontEndPage()
     constexpr auto menuItemsStartHeight = 70.0f;
     const auto idx = gMenu->Index();
     const auto isLicenseMenu = idx < 0;
-    const auto endOfItems = menuItemsStartHeight + gMenu->Entries().size() * gMenu->RowHeight();
+    const auto visibleEntryCount = std::ranges::count_if(gMenu->Entries(), [](const MenuEntry& e) {
+        return !e.visible || e.visible.value()();
+    });
+    const auto endOfItems = menuItemsStartHeight + visibleEntryCount * gMenu->RowHeight();
 
     game->DrawBlackOut(0.0f, isLicenseMenu ? 88.0f : endOfItems, 800.0f, 10.0f);
     if (!isLicenseMenu) {
@@ -911,7 +918,7 @@ void openRBRVR::DrawFrontEndPage()
 
     auto i = 0;
     if (!isLicenseMenu) {
-        for (const auto& txt : entries[gMenu->Index()].longText) {
+        for (const auto& txt : entries[gMenu->entryIdx].longText) {
             game->WriteText(65.0f, endOfItems + ((i + 1) * gMenu->RowHeight()), txt.c_str());
             i++;
         }

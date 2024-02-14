@@ -20,15 +20,16 @@ struct MenuEntry {
     std::optional<MenuFn> leftAction;
     std::optional<MenuFn> rightAction;
     std::optional<MenuFn> selectAction;
+    std::optional<std::function<bool()>> visible;
 };
 
 class Menu {
 protected:
-    int entryIdx;
     std::string heading;
     std::vector<MenuEntry> entries;
 
 public:
+    int entryIdx;
     static constexpr auto rowHeight = 21.0f;
     static constexpr std::tuple<float, float> menuItemsStartPos = std::make_tuple(65.0f, 70.0f);
 
@@ -55,12 +56,22 @@ public:
         if (entryIdx < 0) {
             entryIdx = entries.size() - 1;
         }
+        const auto& entry = entries[entryIdx];
+        if (entry.visible && !entry.visible.value()()) {
+            // Entry not visible, go up again
+            Up();
+        }
     }
 
     virtual void Down()
     {
         entryIdx++;
         entryIdx %= entries.size();
+        const auto& entry = entries[entryIdx];
+        if (entry.visible && !entry.visible.value()()) {
+            // Entry not visible, go down again
+            Down();
+        }
     }
 
     virtual void Left()
@@ -80,7 +91,19 @@ public:
     }
 
     virtual const std::vector<MenuEntry>& Entries() const { return entries; }
-    virtual const int Index() const { return entryIdx; }
+
+    /// Return the index of the current entry, discarding hidden entries
+    virtual const int Index() const
+    {
+        int ret = 0;
+        for (int i = 0; i < entryIdx; ++i) {
+            const auto& entry = entries[i];
+            if (!entry.visible || entry.visible.value()()) {
+                ret++;
+            }
+        }
+        return ret;
+    }
     virtual float RowHeight() const { return rowHeight; }
 };
 
