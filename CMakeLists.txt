@@ -18,6 +18,7 @@ set(SOURCES
 set(HEADERS
     "src/Config.hpp"
     "src/D3D.hpp"
+    "src/FPSCounter.hpp"
     "src/Hook.hpp"
     "src/IPlugin.h"
     "src/Licenses.hpp"

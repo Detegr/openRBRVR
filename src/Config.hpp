@@ -49,6 +49,7 @@ struct Config {
     CompanionMode companionMode;
     bool drawLoadingScreen = true;
     bool debug = false;
+    int debugMode = 0;
     bool renderMainMenu3d = false;
     bool renderPauseMenu3d = true;
     bool renderPreStage3d = false;
@@ -73,6 +74,7 @@ struct Config {
         companionSize = rhs.companionSize;
         companionEye = rhs.companionEye;
         companionMode = rhs.companionMode;
+        debugMode = rhs.debugMode;
         worldScale = rhs.worldScale;
         return *this;
     }
@@ -89,6 +91,7 @@ struct Config {
             && companionMode == rhs.companionMode
             && drawLoadingScreen == rhs.drawLoadingScreen
             && debug == rhs.debug
+            && debugMode == rhs.debugMode
             && renderMainMenu3d == rhs.renderMainMenu3d
             && renderPauseMenu3d == rhs.renderPauseMenu3d
             && renderPreStage3d == rhs.renderPreStage3d
@@ -120,6 +123,7 @@ struct Config {
             { "desktopWindowMode", CompanionModeStr(companionMode) },
             { "drawLoadingScreen", drawLoadingScreen },
             { "debug", debug },
+            { "debugMode", debugMode },
             { "renderMainMenu3d", renderMainMenu3d },
             { "renderPauseMenu3d", renderPauseMenu3d },
             { "renderPreStage3d", renderPreStage3d },
@@ -191,6 +195,7 @@ struct Config {
         cfg.companionMode = CompanionModeFromStr(parsed["desktopWindowMode"].value_or("vreye"));
         cfg.drawLoadingScreen = parsed["drawLoadingScreen"].value_or(true);
         cfg.debug = parsed["debug"].value_or(false);
+        cfg.debugMode = parsed["debugMode"].value_or(0);
         cfg.renderMainMenu3d = parsed["renderMainMenu3d"].value_or(false);
         cfg.renderPauseMenu3d = parsed["renderPauseMenu3d"].value_or(true);
         cfg.renderPreStage3d = parsed["renderPreStage3d"].value_or(false);

@@ -40,7 +40,7 @@ extern "C" __declspec(dllexport) int64_t openRBRVR_Exec(ApiOperations ops, uint6
     }
     if (ops & TOGGLE_DEBUG_INFO) {
         gCfg.debug = !gCfg.debug;
-        gDrawOverlayBorder = gCfg.debug;
+        gDrawOverlayBorder = (gCfg.debug && gCfg.debugMode == 0);
     }
     if ((ops & OPENXR_REQUEST_INSTANCE_EXTENSIONS) && gVR && gVR->GetRuntimeType() == OPENXR) {
         try {

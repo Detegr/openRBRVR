@@ -122,6 +122,14 @@ static void ChangeCompanionMode(bool forward)
 }
 
 void Toggle(bool& value) { value = !value; }
+void Toggle(int& value)
+{
+    if (value == 0) {
+        value = 1;
+    } else {
+        value = 0;
+    }
+}
 
 // clang-format off
 static class Menu mainMenu = { "openRBRVR", {
@@ -207,12 +215,17 @@ static class Menu graphicsMenu = { "openRBRVR rendering settings", {
 
 static class Menu debugMenu = { "openRBRVR debug settings", {
   { .text = [] { return std::format("Debug information: {}", gCfg.debug ? "ON" : "OFF"); },
-    .longText = { "Show a lot of technical information on the top-left of the screen." },
+    .longText = { "Show a debug information on top-left of the screen.", "Choose below if you want to see everything or just a FPS counter." },
     .menuColor = IRBRGame::EMenuColors::MENU_TEXT,
 	.position = Menu::menuItemsStartPos,
-    .leftAction = [] { Toggle(gCfg.debug); gDrawOverlayBorder = gCfg.debug; },
-    .rightAction = [] { Toggle(gCfg.debug); gDrawOverlayBorder = gCfg.debug; },
-    .selectAction = [] { Toggle(gCfg.debug); gDrawOverlayBorder = gCfg.debug; },
+    .leftAction = [] { Toggle(gCfg.debug); gDrawOverlayBorder = (gCfg.debug && gCfg.debugMode == 0); },
+    .rightAction = [] { Toggle(gCfg.debug); gDrawOverlayBorder = (gCfg.debug && gCfg.debugMode == 0); },
+    .selectAction = [] { Toggle(gCfg.debug); gDrawOverlayBorder = (gCfg.debug && gCfg.debugMode == 0); },
+  },
+  { .text = [] { return std::format("Debug info contents: {}", gCfg.debugMode == 0 ? "All" : "FPS only"); },
+    .longText = { "All: Show everything", "FPS only: show colored FPS counter with following logic:", "- Less than 70 percents of available frame time used: GREEN", "- More than 70 percents of available frame time used: YELLOW", "- Frame time exceeds available frame time: RED"},
+    .leftAction = [] { Toggle(gCfg.debugMode); gDrawOverlayBorder = (gCfg.debug && gCfg.debugMode == 0); },
+    .rightAction = [] { Toggle(gCfg.debugMode); gDrawOverlayBorder = (gCfg.debug && gCfg.debugMode == 0); },
   },
   { .text = id("Back to previous menu"),
 	.selectAction = [] { SelectMenu(0); }

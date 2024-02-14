@@ -3,7 +3,9 @@
 - Add "World scale" setting for OpenXR
 - Fix a rare rendering issue where certain effects were rendered differently in
   different eyes. For example Mitterbach Tarmac at night.
-- Fix a crash that occurred when running openRBRVR without a VR headset.
+- Fix a crash that occurred when running openRBRVR without a VR headset
+- Add a less intrusive debug mode where just a colored FPS counter is shown
+  instead of the full debug information
 
 ## 0.7.2
 

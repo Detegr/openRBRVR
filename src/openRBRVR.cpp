@@ -9,6 +9,7 @@
 
 #include "Config.hpp"
 #include "D3D.hpp"
+#include "FPSCounter.hpp"
 #include "Hook.hpp"
 #include "Licenses.hpp"
 #include "Menu.hpp"
@@ -160,6 +161,7 @@ static bool IsRBRHUDLoaded()
 }
 
 static std::chrono::steady_clock::time_point gFrameStart;
+static FPSCounter gFpsCounter;
 
 static bool IsLoadingBTBStage()
 {
@@ -203,57 +205,83 @@ static void DrawDebugInfo(uint64_t cpuFrameTime_us)
     gGame->SetFont(IRBRGame::EFonts::FONT_DEBUG);
 
     float i = 0.0f;
-    gGame->WriteText(0, 18 * ++i, std::format("openRBRVR {}", VERSION_STR).c_str());
-    gGame->WriteText(0, 18 * ++i, std::format("VR runtime: {}", gVR->GetRuntimeType() == OPENVR ? "OpenVR (SteamVR)" : "OpenXR").c_str());
-
     auto t = gVR->GetFrameTiming();
-    if (gVR->GetRuntimeType() == OPENVR) {
-        static uint32_t totalDroppedFrames = 0;
-        static uint32_t totalMispresentedFrames = 0;
-        totalDroppedFrames += t.droppedFrames;
-        totalMispresentedFrames += t.mispresentedFrames;
+    const float cpuTime = cpuFrameTime_us / 1000.0f;
+    static float gpuTotal = 0.0f;
 
-        gGame->WriteText(0, 18 * ++i,
-            std::format("CPU: render time: {:.2f}ms, present: {:.2f}ms, waitforpresent: {:.2f}ms",
-                cpuFrameTime_us / 1000.0,
-                t.cpuPresentCall,
-                t.cpuWaitForPresent)
-                .c_str());
-        gGame->WriteText(0, 18 * ++i,
-            std::format("GPU: presubmit {:.2f}ms, postSubmit: {:.2f}ms, total: {:.2f}ms",
-                t.gpuPreSubmit,
-                t.gpuPostSubmit,
-                t.gpuTotal)
-                .c_str());
-        gGame->WriteText(0, 18 * ++i,
-            std::format("Compositor: CPU: {:.2f}ms, GPU: {:.2f}ms, submit: {:.2f}ms",
-                t.compositorCpu,
-                t.compositorGpu,
-                t.compositorSubmitFrame)
-                .c_str());
-        gGame->WriteText(0, 18 * ++i,
-            std::format("Total mispresented frames: {}, Total dropped frames: {}, Reprojection flags: {:X}",
-                totalMispresentedFrames,
-                totalDroppedFrames,
-                t.reprojectionFlags)
-                .c_str());
-    } else {
-        gGame->WriteText(0, 18 * ++i, std::format("CPU: render time: {:.2f}ms", cpuFrameTime_us / 1000.0).c_str());
-        static float gpuTotal;
+    if (gVR->GetRuntimeType() == OPENXR) {
         if (t.gpuTotal > 0.0) {
             // Cache non-zero GPU total value as we won't get a new value for every frame
-            gpuTotal = t.gpuTotal;
+            gpuTotal = t.gpuTotal * 1000.0f;
         }
-        gGame->WriteText(0, 18 * ++i, std::format("GPU: render time: {:.2f}ms", gpuTotal * 1000.0).c_str());
     }
 
-    gGame->WriteText(0, 18 * ++i, std::format("Mods: {} {}", IsRBRRXLoaded() ? "RBRRX" : "", IsRBRHUDLoaded() ? "RBRHUD" : "").c_str());
-    const auto& [lw, lh] = gVR->GetRenderResolution(LeftEye);
-    const auto& [rw, rh] = gVR->GetRenderResolution(RightEye);
-    gGame->WriteText(0, 18 * ++i, std::format("Render resolution: {}x{} (left), {}x{} (right)", lw, lh, rw, rh).c_str());
-    gGame->WriteText(0, 18 * ++i, std::format("Anti-aliasing: {}x", static_cast<int>(gCfg.msaa)).c_str());
-    gGame->WriteText(0, 18 * ++i, std::format("Anisotropic filtering: {}x", gCfg.anisotropy).c_str());
-    gGame->WriteText(0, 18 * ++i, std::format("Current stage ID: {}", gCurrentStageId).c_str());
+    if (gCfg.debugMode == 0) {
+        gGame->WriteText(0, 18 * ++i, std::format("openRBRVR {}", VERSION_STR).c_str());
+        gGame->WriteText(0, 18 * ++i, std::format("VR runtime: {}", gVR->GetRuntimeType() == OPENVR ? "OpenVR (SteamVR)" : "OpenXR").c_str());
+
+        if (gVR->GetRuntimeType() == OPENVR) {
+            static uint32_t totalDroppedFrames = 0;
+            static uint32_t totalMispresentedFrames = 0;
+            totalDroppedFrames += t.droppedFrames;
+            totalMispresentedFrames += t.mispresentedFrames;
+
+            gGame->WriteText(0, 18 * ++i,
+                std::format("CPU: render time: {:.2f}ms, present: {:.2f}ms, waitforpresent: {:.2f}ms",
+                    cpuTime,
+                    t.cpuPresentCall,
+                    t.cpuWaitForPresent)
+                    .c_str());
+            gGame->WriteText(0, 18 * ++i,
+                std::format("GPU: presubmit {:.2f}ms, postSubmit: {:.2f}ms, total: {:.2f}ms",
+                    t.gpuPreSubmit,
+                    t.gpuPostSubmit,
+                    t.gpuTotal)
+                    .c_str());
+            gGame->WriteText(0, 18 * ++i,
+                std::format("Compositor: CPU: {:.2f}ms, GPU: {:.2f}ms, submit: {:.2f}ms",
+                    t.compositorCpu,
+                    t.compositorGpu,
+                    t.compositorSubmitFrame)
+                    .c_str());
+            gGame->WriteText(0, 18 * ++i,
+                std::format("Total mispresented frames: {}, Total dropped frames: {}, Reprojection flags: {:X}",
+                    totalMispresentedFrames,
+                    totalDroppedFrames,
+                    t.reprojectionFlags)
+                    .c_str());
+        } else {
+            gGame->WriteText(0, 18 * ++i, std::format("CPU: render time: {:.2f}ms", cpuTime).c_str());
+            gGame->WriteText(0, 18 * ++i, std::format("GPU: render time: {:.2f}ms", gpuTotal).c_str());
+        }
+
+        gGame->WriteText(0, 18 * ++i, std::format("Mods: {} {}", IsRBRRXLoaded() ? "RBRRX" : "", IsRBRHUDLoaded() ? "RBRHUD" : "").c_str());
+        const auto& [lw, lh] = gVR->GetRenderResolution(LeftEye);
+        const auto& [rw, rh] = gVR->GetRenderResolution(RightEye);
+        gGame->WriteText(0, 18 * ++i, std::format("Render resolution: {}x{} (left), {}x{} (right)", lw, lh, rw, rh).c_str());
+        gGame->WriteText(0, 18 * ++i, std::format("Anti-aliasing: {}x", static_cast<int>(gCfg.msaa)).c_str());
+        gGame->WriteText(0, 18 * ++i, std::format("Anisotropic filtering: {}x", gCfg.anisotropy).c_str());
+        gGame->WriteText(0, 18 * ++i, std::format("Current stage ID: {}", gCurrentStageId).c_str());
+    } else {
+        float frameTime;
+        if (gVR->GetRuntimeType() == OPENVR) {
+            frameTime = std::max<float>(cpuTime, t.gpuTotal);
+        } else {
+            frameTime = std::max<float>(cpuTime, gpuTotal);
+        }
+        const auto target = gFpsCounter.TargetFrameTime();
+        if (target != 0.0) {
+            if (frameTime / target < 0.7) {
+                gGame->SetColor(0.7f, 1.0f, 0, 1.0f);
+            } else if (frameTime / target > 1.0) {
+                gGame->SetColor(1.0f, 0.6f, 0, 1.0f);
+            } else {
+                gGame->SetColor(1.0f, 0.6f, 0, 1.0f);
+            }
+
+            gGame->WriteText(0, 0, std::format("{:.0f}", std::min(std::round(1000.0 / frameTime), std::round(1000.0 / target))).c_str());
+        }
+    }
 }
 
 // Call the RBR render function with a texture as the render target
@@ -372,9 +400,12 @@ void __fastcall RBRHook_Render(void* p)
             return;
         }
 
-        if (gCfg.debug) {
-            gFrameStart = std::chrono::steady_clock::now();
+        if (gGameMode == GameMode::MainMenu) [[unlikely]] {
+            auto lastFrameTime = std::chrono::steady_clock::now() - gFrameStart;
+            gFpsCounter.RecordFrameTime((double)lastFrameTime.count() / std::chrono::nanoseconds::period::den);
         }
+
+        gFrameStart = std::chrono::steady_clock::now();
 
         if (gRender3d) {
             RenderVREye(p, LeftEye);
@@ -836,7 +867,7 @@ openRBRVR::openRBRVR(IRBRGame* g)
         MessageBoxA(nullptr, e.what(), "Hooking failed", MB_OK);
     }
     gCfg = gSavedCfg = Config::fromPath("Plugins");
-    gDrawOverlayBorder = gCfg.debug;
+    gDrawOverlayBorder = (gCfg.debug && gCfg.debugMode == 0);
 }
 
 openRBRVR::~openRBRVR()
