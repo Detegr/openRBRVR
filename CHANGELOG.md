@@ -1,3 +1,10 @@
+## 0.7.3
+
+- Add "World scale" setting for OpenXR
+- Fix a rare rendering issue where certain effects were rendered differently in
+  different eyes. For example Mitterbach Tarmac at night.
+- Fix a crash that occurred when running openRBRVR without a VR headset.
+
 ## 0.7.2
 
 - Fix a crash when using SteamVR with Reshade
