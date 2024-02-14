@@ -576,7 +576,10 @@ HRESULT __stdcall DXHook_SetVertexShaderConstantF(IDirect3DDevice9* This, UINT S
             glm::vec3 scale, translation, skew;
             glm::quat orientation;
 
-            glm::decompose(gVR->GetPose(gVRRenderTarget.value()), scale, orientation, translation, skew, perspective);
+            // Always use left eye for the pose, as some effects (like the "darkness" effect in Mitterbach Tarmac night version)
+            // may render differently in each eye, especially if the object is far away, which makes it look awful.
+            // For the fog, the orientation is close enough for both eyes when always rendered with the same eye.
+            glm::decompose(gVR->GetPose(LeftEye), scale, orientation, translation, skew, perspective);
             const auto rotation = glm::mat4_cast(glm::conjugate(orientation));
 
             const auto m = glm::transpose(rotation * orig);
