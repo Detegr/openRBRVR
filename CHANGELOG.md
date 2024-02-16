@@ -3,6 +3,7 @@
 - Allow horizon locking in replays
 - To avoid horizon locked camera pointing backwards, the camera now turns 180
   degrees if the car's pitch increases/decreases 90 degrees or more.
+- Report more accurate FPS in the FPS debug mode
 
 ## 0.7.3
 

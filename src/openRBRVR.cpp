@@ -9,7 +9,6 @@
 
 #include "Config.hpp"
 #include "D3D.hpp"
-#include "FPSCounter.hpp"
 #include "Hook.hpp"
 #include "Licenses.hpp"
 #include "Menu.hpp"
@@ -161,7 +160,9 @@ static bool IsRBRHUDLoaded()
 }
 
 static std::chrono::steady_clock::time_point gFrameStart;
-static FPSCounter gFpsCounter;
+static std::chrono::steady_clock::time_point gSecondStart;
+static int gFps, gTargetFps;
+static int gCurrentFrames;
 
 static bool IsLoadingBTBStage()
 {
@@ -269,17 +270,18 @@ static void DrawDebugInfo(uint64_t cpuFrameTime_us)
         } else {
             frameTime = std::max<float>(cpuTime, gpuTotal);
         }
-        const auto target = gFpsCounter.TargetFrameTime();
-        if (target != 0.0) {
+
+        if (gFps > 0 && gTargetFps > 0) {
+            const auto target = 1000.0 / gTargetFps;
             if (frameTime / target < 0.7) {
                 gGame->SetColor(0.7f, 1.0f, 0, 1.0f);
-            } else if (frameTime / target > 1.0) {
-                gGame->SetColor(1.0f, 0.6f, 0, 1.0f);
+            } else if (gFps < (gTargetFps - 1)) {
+                gGame->SetColor(1.0f, 0.0f, 0, 1.0f);
             } else {
                 gGame->SetColor(1.0f, 0.6f, 0, 1.0f);
             }
 
-            gGame->WriteText(0, 0, std::format("{:.0f}", std::min(std::round(1000.0 / frameTime), std::round(1000.0 / target))).c_str());
+            gGame->WriteText(0, 0, std::format("{}", gFps).c_str());
         }
     }
 }
@@ -425,11 +427,6 @@ void __fastcall RBRHook_Render(void* p)
             return;
         }
 
-        if (gGameMode == GameMode::MainMenu) [[unlikely]] {
-            auto lastFrameTime = std::chrono::steady_clock::now() - gFrameStart;
-            gFpsCounter.RecordFrameTime((double)lastFrameTime.count() / std::chrono::nanoseconds::period::den);
-        }
-
         gFrameStart = std::chrono::steady_clock::now();
 
         if (gRender3d) {
@@ -529,6 +526,7 @@ HRESULT __stdcall DXHook_Present(IDirect3DDevice9* This, const RECT* pSourceRect
     auto cpuFrameTime = std::chrono::duration_cast<std::chrono::microseconds>(frameEnd - gFrameStart);
 
     ret = hooks::present.call(gD3Ddev, pSourceRect, pDestRect, hDestWindowOverride, pDirtyRegion);
+    gCurrentFrames++;
 
     if (gVR) {
         gVR->SubmitFramesToHMD(gD3Ddev);
@@ -555,6 +553,13 @@ HRESULT __stdcall DXHook_Present(IDirect3DDevice9* This, const RECT* pSourceRect
         if (!found) {
             gVR->SetRenderContext("default");
         }
+    }
+
+    if (std::chrono::steady_clock::now() - gSecondStart > std::chrono::seconds(1)) {
+        gSecondStart = std::chrono::steady_clock::now();
+        gFps = gCurrentFrames - 1;
+        gTargetFps = std::max(gFps, gTargetFps);
+        gCurrentFrames = 0;
     }
 
     gVRError = false;
