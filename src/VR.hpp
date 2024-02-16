@@ -77,6 +77,7 @@ inline CompanionMode CompanionModeFromStr(const std::string& s)
 }
 
 using M4 = glm::mat4x4;
+using M3 = glm::mat3x3;
 
 extern IDirect3DVR9* gD3DVR;
 
@@ -118,7 +119,6 @@ protected:
     M4 cockpitProjection[2];
     M4 stageProjection[2];
     M4 mainMenuProjection[2];
-    M4 horizonLock;
 
     bool CreateRenderTarget(IDirect3DDevice9* dev, RenderContext& ctx, RenderTarget tgt, D3DFORMAT fmt, uint32_t w, uint32_t h);
     void InitSurfaces(IDirect3DDevice9* dev, RenderContext& ctx, uint32_t resx2d, uint32_t resy2d);
@@ -134,7 +134,7 @@ public:
     double aspectRatio; // Desktop window aspect ratio
 
     virtual void ShutdownVR() = 0;
-    virtual bool UpdateVRPoses(Quaternion* carQuat, HorizonLock lockSetting) = 0;
+    virtual bool UpdateVRPoses() = 0;
     virtual IDirect3DSurface9* PrepareVRRendering(IDirect3DDevice9* dev, RenderTarget tgt, bool clear = true);
     virtual void FinishVRRendering(IDirect3DDevice9* dev, RenderTarget tgt);
     virtual void PrepareFramesForHMD(IDirect3DDevice9* dev) = 0;
@@ -160,7 +160,6 @@ public:
     }
     const M4& GetEyePos(RenderTarget tgt) const { return eyePos[tgt]; }
     const M4& GetPose(RenderTarget tgt) const { return HMDPose[tgt]; }
-    const M4& GetHorizonLock() const { return horizonLock; }
     IDirect3DTexture9* GetTexture(RenderTarget tgt) const { return currentRenderContext->dxTexture[tgt]; }
     RenderContext* GetCurrentRenderContext() const { return currentRenderContext; }
     bool CreateCompanionWindowBuffer(IDirect3DDevice9* dev);
@@ -177,7 +176,7 @@ bool CreateQuad(IDirect3DDevice9* dev, RenderTarget tgt, float aspect);
 void RenderOverlayBorder(IDirect3DDevice9* dev, IDirect3DTexture9* tex);
 void RenderMenuQuad(IDirect3DDevice9* dev, VRInterface* vr, IDirect3DTexture9* texture, RenderTarget renderTarget3D, RenderTarget renderTarget2D, Projection projType, float size, glm::vec3 translation, const std::optional<M4>& horizonLock);
 void RenderCompanionWindowFromRenderTarget(IDirect3DDevice9* dev, VRInterface* vr, RenderTarget tgt);
-M4 GetHorizonLockMatrix(Quaternion* carQuat, HorizonLock lockSetting);
+M4 GetHorizonLockMatrix(M3* carRotation, HorizonLock lockSetting);
 
 constexpr M4 gFlipZMatrix = {
     { 1, 0, 0, 0 },

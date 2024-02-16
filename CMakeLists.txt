@@ -35,7 +35,7 @@ set(HEADERS
 
 set(openRBRVR_Major 0)
 set(openRBRVR_Minor 7)
-set(openRBRVR_Patch 3)
+set(openRBRVR_Patch 4)
 set(openRBRVR_Tweak 0)
 # set(openRBRVR_TweakStr "-rc${openRBRVR_Tweak}")
 

@@ -62,11 +62,11 @@ static uintptr_t GetRBRAddress(uintptr_t target)
 
 static uintptr_t RBRTrackIdAddr = GetRBRAddress(0x1660804);
 static uintptr_t RBRRenderFunctionAddr = GetRBRAddress(0x47E1E0);
-static uintptr_t RBRCarQuatPtrAddr = GetRBRAddress(0x8EF660);
 static uintptr_t RBRCarInfoAddr = GetRBRAddress(0x165FC68);
 static uintptr_t RBRStageNameAddr = GetRBRAddress(0x007D1D64);
 static uintptr_t RBRGameModeExt2PtrAddr = GetRBRAddress(0x007EA678);
 static uintptr_t RBRRenderParticlesFunctionAddr = GetRBRAddress(0x5eff60); // Other possible hooking points are at 0x5efed0, 0x5effd0 and 0x5f0040
+static uintptr_t* RBRCarRotationAddr = reinterpret_cast<uintptr_t*>(GetRBRAddress(0x7ea67c));
 void __fastcall RBRHook_Render(void* p);
 uint32_t __stdcall RBRHook_LoadTexture(void* p, const char* texName, uint32_t a, uint32_t b, uint32_t c, uint32_t d, uint32_t e, uint32_t f, uint32_t g, uint32_t h, uint32_t i, uint32_t j, uint32_t k, IDirect3DTexture9** ppTexture);
 void __stdcall RBRHook_RenderCar(void* a, void* b);
@@ -76,6 +76,7 @@ using RBRPrepareCameraFunc = void(__thiscall*)(void* This, uint32_t a);
 static RBRChangeCameraFunc RBRChangeCamera = reinterpret_cast<RBRChangeCameraFunc>(GetRBRAddress(0x487680));
 static RBRPrepareCameraFunc RBRApplyCameraPosition = reinterpret_cast<RBRPrepareCameraFunc>(GetRBRAddress(0x4825B0));
 static RBRPrepareCameraFunc RBRApplyCameraFoV = reinterpret_cast<RBRPrepareCameraFunc>(GetRBRAddress(0x4BF690));
+static M3* gCarRotation;
 
 static void ChangeCamera(void* p, uint32_t cameraType)
 {
@@ -133,7 +134,6 @@ static GameMode gGameMode;
 static GameMode gPrevGameMode;
 static std::vector<IDirect3DVertexShader9*> gOriginalShaders;
 static std::unordered_map<std::string, IDirect3DTexture9*> gCarTextures;
-static Quaternion* gCarQuat;
 static uint32_t* gCameraType;
 static uint32_t gCurrentStageId;
 static uint32_t* gStageId;
@@ -284,6 +284,31 @@ static void DrawDebugInfo(uint64_t cpuFrameTime_us)
     }
 }
 
+static M4 GetHorizonLockMatrix()
+{
+    if (gCarRotation) {
+        // If car quaternion is given, calculate matrix for locking the horizon
+        auto q = glm::quat_cast(*gCarRotation);
+        const auto multiplier = static_cast<float>(gCfg.horizonLockMultiplier);
+        auto pitch = (gCfg.lockToHorizon & HorizonLock::LOCK_PITCH) ? glm::pitch(q) * multiplier : 0.0f;
+        auto roll = (gCfg.lockToHorizon & HorizonLock::LOCK_ROLL) ? glm::yaw(q) * multiplier : 0.0f; // somehow in glm the axis is yaw
+
+        // Flip the yaw if the car goes upside down (by pitch)
+        auto yaw = 0.0f;
+        if (pitch > 1.5708f) {
+            yaw = 3.14159f;
+        }
+        if (pitch < -1.5708f) {
+            yaw = 3.14159f;
+        }
+
+        glm::quat cancelCarRotation = glm::normalize(glm::quat(glm::vec3(pitch, yaw, roll)));
+        return glm::mat4_cast(cancelCarRotation);
+    } else {
+        return glm::identity<M4>();
+    }
+}
+
 // Call the RBR render function with a texture as the render target
 // Even though the render pipeline changes the render target while rendering,
 // the original render target is respected and restored at the end of the pipeline.
@@ -306,7 +331,7 @@ void RenderVROverlay(RenderTarget renderTarget2D, bool clear)
 {
     const auto& size = renderTarget2D == Menu ? gCfg.menuSize : gCfg.overlaySize;
     const auto& translation = renderTarget2D == Overlay ? gCfg.overlayTranslation : glm::vec3 { 0.0f, -0.1f, 0.0f };
-    const auto& horizLock = renderTarget2D == Overlay ? std::make_optional(gVR->GetHorizonLock()) : std::nullopt;
+    const auto& horizLock = renderTarget2D == Overlay ? std::make_optional(GetHorizonLockMatrix()) : std::nullopt;
     const auto projType = gGameMode == GameMode::MainMenu ? Projection::MainMenu : Projection::Cockpit;
     const auto& texture = gVR->GetTexture(renderTarget2D);
 
@@ -381,20 +406,20 @@ void __fastcall RBRHook_Render(void* p)
         gCameraType = reinterpret_cast<uint32_t*>(cameraInfo);
     }
 
+    auto horizonLockGameMode = IsUsingCockpitCamera() && (gGameMode == Driving || gGameMode == Replay);
+    if (horizonLockGameMode && (gCfg.lockToHorizon != HorizonLock::LOCK_NONE) && !gCarRotation) {
+        gCarRotation = reinterpret_cast<M3*>((*RBRCarRotationAddr + 0x16C));
+    } else if (gCarRotation && !horizonLockGameMode) {
+        gCarRotation = nullptr;
+    }
+
     if (!gStageId) [[unlikely]] {
         gStageId = reinterpret_cast<uint32_t*>(*reinterpret_cast<uintptr_t*>(*reinterpret_cast<uintptr_t*>(RBRGameModeExt2PtrAddr) + 0x70) + 0x20);
     }
 
     if (gVR) [[likely]] {
-        if (gDriving && (gCfg.lockToHorizon != HorizonLock::LOCK_NONE) && !gCarQuat) [[unlikely]] {
-            uintptr_t p = *reinterpret_cast<uintptr_t*>(RBRCarQuatPtrAddr) + 0x100;
-            gCarQuat = reinterpret_cast<Quaternion*>(p);
-        } else if (gCarQuat && !gDriving) [[unlikely]] {
-            gCarQuat = nullptr;
-        }
-
         // UpdateVRPoses should be called as close to rendering as possible
-        if (!gVR->UpdateVRPoses(gCarQuat, gCfg.lockToHorizon)) {
+        if (!gVR->UpdateVRPoses()) {
             Dbg("UpdateVRPoses failed, skipping frame");
             gVRError = true;
             return;
@@ -588,13 +613,12 @@ HRESULT __stdcall DXHook_SetVertexShaderConstantF(IDirect3DDevice9* This, UINT S
             const auto& projection = gVR->GetProjection(gVRRenderTarget.value(), isRenderingCockpit ? Projection::Cockpit : Projection::Stage);
             const auto& eyepos = gVR->GetEyePos(gVRRenderTarget.value());
             const auto& pose = gVR->GetPose(gVRRenderTarget.value());
-            const auto& horizonLock = gVR->GetHorizonLock();
 
             // MVP matrix
             // MV = P^-1 * MVP
             // MVP[VRRenderTarget] = P[VRRenderTarget] * MV
             const auto mv = shader::gCurrentProjectionMatrixInverse * orig;
-            const auto mvp = glm::transpose(projection * eyepos * pose * gFlipZMatrix * horizonLock * mv);
+            const auto mvp = glm::transpose(projection * eyepos * pose * gFlipZMatrix * GetHorizonLockMatrix() * mv);
             return hooks::setvertexshaderconstantf.call(gD3Ddev, StartRegister, glm::value_ptr(mvp), Vector4fCount);
         } else if (StartRegister == 20) {
             // Sky/fog
@@ -634,7 +658,7 @@ HRESULT __stdcall DXHook_SetTransform(IDirect3DDevice9* This, D3DTRANSFORMSTATET
         return hooks::settransform.call(gD3Ddev, State, &fixedfunction::gCurrentProjectionMatrix);
     } else if (gVRRenderTarget && State == D3DTS_VIEW) {
         fixedfunction::gCurrentViewMatrix = D3DFromM4(
-            gVR->GetEyePos(gVRRenderTarget.value()) * gVR->GetPose(gVRRenderTarget.value()) * gFlipZMatrix * gVR->GetHorizonLock() * M4FromD3D(*pMatrix));
+            gVR->GetEyePos(gVRRenderTarget.value()) * gVR->GetPose(gVRRenderTarget.value()) * gFlipZMatrix * GetHorizonLockMatrix() * M4FromD3D(*pMatrix));
         return hooks::settransform.call(gD3Ddev, State, &fixedfunction::gCurrentViewMatrix);
     }
 

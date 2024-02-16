@@ -62,7 +62,7 @@ public:
     }
 
     void ShutdownVR() override;
-    bool UpdateVRPoses(Quaternion* carQuat, HorizonLock lockSetting) override;
+    bool UpdateVRPoses() override;
     void PrepareFramesForHMD(IDirect3DDevice9* dev) override;
     void SubmitFramesToHMD(IDirect3DDevice9* dev) override;
     void ResetView() override;

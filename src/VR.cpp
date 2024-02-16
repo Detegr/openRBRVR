@@ -309,18 +309,3 @@ void RenderCompanionWindowFromRenderTarget(IDirect3DDevice9* dev, VRInterface* v
 {
     RenderTexture(dev, &identityMatrix, &identityMatrix, &identityMatrix, vr->GetTexture(tgt), (tgt == Menu || tgt == Overlay) ? companionWindowVertexBufMenu : companionWindowVertexBuf3D);
 }
-
-M4 GetHorizonLockMatrix(Quaternion* carQuat, HorizonLock lockSetting)
-{
-    if (carQuat) {
-        // If car quaternion is given, calculate matrix for locking the horizon
-        glm::quat q(carQuat->w, carQuat->x, carQuat->y, carQuat->z);
-        glm::vec3 ang = glm::eulerAngles(q);
-        auto pitch = (lockSetting & HorizonLock::LOCK_PITCH) ? glm::pitch(q) : 0.0f;
-        auto roll = (lockSetting & HorizonLock::LOCK_ROLL) ? glm::yaw(q) : 0.0f; // somehow in glm the axis is yaw
-        glm::quat cancelCarRotation = glm::normalize(glm::quat(glm::vec3(pitch, 0.0f, roll))) * static_cast<float>(gCfg.horizonLockMultiplier);
-        return glm::mat4_cast(cancelCarRotation);
-    } else {
-        return glm::identity<M4>();
-    }
-}

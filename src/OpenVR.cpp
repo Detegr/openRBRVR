@@ -171,7 +171,7 @@ void OpenVR::SubmitFramesToHMD(IDirect3DDevice9* dev)
     gD3DVR->EndVRSubmit();
 }
 
-bool OpenVR::UpdateVRPoses(Quaternion* carQuat, HorizonLock lockSetting)
+bool OpenVR::UpdateVRPoses()
 {
     // WaitGetPoses might access the Vulkan queue so we need to lock it
     gD3DVR->LockSubmissionQueue();
@@ -186,8 +186,6 @@ bool OpenVR::UpdateVRPoses(Quaternion* carQuat, HorizonLock lockSetting)
         HMDPose[LeftEye] = glm::inverse(M4FromSteamVRMatrix(pose->mDeviceToAbsoluteTracking));
         HMDPose[RightEye] = HMDPose[LeftEye];
     }
-
-    horizonLock = GetHorizonLockMatrix(carQuat, lockSetting);
 
     return true;
 }

@@ -571,7 +571,7 @@ std::optional<XrViewState> OpenXR::UpdateViews()
     return viewState;
 }
 
-bool OpenXR::UpdateVRPoses(Quaternion* carQuat, HorizonLock lockSetting)
+bool OpenXR::UpdateVRPoses()
 {
     frameState = {
         .type = XR_TYPE_FRAME_STATE,
@@ -604,8 +604,6 @@ bool OpenXR::UpdateVRPoses(Quaternion* carQuat, HorizonLock lockSetting)
     }
 
     UpdatePoses();
-
-    horizonLock = GetHorizonLockMatrix(carQuat, lockSetting);
 
     if (gCfg.debug && perfQueryFree) [[unlikely]] {
         gpuDisjointQuery->Issue(D3DISSUE_BEGIN);
