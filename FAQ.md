@@ -57,6 +57,10 @@ edit `openRBRVR.toml` to contain `runtime = 'openxr'`. For Reverb headsets, sele
 - Disable cubic env maps
 - Make sure anti-aliasing is not too high. Generally 4x SRS is the highest you
   can go and most systems can't go over 2x SRS.
+- If not needed, make sure you're not running the co-driver mode (also known as
+  the bonnet camera desktop window mode). The setting can be found from
+  `Options -> Plugins -> openRBRVR -> Desktop window settings -> Desktop window
+  mode`. Use `VR view` or `Off` for better performance.
 
 ## How do I reset the VR view?
 
