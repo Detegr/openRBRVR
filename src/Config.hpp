@@ -66,7 +66,21 @@ struct Config {
 
     Config& operator=(const Config& rhs)
     {
-        applyIniFields(rhs);
+        menuSize = rhs.menuSize;
+        overlaySize = rhs.overlaySize;
+        overlayTranslation = rhs.overlayTranslation;
+        superSampling = rhs.superSampling;
+        lockToHorizon = rhs.lockToHorizon;
+        horizonLockMultiplier = rhs.horizonLockMultiplier;
+        companionMode = rhs.companionMode;
+        drawLoadingScreen = rhs.drawLoadingScreen;
+        debug = rhs.debug;
+        renderMainMenu3d = rhs.renderMainMenu3d;
+        renderPauseMenu3d = rhs.renderPauseMenu3d;
+        renderPreStage3d = rhs.renderPreStage3d;
+        renderReplays3d = rhs.renderReplays3d;
+        wmrWorkaround = rhs.wmrWorkaround;
+        runtime = rhs.runtime;
         msaa = rhs.msaa;
         anisotropy = rhs.anisotropy;
         gfx = rhs.gfx;
@@ -81,7 +95,6 @@ struct Config {
 
     bool operator==(const Config& rhs) const
     {
-        // We need to compare ini fields only as gfx is not modifiable through the game
         return menuSize == rhs.menuSize
             && overlaySize == rhs.overlaySize
             && overlayTranslation == rhs.overlayTranslation
@@ -240,108 +253,6 @@ struct Config {
         return cfg;
     }
 
-    static std::optional<Config> fromIni(const std::filesystem::path& path)
-    {
-        if (!std::filesystem::exists(path)) {
-            return std::nullopt;
-        }
-        Config cfg = {};
-
-        std::ifstream f(path);
-        if (!f.good()) {
-            Dbg("Could not open openRBRVR.ini");
-            return std::nullopt;
-        }
-
-        std::string line;
-        while (std::getline(f, line)) {
-            if (line.empty()) {
-                continue;
-            }
-            if (line.empty() || line.front() == ';') {
-                // Skip empty lines and comments
-                continue;
-            }
-
-            auto end = std::remove_if(line.begin(), line.end(), isspace);
-            auto s = std::string(line.begin(), end);
-            std::stringstream ss { s };
-
-            std::string key, value;
-            std::getline(ss, key, '=');
-            std::getline(ss, value);
-
-            if (key == "menuSize") {
-                cfg.menuSize = floatOrDefault(value, 1.0);
-            } else if (key == "overlaySize") {
-                cfg.overlaySize = floatOrDefault(value, 1.0);
-            } else if (key == "overlayTranslateX") {
-                cfg.overlayTranslation.x = floatOrDefault(value, 1.0);
-            } else if (key == "overlayTranslateY") {
-                cfg.overlayTranslation.y = floatOrDefault(value, 1.0);
-            } else if (key == "overlayTranslateZ") {
-                cfg.overlayTranslation.z = floatOrDefault(value, 1.0);
-            } else if (key == "superSampling") {
-                cfg.superSampling = floatOrDefault(value, 1.0);
-            } else if (key == "lockToHorizon") {
-                cfg.lockToHorizon = static_cast<HorizonLock>(intOrDefault(value, 0));
-            } else if (key == "horizonLockMultiplier") {
-                cfg.horizonLockMultiplier = floatOrDefault(value, 1.0);
-            } else if (key == "drawDesktopWindow") {
-                cfg.companionMode = (value == "true") ? CompanionMode::VREye : CompanionMode::Off;
-            } else if (key == "drawLoadingScreen") {
-                cfg.drawLoadingScreen = (value == "true");
-            } else if (key == "debug") {
-                cfg.debug = (value == "true");
-            } else if (key == "renderMainMenu3d") {
-                cfg.renderMainMenu3d = (value == "true");
-            } else if (key == "renderPauseMenu3d") {
-                cfg.renderPauseMenu3d = (value == "true");
-            } else if (key == "renderPreStage3d") {
-                cfg.renderPreStage3d = (value == "true");
-            } else if (key == "renderReplays3d") {
-                cfg.renderReplays3d = (value == "true");
-            } else if (key == "wmrWorkaround") {
-                cfg.wmrWorkaround = (value == "true");
-            } else if (key == "runtime") {
-                if (value == "openxr") {
-                    cfg.runtime = OPENXR;
-                    cfg.wmrWorkaround = false;
-                } else if (value == "openxrwmr") {
-                    cfg.runtime = OPENXR;
-                    cfg.wmrWorkaround = true;
-                } else {
-                    cfg.runtime = OPENVR;
-                }
-            }
-        }
-
-        return cfg;
-    }
-
-    void applyIniFields(const Config& iniCfg)
-    {
-        menuSize = iniCfg.menuSize;
-        overlaySize = iniCfg.overlaySize;
-        overlayTranslation = iniCfg.overlayTranslation;
-        superSampling = iniCfg.superSampling;
-        lockToHorizon = iniCfg.lockToHorizon;
-        horizonLockMultiplier = iniCfg.horizonLockMultiplier;
-        companionMode = iniCfg.companionMode;
-        drawLoadingScreen = iniCfg.drawLoadingScreen;
-        debug = iniCfg.debug;
-        renderMainMenu3d = iniCfg.renderMainMenu3d;
-        renderPauseMenu3d = iniCfg.renderPauseMenu3d;
-        renderPreStage3d = iniCfg.renderPreStage3d;
-        renderReplays3d = iniCfg.renderReplays3d;
-        wmrWorkaround = iniCfg.wmrWorkaround;
-        runtime = iniCfg.runtime;
-
-        // Patch [gfx.default] supersampling from the ini value
-        float& ss = std::get<0>(gfx["default"]);
-        ss = iniCfg.superSampling;
-    }
-
     void applyDxvkConf()
     {
         std::ifstream dxvkConfig("dxvk.conf");
@@ -372,22 +283,7 @@ struct Config {
 
     static Config fromPath(const std::filesystem::path& path)
     {
-        auto iniPath = path / "openRBRVR.ini";
-        auto tomlPath = path / "openRBRVR.toml";
-
-        auto tomlCfg = fromToml(tomlPath);
-
-        auto iniModifyTime = std::filesystem::last_write_time(iniPath);
-        auto tomlModifyTime = std::filesystem::last_write_time(tomlPath);
-
-        if (iniModifyTime > tomlModifyTime) {
-            auto iniCfg = fromIni(iniPath);
-            if (iniCfg) {
-                tomlCfg.applyIniFields(iniCfg.value());
-                tomlCfg.Write(tomlPath);
-            }
-        }
-
+        auto tomlCfg = fromToml(path / "openRBRVR.toml");
         tomlCfg.applyDxvkConf();
 
         return tomlCfg;
