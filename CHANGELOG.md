@@ -1,3 +1,9 @@
+## 0.7.5
+
+- Fix a bug where the plugin would not launch if openRBRVR.ini was missing
+- Add a note for installing OpenXR-Vk-D3D12 if OpenXR initialization failed
+  because it was missing
+
 ## 0.7.4
 
 - Allow horizon locking in replays
