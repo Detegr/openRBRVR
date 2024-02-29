@@ -103,6 +103,9 @@ OpenXR::OpenXR()
     };
 
     if (auto err = xrCreateInstance(&instanceInfo, &instance); err != XR_SUCCESS) {
+        if (err == XR_ERROR_EXTENSION_NOT_PRESENT) {
+            throw std::runtime_error("xrCreateInstance failed. If you're running a WMR headset like Reverb, make sure https://github.com/mbucchia/OpenXR-Vk-D3D12 is installed.");
+        }
         throw std::runtime_error(std::format("Failed to initialize OpenXR: xrCreateInstance {}", static_cast<int>(err)));
     }
 
