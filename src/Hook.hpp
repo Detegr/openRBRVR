@@ -21,15 +21,15 @@ struct Hook {
         if (MH_CreateHook(reinterpret_cast<void*>(src), reinterpret_cast<void*>(tgt), reinterpret_cast<void**>(&call)) != MH_OK) {
             throw std::runtime_error("Could not hook");
         }
-        Enable();
+        enable();
     }
-    void Enable()
+    void enable()
     {
         if (MH_EnableHook(src) != MH_OK) {
             throw std::runtime_error("Could not disable hook");
         }
     }
-    void Disable()
+    void disable()
     {
         if (MH_DisableHook(src) != MH_OK) {
             throw std::runtime_error("Could not disable hook");
@@ -61,7 +61,7 @@ struct Hook {
 };
 
 template <typename T, typename F>
-T* GetVtable(F* obj)
+T* get_vtable(F* obj)
 {
     return (T*)(*(uintptr_t*)obj);
 }

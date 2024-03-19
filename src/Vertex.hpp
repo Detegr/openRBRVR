@@ -8,4 +8,4 @@ struct Vertex {
     float u, v; // Texture coordinates
 };
 
-bool CreateVertexBuffer(IDirect3DDevice9* dev, Vertex* v, size_t vertexCount, IDirect3DVertexBuffer9** buf);
+bool create_vertex_buffer(IDirect3DDevice9* dev, Vertex* v, size_t vertexCount, IDirect3DVertexBuffer9** buf);

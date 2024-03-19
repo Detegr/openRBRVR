@@ -1,13 +1,10 @@
 #pragma once
 
-#define GLM_FORCE_SIMD_AVX2
+#include "RenderTarget.hpp"
+#include "Util.hpp"
 
-#include "Quaternion.hpp"
 #include <d3d9_vr.h>
-#include <gtc/quaternion.hpp>
-#include <gtc/type_ptr.hpp>
-#include <mat3x3.hpp>
-#include <mat4x4.hpp>
+
 #define XR_USE_GRAPHICS_API_VULKAN
 #include <d3d9.h>
 #include <openvr.h>
@@ -26,13 +23,6 @@ enum VRRuntime {
     OPENXR = 2,
 };
 
-enum RenderTarget : size_t {
-    LeftEye = 0,
-    RightEye = 1,
-    Menu = 2,
-    Overlay = 3,
-};
-
 enum class Projection {
     Stage,
     Cockpit,
@@ -45,7 +35,7 @@ enum class CompanionMode {
     Static,
 };
 
-inline const std::string CompanionModeStr(CompanionMode m)
+inline const std::string companion_mode_str(CompanionMode m)
 {
     switch (m) {
         case CompanionMode::Off: return "off";
@@ -55,7 +45,7 @@ inline const std::string CompanionModeStr(CompanionMode m)
     std::unreachable();
 }
 
-inline const std::string CompanionModeStrPretty(CompanionMode m)
+inline const std::string companion_mode_str_pretty(CompanionMode m)
 {
     switch (m) {
         case CompanionMode::Off: return "Off";
@@ -65,7 +55,7 @@ inline const std::string CompanionModeStrPretty(CompanionMode m)
     std::unreachable();
 }
 
-inline CompanionMode CompanionModeFromStr(const std::string& s)
+inline CompanionMode companion_mode_from_str(const std::string& s)
 {
     if (s == "off")
         return CompanionMode::Off;
@@ -76,140 +66,95 @@ inline CompanionMode CompanionModeFromStr(const std::string& s)
     return CompanionMode::VREye;
 }
 
-using M4 = glm::mat4x4;
-using M3 = glm::mat3x3;
-
-extern IDirect3DVR9* gD3DVR;
-
 struct FrameTimingInfo {
-    float gpuPreSubmit;
-    float gpuPostSubmit;
-    float compositorGpu;
-    float compositorCpu;
-    float compositorSubmitFrame;
-    float gpuTotal;
-    float frameInterval;
-    float waitForPresent;
-    float cpuPresentCall;
-    float cpuWaitForPresent;
-    uint32_t reprojectionFlags;
-    uint32_t mispresentedFrames;
-    uint32_t droppedFrames;
+    float gpu_pre_submit;
+    float gpu_post_submit;
+    float compositor_gpu;
+    float compositor_cpu;
+    float compositor_submit_frame;
+    float gpu_total;
+    float frame_interval;
+    float wait_for_present;
+    float cpu_present_call;
+    float cpu_wait_for_present;
+    uint32_t reprojection_flags;
+    uint32_t mispresented_frames;
+    uint32_t dropped_frames;
 };
 
 struct RenderContext {
     uint32_t width[2];
     uint32_t height[2];
 
-    IDirect3DTexture9* dxTexture[4];
-    IDirect3DSurface9* dxSurface[4];
-    IDirect3DSurface9* dxDepthStencilSurface[4];
-    IDirect3DTexture9* overlayBorder;
+    IDirect3DTexture9* dx_texture[4];
+    IDirect3DSurface9* dx_surface[4];
+    IDirect3DSurface9* dx_depth_stencil_surface[4];
+    IDirect3DTexture9* overlay_border;
 
     void* ext;
 };
 
 class VRInterface {
 protected:
-    std::unordered_map<std::string, RenderContext> renderContexts;
-    RenderContext* currentRenderContext;
+    std::unordered_map<std::string, RenderContext> render_contexts;
+    RenderContext* current_render_context;
 
-    M4 HMDPose[2];
-    M4 eyePos[2];
-    M4 cockpitProjection[2];
-    M4 stageProjection[2];
-    M4 mainMenuProjection[2];
+    M4 hmd_pose[2];
+    M4 eye_pos[2];
+    M4 cockpit_projection[2];
+    M4 stage_projection[2];
+    M4 mainmenu_projection[2];
 
-    bool CreateRenderTarget(IDirect3DDevice9* dev, RenderContext& ctx, RenderTarget tgt, D3DFORMAT fmt, uint32_t w, uint32_t h);
-    void InitSurfaces(IDirect3DDevice9* dev, RenderContext& ctx, uint32_t resx2d, uint32_t resy2d);
+    void init_surfaces(IDirect3DDevice9* dev, RenderContext& ctx, uint32_t res_x_2d, uint32_t res_y_2d);
 
     static constexpr float zFar = 10000.0f;
     static constexpr float zNearStage = 0.35f;
     static constexpr float zNearCockpit = 0.01f;
     static constexpr float zNearMainMenu = 0.1f;
 
-    bool IsUsingTextureToRender(RenderTarget t);
-
 public:
-    double aspectRatio; // Desktop window aspect ratio
+    double aspect_ratio; // Desktop window aspect ratio
 
-    virtual void ShutdownVR() = 0;
-    virtual bool UpdateVRPoses() = 0;
-    virtual IDirect3DSurface9* PrepareVRRendering(IDirect3DDevice9* dev, RenderTarget tgt, bool clear = true);
-    virtual void FinishVRRendering(IDirect3DDevice9* dev, RenderTarget tgt);
-    virtual void PrepareFramesForHMD(IDirect3DDevice9* dev) = 0;
-    virtual void SubmitFramesToHMD(IDirect3DDevice9* dev) = 0;
-    std::tuple<uint32_t, uint32_t> GetRenderResolution(RenderTarget tgt) const
+    virtual void shutdown_vr() = 0;
+    virtual bool update_vr_poses() = 0;
+    virtual IDirect3DSurface9* prepare_vr_rendering(IDirect3DDevice9* dev, RenderTarget tgt, bool clear = true);
+    virtual void finish_vr_rendering(IDirect3DDevice9* dev, RenderTarget tgt);
+    virtual void prepare_frames_for_hmd(IDirect3DDevice9* dev) = 0;
+    virtual void submit_frames_to_hmd(IDirect3DDevice9* dev) = 0;
+    std::tuple<uint32_t, uint32_t> get_render_resolution(RenderTarget tgt) const
     {
-        return std::make_tuple(currentRenderContext->width[tgt], currentRenderContext->height[tgt]);
+        return std::make_tuple(current_render_context->width[tgt], current_render_context->height[tgt]);
     }
-    virtual FrameTimingInfo GetFrameTiming() = 0;
+    virtual FrameTimingInfo get_frame_timing() = 0;
 
-    const M4& GetProjection(RenderTarget tgt, Projection p) const
+    const M4& get_projection(RenderTarget tgt, Projection p) const
     {
         switch (p) {
             case Projection::Stage:
-                return stageProjection[tgt];
+                return stage_projection[tgt];
             case Projection::Cockpit:
-                return cockpitProjection[tgt];
+                return cockpit_projection[tgt];
             case Projection::MainMenu:
-                return mainMenuProjection[tgt];
+                return mainmenu_projection[tgt];
             default:
                 std::unreachable();
         }
     }
-    const M4& GetEyePos(RenderTarget tgt) const { return eyePos[tgt]; }
-    const M4& GetPose(RenderTarget tgt) const { return HMDPose[tgt]; }
-    IDirect3DTexture9* GetTexture(RenderTarget tgt) const { return currentRenderContext->dxTexture[tgt]; }
-    RenderContext* GetCurrentRenderContext() const { return currentRenderContext; }
-    bool CreateCompanionWindowBuffer(IDirect3DDevice9* dev);
+    const M4& get_eye_pos(RenderTarget tgt) const { return eye_pos[tgt]; }
+    const M4& get_pose(RenderTarget tgt) const { return hmd_pose[tgt]; }
+    IDirect3DTexture9* get_texture(RenderTarget tgt) const { return current_render_context->dx_texture[tgt]; }
+    RenderContext* get_current_render_context() const { return current_render_context; }
+    bool create_companion_window_buffer(IDirect3DDevice9* dev);
 
-    virtual void ResetView() = 0;
-    virtual VRRuntime GetRuntimeType() const = 0;
-    virtual void SetRenderContext(const std::string& name)
+    virtual void reset_view() = 0;
+    virtual VRRuntime get_runtime_type() const = 0;
+    virtual void set_render_context(const std::string& name)
     {
-        currentRenderContext = &renderContexts[name];
+        current_render_context = &render_contexts[name];
     }
 };
 
-bool CreateQuad(IDirect3DDevice9* dev, RenderTarget tgt, float aspect);
-void RenderOverlayBorder(IDirect3DDevice9* dev, IDirect3DTexture9* tex);
-void RenderMenuQuad(IDirect3DDevice9* dev, VRInterface* vr, IDirect3DTexture9* texture, RenderTarget renderTarget3D, RenderTarget renderTarget2D, Projection projType, float size, glm::vec3 translation, const std::optional<M4>& horizonLock);
-void RenderCompanionWindowFromRenderTarget(IDirect3DDevice9* dev, VRInterface* vr, RenderTarget tgt);
-M4 GetHorizonLockMatrix(M3* carRotation, HorizonLock lockSetting);
-
-constexpr M4 gFlipZMatrix = {
-    { 1, 0, 0, 0 },
-    { 0, 1, 0, 0 },
-    { 0, 0, -1, 0 },
-    { 0, 0, 0, 1 },
-};
-
-constexpr M4 M4FromD3D(const D3DMATRIX& m)
-{
-    return M4 {
-        { m._11, m._12, m._13, m._14 },
-        { m._21, m._22, m._23, m._24 },
-        { m._31, m._32, m._33, m._34 },
-        { m._41, m._42, m._43, m._44 },
-    };
-}
-
-constexpr D3DMATRIX D3DFromM4(const M4& m)
-{
-    D3DMATRIX ret;
-
-    // clang-format off
-    ret._11 = m[0][0]; ret._12 = m[0][1]; ret._13 = m[0][2]; ret._14 = m[0][3];
-    ret._21 = m[1][0]; ret._22 = m[1][1]; ret._23 = m[1][2]; ret._24 = m[1][3];
-    ret._31 = m[2][0]; ret._32 = m[2][1]; ret._33 = m[2][2]; ret._34 = m[2][3];
-    ret._41 = m[3][0]; ret._42 = m[3][1]; ret._43 = m[3][2]; ret._44 = m[3][3];
-    // clang-format on
-
-    return ret;
-}
-
-constexpr M4 M4FromShaderConstantPtr(const float* p)
-{
-    return M4(p[0], p[1], p[2], p[3], p[4], p[5], p[6], p[7], p[8], p[9], p[10], p[11], p[12], p[13], p[14], p[15]);
-}
+bool create_quad(IDirect3DDevice9* dev, float size, float aspect, IDirect3DVertexBuffer9** dst);
+void render_overlay_border(IDirect3DDevice9* dev, IDirect3DTexture9* tex);
+void render_menu_quad(IDirect3DDevice9* dev, VRInterface* vr, IDirect3DTexture9* texture, RenderTarget renderTarget3D, RenderTarget render_target_2d, Projection projection_type, float size, glm::vec3 translation, const std::optional<M4>& horizon_lock);
+void render_companion_window_from_render_target(IDirect3DDevice9* dev, VRInterface* vr, RenderTarget tgt);

@@ -6,30 +6,38 @@ set(CMAKE_CXX_STANDARD 23)
 
 set(SOURCES
     "src/API.cpp"
+    "src/Dx.cpp"
+    "src/Globals.cpp"
     "src/Menu.cpp"
-    "src/openRBRVR.cpp"
+    "src/OpenVR.cpp"
+    "src/OpenXR.cpp"
+    "src/RBR.cpp"
+    "src/RenderTarget.cpp"
     "src/VR.cpp"
     "src/Vertex.cpp"
     "src/openRBRVR.cpp"
-    "src/OpenVR.cpp"
-    "src/OpenXR.cpp"
+    "src/openRBRVR.cpp"
 )
 
 set(HEADERS
     "src/Config.hpp"
     "src/D3D.hpp"
+    "src/Dx.hpp"
+    "src/Globals.hpp"
     "src/Hook.hpp"
     "src/IPlugin.h"
     "src/Licenses.hpp"
     "src/Menu.hpp"
+    "src/OpenVR.hpp"
+    "src/OpenXR.hpp"
+    "src/Quaternion.hpp"
+    "src/RBR.hpp"
+    "src/RenderTarget.hpp"
     "src/Util.hpp"
     "src/VR.hpp"
     "src/Vertex.hpp"
     "src/openRBRVR.def"
     "src/openRBRVR.hpp"
-    "src/OpenVR.hpp"
-    "src/OpenXR.hpp"
-    "src/Quaternion.hpp"
 )
 
 set(openRBRVR_Major 0)
