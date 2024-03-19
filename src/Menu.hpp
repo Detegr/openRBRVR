@@ -12,99 +12,103 @@ using MenuFn = std::function<void()>;
 
 struct MenuEntry {
     std::function<std::string()> text;
-    std::vector<std::string> longText;
+    std::vector<std::string> long_text;
     std::optional<IRBRGame::EFonts> font;
-    std::optional<IRBRGame::EMenuColors> menuColor;
+    std::optional<IRBRGame::EMenuColors> menu_color;
     std::optional<std::function<std::tuple<float, float, float, float>()>> color;
     std::optional<std::tuple<float, float>> position;
-    std::optional<MenuFn> leftAction;
-    std::optional<MenuFn> rightAction;
-    std::optional<MenuFn> selectAction;
+    std::optional<MenuFn> left_action;
+    std::optional<MenuFn> right_action;
+    std::optional<MenuFn> select_action;
     std::optional<std::function<bool()>> visible;
 };
 
 class Menu {
 protected:
-    std::string heading;
-    std::vector<MenuEntry> entries;
+    std::string menu_heading;
+    std::vector<MenuEntry> menu_entries;
 
 public:
-    int entryIdx;
-    static constexpr auto rowHeight = 21.0f;
-    static constexpr std::tuple<float, float> menuItemsStartPos = std::make_tuple(65.0f, 70.0f);
+    int entry_idx;
+    static constexpr auto menu_row_height = 21.0f;
+    static constexpr std::tuple<float, float> menu_items_start_pos = std::make_tuple(65.0f, 70.0f);
 
     Menu(std::string heading, const std::vector<MenuEntry> entries)
-        : entryIdx(0)
-        , heading(heading)
-        , entries(entries)
+        : entry_idx(0)
+        , menu_heading(heading)
+        , menu_entries(entries)
     {
     }
 
-    virtual const char* Heading() const { return heading.c_str(); }
-
-    virtual void Select()
+    virtual const char* heading() const
     {
-        const auto& action = entries[entryIdx].selectAction;
+        return menu_heading.c_str();
+    }
+
+    virtual void select()
+    {
+        const auto& action = menu_entries[entry_idx].select_action;
         if (action) {
             action.value()();
         }
     }
 
-    virtual void Up()
+    virtual void up()
     {
-        entryIdx--;
-        if (entryIdx < 0) {
-            entryIdx = entries.size() - 1;
+        entry_idx--;
+        if (entry_idx < 0) {
+            entry_idx = menu_entries.size() - 1;
         }
-        const auto& entry = entries[entryIdx];
+        const auto& entry = menu_entries[entry_idx];
         if (entry.visible && !entry.visible.value()()) {
             // Entry not visible, go up again
-            Up();
+            up();
         }
     }
 
-    virtual void Down()
+    virtual void down()
     {
-        entryIdx++;
-        entryIdx %= entries.size();
-        const auto& entry = entries[entryIdx];
+        entry_idx++;
+        entry_idx %= menu_entries.size();
+        const auto& entry = menu_entries[entry_idx];
         if (entry.visible && !entry.visible.value()()) {
             // Entry not visible, go down again
-            Down();
+            down();
         }
     }
 
-    virtual void Left()
+    virtual void left()
     {
-        const auto& action = entries[entryIdx].leftAction;
+        const auto& action = menu_entries[entry_idx].left_action;
         if (action) {
             action.value()();
         }
     }
 
-    virtual void Right()
+    virtual void right()
     {
-        const auto& action = entries[entryIdx].rightAction;
+        const auto& action = menu_entries[entry_idx].right_action;
         if (action) {
             action.value()();
         }
     }
 
-    virtual const std::vector<MenuEntry>& Entries() const { return entries; }
+    virtual const std::vector<MenuEntry>& entries() const { return menu_entries; }
 
-    /// Return the index of the current entry, discarding hidden entries
-    virtual const int Index() const
+    // Return the index of the current entry, discarding hidden entries
+    virtual const int index() const
     {
         int ret = 0;
-        for (int i = 0; i < entryIdx; ++i) {
-            const auto& entry = entries[i];
+        for (int i = 0; i < entry_idx; ++i) {
+            const auto& entry = menu_entries[i];
             if (!entry.visible || entry.visible.value()()) {
                 ret++;
             }
         }
         return ret;
     }
-    virtual float RowHeight() const { return rowHeight; }
+
+    virtual float row_height() const { return menu_row_height; }
 };
 
 class LicenseMenu : public Menu {
@@ -117,37 +121,35 @@ public:
 
     LicenseMenu();
 
-    void Up() override
+    void up() override
     {
         menuScroll = std::max<int>(0, menuScroll - 1);
     }
-    void Down() override
+    void down() override
     {
-        menuScroll = std::min<int>(gLicenseInformation.size() - licenseRowCount, menuScroll + 1);
+        menuScroll = std::min<int>(g::license_information.size() - licenseRowCount, menuScroll + 1);
     }
-    void Left() override;
-    void Select() override;
+    void left() override;
+    void select() override;
 
-    const std::vector<MenuEntry>& Entries() const override
+    const std::vector<MenuEntry>& entries() const override
     {
         static std::vector<MenuEntry> ret;
         ret.clear();
         ret.push_back({
             .text = [] { return "Press enter or left to go back"; },
             .font = IRBRGame::EFonts::FONT_SMALL,
-            .menuColor = IRBRGame::EMenuColors::MENU_TEXT,
-            .position = Menu::menuItemsStartPos,
+            .menu_color = IRBRGame::EMenuColors::MENU_TEXT,
+            .position = Menu::menu_items_start_pos,
         });
         ret.push_back({ [] { return ""; } });
 
-        for (int i = menuScroll; i < std::min<int>(menuScroll + licenseRowCount, gLicenseInformation.size()); ++i) {
-            ret.push_back(entries[i]);
+        for (int i = menuScroll; i < std::min<int>(menuScroll + licenseRowCount, g::license_information.size()); ++i) {
+            ret.push_back(menu_entries[i]);
         }
         return ret;
     }
 
-    float RowHeight() const { return licenseRowHeight; }
-    const int Index() const { return -1; }
+    float row_height() const { return licenseRowHeight; }
+    const int index() const { return -1; }
 };
-
-extern class Menu* gMenu;

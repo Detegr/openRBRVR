@@ -11,41 +11,41 @@
 
 struct OpenXRRenderContext {
     XrSwapchain swapchains[2];
-    std::vector<XrSwapchainImageVulkanKHR> swapchainImages[2];
+    std::vector<XrSwapchainImageVulkanKHR> swapchain_images[2];
     std::array<XrView, 2> views;
-    std::array<XrCompositionLayerProjectionView, 2> projectionViews;
+    std::array<XrCompositionLayerProjectionView, 2> projection_views;
 };
 
 class OpenXR : public VRInterface {
 private:
     XrSession session;
     XrInstance instance;
-    XrSystemId systemId;
+    XrSystemId system_id;
     XrSpace space;
-    XrSpace viewSpace;
-    XrFrameState frameState;
-    int64_t swapchainFormat;
-    XrPosef viewPose;
-    bool hasProjection;
-    bool resetViewRequested;
+    XrSpace view_space;
+    XrFrameState frame_state;
+    int64_t swapchain_format;
+    XrPosef view_pose;
+    bool has_projection;
+    bool reset_view_requested;
 
-    std::vector<char> deviceExtensions;
-    std::vector<char> instanceExtensions;
+    std::vector<char> device_extensions;
+    std::vector<char> instance_extensions;
 
-    bool perfQueryFree = true;
-    IDirect3DQuery9* gpuStartQuery;
-    IDirect3DQuery9* gpuEndQuery;
-    IDirect3DQuery9* gpuDisjointQuery;
-    IDirect3DQuery9* gpuFreqQuery;
+    bool perf_query_free_to_use = true;
+    IDirect3DQuery9* gpu_start_query;
+    IDirect3DQuery9* gpu_end_query;
+    IDirect3DQuery9* gpu_disjoint_query;
+    IDirect3DQuery9* gpu_freq_query;
 
-    XrSwapchainImageVulkanKHR& AcquireSwapchainImage(RenderTarget tgt);
-    std::optional<XrViewState> UpdateViews();
-    void UpdatePoses();
-    bool GetProjectionMatrix();
-    void RecenterView();
-    OpenXRRenderContext* XrContext()
+    XrSwapchainImageVulkanKHR& acquire_swapchain_image(RenderTarget tgt);
+    std::optional<XrViewState> update_views();
+    void update_poses();
+    bool get_projection_matrix();
+    void recenter_view();
+    OpenXRRenderContext* xr_context()
     {
-        return reinterpret_cast<OpenXRRenderContext*>(currentRenderContext->ext);
+        return reinterpret_cast<OpenXRRenderContext*>(current_render_context->ext);
     }
 
 public:
@@ -55,20 +55,20 @@ public:
     OpenXR& operator=(const OpenXR&) = delete;
     OpenXR& operator=(const OpenXR&&) = delete;
 
-    void Init(IDirect3DDevice9* dev, const Config& cfg, IDirect3DVR9** vrdev, uint32_t companionWindowWidth, uint32_t companionWindowHeight);
+    void init(IDirect3DDevice9* dev, const Config& cfg, IDirect3DVR9** vrdev, uint32_t companionWindowWidth, uint32_t companionWindowHeight);
     virtual ~OpenXR()
     {
-        ShutdownVR();
+        shutdown_vr();
     }
 
-    void ShutdownVR() override;
-    bool UpdateVRPoses() override;
-    void PrepareFramesForHMD(IDirect3DDevice9* dev) override;
-    void SubmitFramesToHMD(IDirect3DDevice9* dev) override;
-    void ResetView() override;
-    FrameTimingInfo GetFrameTiming() override;
-    VRRuntime GetRuntimeType() const override { return OPENXR; }
+    void shutdown_vr() override;
+    bool update_vr_poses() override;
+    void prepare_frames_for_hmd(IDirect3DDevice9* dev) override;
+    void submit_frames_to_hmd(IDirect3DDevice9* dev) override;
+    void reset_view() override;
+    FrameTimingInfo get_frame_timing() override;
+    VRRuntime get_runtime_type() const override { return OPENXR; }
 
-    const char* GetDeviceExtensions();
-    const char* GetInstanceExtensions();
+    const char* get_device_extensions();
+    const char* get_instance_extensions();
 };

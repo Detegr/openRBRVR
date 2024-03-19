@@ -5,41 +5,40 @@
 
 class OpenVR : public VRInterface {
 private:
-    vr::IVRSystem* HMD;
+    vr::IVRSystem* hmd;
     vr::IVRCompositor* compositor;
     vr::TrackedDevicePose_t poses[vr::k_unMaxTrackedDeviceCount];
-    vr::Texture_t openvrTexture[2];
-    D3D9_TEXTURE_VR_DESC dxvkTexture[2];
+    vr::Texture_t openvr_texture[2];
+    D3D9_TEXTURE_VR_DESC dxvk_texture[2];
 
-    bool CreateVRTexture(IDirect3DDevice9* dev, RenderTarget eye, uint32_t w, uint32_t h);
-    constexpr M4 GetProjectionMatrix(RenderTarget eye, float zNear, float zFar);
+    constexpr M4 get_projection_matrix(RenderTarget eye, float zNear, float zFar);
 
 public:
     OpenVR();
     virtual ~OpenVR()
     {
-        ShutdownVR();
+        shutdown_vr();
     }
 
-    void Init(IDirect3DDevice9* dev, const Config& cfg, IDirect3DVR9** vrdev, uint32_t companionWindowWidth, uint32_t companionWindowHeight);
+    void init(IDirect3DDevice9* dev, const Config& cfg, IDirect3DVR9** vrdev, uint32_t companionWindowWidth, uint32_t companionWindowHeight);
 
-    void ShutdownVR() override
+    void shutdown_vr() override
     {
         vr::VR_Shutdown();
-        HMD = nullptr;
+        hmd = nullptr;
         compositor = nullptr;
     }
-    void PrepareFramesForHMD(IDirect3DDevice9* dev) override;
-    bool UpdateVRPoses() override;
-    void SubmitFramesToHMD(IDirect3DDevice9* dev) override;
-    FrameTimingInfo GetFrameTiming() override;
-    void ResetView() override
+    void prepare_frames_for_hmd(IDirect3DDevice9* dev) override;
+    bool update_vr_poses() override;
+    void submit_frames_to_hmd(IDirect3DDevice9* dev) override;
+    FrameTimingInfo get_frame_timing() override;
+    void reset_view() override
     {
         vr::VRChaperone()->ResetZeroPose(vr::ETrackingUniverseOrigin::TrackingUniverseSeated);
     }
-    VRRuntime GetRuntimeType() const override
+    VRRuntime get_runtime_type() const override
     {
         return OPENVR;
     }
-    virtual void SetRenderContext(const std::string& name) override;
+    virtual void set_render_context(const std::string& name) override;
 };
