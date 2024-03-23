@@ -20,6 +20,7 @@ namespace g {
     IDirect3DSurface9* original_render_target;
     IDirect3DSurface9* original_depth_stencil_target;
     uint8_t* btb_track_status_ptr;
+    SeatMovement seat_movement_request;
 
     namespace hooks {
         // DirectX functions

@@ -1,5 +1,5 @@
-#include "Globals.hpp"
 #include "RenderTarget.hpp"
+#include "Globals.hpp"
 
 constexpr static bool is_aa_enabled_for_render_target(RenderTarget t)
 {
@@ -67,4 +67,3 @@ bool create_render_target(
     }
     return true;
 }
-

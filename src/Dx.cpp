@@ -30,6 +30,23 @@ namespace dx {
 
     using rbr::GameMode;
 
+    // Call the RBR render function with a texture as the render target
+    // Even though the render pipeline changes the render target while rendering,
+    // the original render target is respected and restored at the end of the pipeline.
+    void render_vr_eye(void* p, RenderTarget eye, bool clear)
+    {
+        g::vr_render_target = eye;
+        if (g::vr->prepare_vr_rendering(g::d3d_dev, eye, clear)) {
+            g::hooks::render.call(p);
+            g::vr->finish_vr_rendering(g::d3d_dev, eye);
+        } else {
+            dbg("Failed to set 3D render target");
+            g::d3d_dev->SetRenderTarget(0, g::original_render_target);
+            g::d3d_dev->SetDepthStencilSurface(g::original_depth_stencil_target);
+        }
+        g::vr_render_target = std::nullopt;
+    }
+
     HRESULT __stdcall CreateVertexShader(IDirect3DDevice9* This, const DWORD* pFunction, IDirect3DVertexShader9** ppShader)
     {
         static int i = 0;
@@ -129,25 +146,8 @@ namespace dx {
         }
     }
 
-    // Call the RBR render function with a texture as the render target
-    // Even though the render pipeline changes the render target while rendering,
-    // the original render target is respected and restored at the end of the pipeline.
-    void render_vr_eye(void* p, RenderTarget eye, bool clear)
-    {
-        g::vr_render_target = eye;
-        if (g::vr->prepare_vr_rendering(g::d3d_dev, eye, clear)) {
-            g::hooks::render.call(p);
-            g::vr->finish_vr_rendering(g::d3d_dev, eye);
-        } else {
-            dbg("Failed to set 3D render target");
-            g::d3d_dev->SetRenderTarget(0, g::original_render_target);
-            g::d3d_dev->SetDepthStencilSurface(g::original_depth_stencil_target);
-        }
-        g::vr_render_target = std::nullopt;
-    }
-
     // Render `renderTarget2d` on a plane for both eyes
-    void render_vr_overlay(RenderTarget render_target_2d, bool clear)
+    static void render_vr_overlay(RenderTarget render_target_2d, bool clear)
     {
         const auto& size = render_target_2d == GameMenu ? g::cfg.menu_size : g::cfg.overlay_size;
         const auto& translation = render_target_2d == Overlay ? g::cfg.overlay_translation : glm::vec3 { 0.0f, -0.1f, 0.0f };
@@ -277,7 +277,7 @@ namespace dx {
                 // MV = P^-1 * MVP
                 // MVP[VRRenderTarget] = P[VRRenderTarget] * MV
                 const auto mv = shader::current_projection_matrix_inverse * orig;
-                const auto mvp = glm::transpose(projection * eyepos * pose * g::flip_z_matrix * rbr::get_horizon_lock_matrix() * mv);
+                const auto mvp = glm::transpose(projection * eyepos * pose * rbr::get_seat_translation_matrix() * g::flip_z_matrix * rbr::get_horizon_lock_matrix() * mv);
                 return g::hooks::set_vertex_shader_constant_f.call(g::d3d_dev, StartRegister, glm::value_ptr(mvp), Vector4fCount);
             } else if (StartRegister == 20) {
                 // Sky/fog
@@ -316,7 +316,7 @@ namespace dx {
             return g::hooks::set_transform.call(g::d3d_dev, State, &fixedfunction::current_projection_matrix);
         } else if (g::vr_render_target && State == D3DTS_VIEW) {
             fixedfunction::current_view_matrix = d3d_from_m4(
-                g::vr->get_eye_pos(g::vr_render_target.value()) * g::vr->get_pose(g::vr_render_target.value()) * g::flip_z_matrix * rbr::get_horizon_lock_matrix() * m4_from_d3d(*pMatrix));
+                g::vr->get_eye_pos(g::vr_render_target.value()) * g::vr->get_pose(g::vr_render_target.value()) * rbr::get_seat_translation_matrix() * g::flip_z_matrix * rbr::get_horizon_lock_matrix() * m4_from_d3d(*pMatrix));
             return g::hooks::set_transform.call(g::d3d_dev, State, &fixedfunction::current_view_matrix);
         }
 
@@ -444,8 +444,8 @@ namespace dx {
 
         try {
             if (g::vr) {
-				const auto companion_window_width = pPresentationParameters->BackBufferWidth;
-				const auto companion_window_height = pPresentationParameters->BackBufferHeight;
+                const auto companion_window_width = pPresentationParameters->BackBufferWidth;
+                const auto companion_window_height = pPresentationParameters->BackBufferHeight;
 
                 if (g::vr->get_runtime_type() == OPENXR) {
                     reinterpret_cast<OpenXR*>(g::vr)->init(dev, g::cfg, &g::d3d_vr, companion_window_width, companion_window_height);

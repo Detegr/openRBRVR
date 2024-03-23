@@ -34,7 +34,8 @@ namespace rbr {
     bool is_rendering_particles();
 
     void change_camera(void* p, uint32_t cameraType);
-    M4 get_horizon_lock_matrix();
+    const M4 get_horizon_lock_matrix();
+    const M4& get_seat_translation_matrix();
 
     // Hookable functions
     void __fastcall render(void* p);

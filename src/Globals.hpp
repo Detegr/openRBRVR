@@ -1,5 +1,6 @@
 #pragma once
 
+#include "API.hpp"
 #include "Config.hpp"
 #include "D3D.hpp"
 #include "Hook.hpp"
@@ -83,6 +84,9 @@ namespace g {
         { 0, 0, -1, 0 },
         { 0, 0, 0, 1 },
     };
+
+    // If a seat movement API call is made, the requested direction is stored here for later use
+    extern SeatMovement seat_movement_request;
 
     // Hooks to DirectX and RBR functions
     namespace hooks {

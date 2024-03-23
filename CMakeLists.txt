@@ -20,6 +20,7 @@ set(SOURCES
 )
 
 set(HEADERS
+    "src/API.hpp"
     "src/Config.hpp"
     "src/D3D.hpp"
     "src/Dx.hpp"

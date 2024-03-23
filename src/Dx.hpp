@@ -1,6 +1,6 @@
 #pragma once
 
-#include "VR.hpp"
+#include "RenderTarget.hpp"
 
 #include <d3d9.h>
 
