@@ -1,3 +1,7 @@
+## 0.8.0
+
+- Fix desktop window and 2D content window size calculation
+
 ## 0.7.5
 
 - Fix a bug where the plugin would not launch if openRBRVR.ini was missing

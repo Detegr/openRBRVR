@@ -442,15 +442,15 @@ namespace dx {
 
         g::d3d_dev = dev;
 
-        RECT winBounds;
-        GetWindowRect(hFocusWindow, &winBounds);
-
         try {
             if (g::vr) {
+				const auto companion_window_width = pPresentationParameters->BackBufferWidth;
+				const auto companion_window_height = pPresentationParameters->BackBufferHeight;
+
                 if (g::vr->get_runtime_type() == OPENXR) {
-                    reinterpret_cast<OpenXR*>(g::vr)->init(dev, g::cfg, &g::d3d_vr, winBounds.right, winBounds.bottom);
+                    reinterpret_cast<OpenXR*>(g::vr)->init(dev, g::cfg, &g::d3d_vr, companion_window_width, companion_window_height);
                 } else {
-                    reinterpret_cast<OpenVR*>(g::vr)->init(dev, g::cfg, &g::d3d_vr, winBounds.right, winBounds.bottom);
+                    reinterpret_cast<OpenVR*>(g::vr)->init(dev, g::cfg, &g::d3d_vr, companion_window_width, companion_window_height);
                 }
             }
         } catch (const std::runtime_error& e) {
