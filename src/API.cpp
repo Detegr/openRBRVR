@@ -1,11 +1,13 @@
 #pragma once
 
+#include "API.hpp"
 #include "Config.hpp"
 #include "Globals.hpp"
 #include "IPlugin.h"
 #include "OpenXR.hpp"
 #include "VR.hpp"
 #include "openRBRVR.hpp"
+
 #include <MinHook.h>
 
 BOOL APIENTRY DllMain(HANDLE hModule, DWORD ul_reason_for_call, LPVOID lpReserved)
@@ -22,21 +24,18 @@ extern "C" __declspec(dllexport) IPlugin* RBR_CreatePlugin(IRBRGame* game)
     return g::openrbrvr;
 }
 
-enum ApiOperations : uint64_t {
-    API_VERSION = 0x0,
-    RECENTER_VR_VIEW = 0x1,
-    TOGGLE_DEBUG_INFO = 0x2,
-    OPENXR_REQUEST_INSTANCE_EXTENSIONS = 0x4,
-    OPENXR_REQUEST_DEVICE_EXTENSIONS = 0x8,
-    GET_VR_RUNTIME = 0x10,
-};
-
-extern "C" __declspec(dllexport) int64_t openRBRVR_Exec(ApiOperations ops, uint64_t value)
+extern "C" __declspec(dllexport) int64_t openRBRVR_Exec(ApiOperation ops, uint64_t value)
 {
-    dbg(std::format("Exec: {} {}", (uint64_t)ops, value));
+    dbg(std::format("Exec: {} {}", (uint64_t)ops, (uint64_t)value));
 
     if (ops == API_VERSION) {
-        return 1;
+        return 2;
+    }
+    if (ops & MOVE_SEAT) {
+        if (value > static_cast<uint64_t>(MOVE_SEAT_DOWN)) {
+            return 1;
+        }
+        g::seat_movement_request = static_cast<SeatMovement>(value);
     }
     if (ops & RECENTER_VR_VIEW) {
         g::vr->reset_view();

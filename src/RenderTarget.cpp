@@ -1,5 +1,5 @@
-#include "Globals.hpp"
 #include "RenderTarget.hpp"
+#include "Globals.hpp"
 
 constexpr static bool is_aa_enabled_for_render_target(RenderTarget t)
 {
@@ -29,7 +29,7 @@ bool create_render_target(
     if (!is_using_texture_to_render(tgt)) {
         ret |= dev->CreateRenderTarget(w, h, fmt, g::cfg.msaa, 0, false, msaa_surface, nullptr);
     }
-    ret |= dev->CreateTexture(w, h, 1, D3DUSAGE_RENDERTARGET, fmt, D3DPOOL_DEFAULT,target_texture, nullptr);
+    ret |= dev->CreateTexture(w, h, 1, D3DUSAGE_RENDERTARGET, fmt, D3DPOOL_DEFAULT, target_texture, nullptr);
     if (ret != D3D_OK) {
         dbg("D3D initialization failed: CreateRenderTarget");
         return false;
@@ -67,4 +67,3 @@ bool create_render_target(
     }
     return true;
 }
-

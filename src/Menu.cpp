@@ -164,7 +164,7 @@ static class Menu main_menu = { "openRBRVR", {
   { .text = id("Save the current config to openRBRVR.toml"),
     .color = [] { return (g::cfg == g::saved_cfg) ? std::make_tuple(0.5f, 0.5f, 0.5f, 1.0f) : std::make_tuple(1.0f, 1.0f, 1.0f, 1.0f); },
     .select_action = [] {
-        if (g::cfg.Write("Plugins\\openRBRVR.toml")) {
+        if (g::cfg.write("Plugins\\openRBRVR.toml")) {
             g::saved_cfg = g::cfg;
         }
     }

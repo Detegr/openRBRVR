@@ -5,6 +5,7 @@
 #include <filesystem>
 #include <fstream>
 #include <iostream>
+#include <ranges>
 #include <sstream>
 #include <string>
 #include <unordered_map>
@@ -17,6 +18,7 @@
 #include <vec3.hpp>
 
 #define TOML_HEADER_ONLY 1
+#include <inicpp.h>
 #include <toml.hpp>
 
 #include "VR.hpp"
@@ -28,6 +30,48 @@ static auto int_or_default(const std::string& value, int def) -> int
     } catch (const std::exception&) {
         return def;
     }
+}
+
+static std::string vec3_as_space_separated_string(const glm::vec3& vec)
+{
+    auto v = glm::value_ptr(vec);
+    return std::format("{:.4f} {:.4f} {:.4f}", v[0], v[1], v[2]);
+}
+
+static std::optional<glm::vec3> vec3_from_space_separated_string(const std::string& s)
+{
+    std::string val;
+    std::stringstream ss(s);
+
+    int i = 0;
+    auto ret = glm::vec3 {};
+    auto v = glm::value_ptr(ret);
+    while (std::getline(ss, val, ' ')) {
+        auto idx = i;
+        i++;
+
+        if (val.size() == 0) {
+            continue;
+        }
+
+        if (idx >= 3) {
+            return ret;
+        }
+
+        float f {};
+        auto [p, ec] = std::from_chars(val.data(), val.data() + val.size(), f);
+        if (ec != std::errc()) {
+            return std::nullopt;
+        }
+
+        v[idx] = f;
+    }
+
+    if (i < 2) {
+        return std::nullopt;
+    }
+
+    return ret;
 }
 
 struct Config {
@@ -108,7 +152,7 @@ struct Config {
             && world_scale == rhs.world_scale;
     }
 
-    bool Write(const std::filesystem::path& path) const
+    bool write(const std::filesystem::path& path) const
     {
         constexpr auto round = [](double v) -> double { return std::round(v * 100.0) / 100.0; };
 
@@ -167,13 +211,13 @@ struct Config {
         return f.good();
     }
 
-    static Config fromToml(const std::filesystem::path& path)
+    static Config from_toml(const std::filesystem::path& path)
     {
         toml::table parsed;
         auto cfg = Config {};
 
         if (!std::filesystem::exists(path)) {
-            if (!cfg.Write(path)) {
+            if (!cfg.write(path)) {
                 MessageBoxA(nullptr, "Could not write openRBRVR.toml", "Error", MB_OK);
             }
             return cfg;
@@ -244,12 +288,12 @@ struct Config {
         return cfg;
     }
 
-    void applyDxvkConf()
+    void apply_dxvk_conf()
     {
-        std::ifstream dxvkConfig("dxvk.conf");
+        std::ifstream dxvk_config("dxvk.conf");
         std::string line;
-        if (dxvkConfig.good()) {
-            while (std::getline(dxvkConfig, line)) {
+        if (dxvk_config.good()) {
+            while (std::getline(dxvk_config, line)) {
                 auto end = std::remove_if(line.begin(), line.end(), isspace);
                 auto s = std::string(line.begin(), end);
                 if (s.starts_with("d3d9.forceSwapchainMSAA")) {
@@ -272,11 +316,56 @@ struct Config {
         }
     }
 
-    static Config fromPath(const std::filesystem::path& path)
+    static std::filesystem::path resolve_personal_car_ini_path(uint32_t car_id)
     {
-        auto tomlCfg = fromToml(path / "openRBRVR.toml");
-        tomlCfg.applyDxvkConf();
+        auto cars_ini_path = "Cars\\cars.ini";
+        if (!std::filesystem::exists(cars_ini_path)) {
+            throw std::runtime_error("Could not locate cars.ini");
+        }
 
-        return tomlCfg;
+        ini::IniFile cars_ini(cars_ini_path);
+        auto car_key = std::format("Car0{}", car_id);
+        auto ini_file_path = std::filesystem::path(cars_ini[car_key]["IniFile"].as<std::string>()
+            | std::ranges::views::filter([](char c) { return c != '"'; })
+            | std::ranges::to<std::string>());
+
+        auto personal_filename = ini_file_path.filename();
+        personal_filename.replace_extension("");
+        personal_filename += "_personal";
+        personal_filename.replace_extension(".ini");
+        ini_file_path.replace_filename(personal_filename);
+
+        return ini_file_path;
+    }
+
+    static bool insert_or_update_seat_translation(uint32_t car_id, const glm::vec3& seat_translation)
+    {
+        auto ini_path = resolve_personal_car_ini_path(car_id).generic_string();
+
+        ini::IniFile personal_ini(ini_path);
+        personal_ini["openRBRVR"]["seatPosition"] = vec3_as_space_separated_string(seat_translation);
+        personal_ini.save(ini_path);
+
+        return true;
+    }
+
+    glm::vec3 load_seat_translation(uint32_t car_id)
+    {
+        const auto default_translation = glm::vec3 { 0.33, 1.0, -1.0 };
+        auto ini_path = resolve_personal_car_ini_path(car_id).generic_string();
+        if (!std::filesystem::exists(ini_path)) {
+            return default_translation;
+        }
+
+        ini::IniFile personal_ini(ini_path);
+        return vec3_from_space_separated_string(personal_ini["openRBRVR"]["seatPosition"].as<std::string>()).value_or(default_translation);
+    }
+
+    static Config from_path(const std::filesystem::path& path)
+    {
+        auto toml_cfg = from_toml(path / "openRBRVR.toml");
+        toml_cfg.apply_dxvk_conf();
+
+        return toml_cfg;
     }
 };

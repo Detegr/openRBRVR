@@ -44,11 +44,12 @@ openRBRVR::openRBRVR(IRBRGame* g)
         g::hooks::create = Hook(d3dcreate, dx::Direct3DCreate9);
         g::hooks::render = Hook(*reinterpret_cast<decltype(rbr::render)*>(rbr::get_render_function_addr()), rbr::render);
         g::hooks::render_particles = Hook(*reinterpret_cast<decltype(rbr::render_particles)*>(rbr::get_render_particles_function_addr()), rbr::render_particles);
+        g::hooks::set_camera_target = Hook(*reinterpret_cast<decltype(rbr::set_camera_target)*>(0x4663f0), rbr::set_camera_target);
     } catch (const std::runtime_error& e) {
         dbg(e.what());
         MessageBoxA(nullptr, e.what(), "Hooking failed", MB_OK);
     }
-    g::cfg = g::saved_cfg = Config::fromPath("Plugins");
+    g::cfg = g::saved_cfg = Config::from_path("Plugins");
     g::draw_overlay_border = (g::cfg.debug && g::cfg.debug_mode == 0);
 }
 

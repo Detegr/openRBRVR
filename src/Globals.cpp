@@ -20,6 +20,8 @@ namespace g {
     IDirect3DSurface9* original_render_target;
     IDirect3DSurface9* original_depth_stencil_target;
     uint8_t* btb_track_status_ptr;
+    SeatMovement seat_movement_request;
+    bool seat_position_loaded;
 
     namespace hooks {
         // DirectX functions
@@ -38,5 +40,6 @@ namespace g {
         Hook<decltype(&rbr::render)> render;
         Hook<decltype(&rbr::render_car)> render_car;
         Hook<decltype(&rbr::render_particles)> render_particles;
+        Hook<decltype(&rbr::set_camera_target)> set_camera_target;
     }
 }

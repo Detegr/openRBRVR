@@ -1,6 +1,7 @@
 ## 0.8.0
 
 - Fix desktop window and 2D content window size calculation
+- Implement seat movement via RBRControls
 
 ## 0.7.5
 

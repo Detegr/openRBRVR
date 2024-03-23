@@ -34,13 +34,15 @@ namespace rbr {
     bool is_rendering_particles();
 
     void change_camera(void* p, uint32_t cameraType);
-    M4 get_horizon_lock_matrix();
+    const M4 get_horizon_lock_matrix();
+    const M4& get_seat_translation_matrix();
 
     // Hookable functions
     void __fastcall render(void* p);
     uint32_t __stdcall load_texture(void* p, const char* texName, uint32_t a, uint32_t b, uint32_t c, uint32_t d, uint32_t e, uint32_t f, uint32_t g, uint32_t h, uint32_t i, uint32_t j, uint32_t k, IDirect3DTexture9** ppTexture);
     void __stdcall render_car(void* a, void* b);
     void __fastcall render_particles(void* This);
+    void* set_camera_target(void* a, float* cam_pos, float* cam_target);
 }
 
 namespace rbr_rx {

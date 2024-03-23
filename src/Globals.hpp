@@ -1,5 +1,6 @@
 #pragma once
 
+#include "API.hpp"
 #include "Config.hpp"
 #include "D3D.hpp"
 #include "Hook.hpp"
@@ -84,6 +85,12 @@ namespace g {
         { 0, 0, 0, 1 },
     };
 
+    // If a seat movement API call is made, the requested direction is stored here for later use
+    extern SeatMovement seat_movement_request;
+
+    // Is a saved seat position loaded from disk for the current car
+    extern bool seat_position_loaded;
+
     // Hooks to DirectX and RBR functions
     namespace hooks {
         // DirectX functions
@@ -102,5 +109,6 @@ namespace g {
         extern Hook<decltype(&rbr::render)> render;
         extern Hook<decltype(&rbr::render_car)> render_car;
         extern Hook<decltype(&rbr::render_particles)> render_particles;
+        extern Hook<decltype(&rbr::set_camera_target)> set_camera_target;
     }
 }

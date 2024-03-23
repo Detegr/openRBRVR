@@ -1,6 +1,7 @@
 #include "RBR.hpp"
 #include "Dx.hpp"
 #include "Globals.hpp"
+#include "IPlugin.h"
 #include "Util.hpp"
 #include "VR.hpp"
 
@@ -9,6 +10,7 @@
 // Compilation unit global variables
 namespace g {
     static uint32_t* camera_type_ptr;
+    static uint32_t* car_id_ptr;
     static uint32_t* stage_id_ptr;
     static M3* car_rotation_ptr;
 
@@ -16,6 +18,7 @@ namespace g {
     static rbr::GameMode previous_game_mode;
     static uint32_t current_stage_id;
     static M4 horizon_lock_matrix = glm::identity<M4>();
+    static glm::vec3 seat_translation;
     static bool is_driving;
     static bool is_rendering_3d;
     static bool is_rendering_car;
@@ -43,8 +46,8 @@ namespace rbr {
     static uintptr_t RENDER_FUNCTION_ADDR = get_address(0x47E1E0);
     static uintptr_t RENDER_PARTICLES_FUNCTION_ADDR = get_address(0x5eff60); // Other possible hooking points are at 0x5efed0, 0x5effd0 and 0x5f0040
     static uintptr_t CAR_INFO_ADDR = get_address(0x165FC68);
-    static uintptr_t* GAME_MODE_EXT_2_PTR = reinterpret_cast<uintptr_t*>(get_address(0x007EA678));
-    static uintptr_t* CAR_ROTATION_STRUCT_PTR = reinterpret_cast<uintptr_t*>(get_address(0x7ea67c));
+    static uintptr_t* GAME_MODE_EXT_2_PTR = reinterpret_cast<uintptr_t*>(get_address(0x7EA678));
+    static auto CAR_ROTATION_OFFSET = 0x16C;
 
     using ChangeCameraFn = void(__thiscall*)(void* p, int cameraType, uint32_t a);
     using PrepareCameraFn = void(__thiscall*)(void* This, uint32_t a);
@@ -97,6 +100,14 @@ namespace rbr {
         return (camera >= 3) && (camera <= 6);
     }
 
+    bool is_using_internal_camera()
+    {
+        if (!g::camera_type_ptr) {
+            return false;
+        }
+        return *g::camera_type_ptr == 5;
+    }
+
     bool is_car_texture(IDirect3DBaseTexture9* tex)
     {
         for (const auto& entry : g::car_textures) {
@@ -115,6 +126,84 @@ namespace rbr {
     bool is_rendering_particles()
     {
         return g::is_rendering_particles;
+    }
+
+    void change_camera(void* p, uint32_t camera_type)
+    {
+        const auto camera_data = *reinterpret_cast<uintptr_t*>(*reinterpret_cast<uintptr_t*>(CAR_INFO_ADDR) + 0x758);
+        const auto camera_info = reinterpret_cast<void*>(*reinterpret_cast<uintptr_t*>(camera_data + 0x10));
+        const auto camera_fov_this = *reinterpret_cast<void**>(reinterpret_cast<uintptr_t>(p) + 0xcf4);
+
+        change_camera_fn(camera_info, camera_type, 1);
+        apply_camera_position(p, 0);
+        apply_camera_fov(camera_fov_this, 0);
+    }
+
+    const M4 get_horizon_lock_matrix()
+    {
+        auto horizon_lock_game_mode = is_using_cockpit_camera() && (g::game_mode == Driving || g::game_mode == Replay);
+        if (horizon_lock_game_mode && (g::cfg.lock_to_horizon != HorizonLock::LOCK_NONE)) {
+            // If car quaternion is given, calculate matrix for locking the horizon
+            auto q = glm::quat_cast(*g::car_rotation_ptr);
+            const auto multiplier = static_cast<float>(g::cfg.horizon_lock_multiplier);
+            auto pitch = (g::cfg.lock_to_horizon & HorizonLock::LOCK_PITCH) ? glm::pitch(q) * multiplier : 0.0f;
+            auto roll = (g::cfg.lock_to_horizon & HorizonLock::LOCK_ROLL) ? glm::yaw(q) * multiplier : 0.0f; // somehow in glm the axis is yaw
+
+            // Flip the yaw if the car goes upside down (by pitch)
+            auto yaw = 0.0f;
+            if (pitch > 1.5708f) {
+                yaw = 3.14159f;
+            }
+            if (pitch < -1.5708f) {
+                yaw = 3.14159f;
+            }
+
+            glm::quat cancel_car_rotation = glm::normalize(glm::quat(glm::vec3(pitch, yaw, roll)));
+            return glm::mat4_cast(cancel_car_rotation);
+        } else {
+            return glm::identity<M4>();
+        }
+    }
+
+    static void force_camera_change(void* p)
+    {
+        auto cam = *g::camera_type_ptr;
+        *g::camera_type_ptr = 0x0ddba11;
+        change_camera(p, cam);
+    }
+
+    static bool update_seat_translation(SeatMovement movement)
+    {
+        constexpr auto amount = 0.001f;
+
+        switch (movement) {
+            case SeatMovement::MOVE_SEAT_STOP: break;
+            case SeatMovement::MOVE_SEAT_FORWARD: {
+                g::seat_translation.z -= amount;
+                return true;
+            }
+            case SeatMovement::MOVE_SEAT_RIGHT: {
+                g::seat_translation.x -= amount;
+                return true;
+            }
+            case SeatMovement::MOVE_SEAT_BACKWARD: {
+                g::seat_translation.z += amount;
+                return true;
+            }
+            case SeatMovement::MOVE_SEAT_LEFT: {
+                g::seat_translation.x += amount;
+                return true;
+            }
+            case SeatMovement::MOVE_SEAT_UP: {
+                g::seat_translation.y += amount;
+                return true;
+            }
+            case SeatMovement::MOVE_SEAT_DOWN: {
+                g::seat_translation.y -= amount;
+                return true;
+            }
+        }
+        return false;
     }
 
     static bool init_or_update_game_data(uintptr_t ptr)
@@ -147,11 +236,8 @@ namespace rbr {
             || (g::cfg.render_prestage_3d && g::game_mode == GameMode::PreStage)
             || (g::cfg.render_replays_3d && g::game_mode == GameMode::Replay);
 
-        auto horizon_lock_game_mode = is_using_cockpit_camera() && (g::game_mode == Driving || g::game_mode == Replay);
-        if (horizon_lock_game_mode && (g::cfg.lock_to_horizon != HorizonLock::LOCK_NONE) && !g::car_rotation_ptr) {
-            g::car_rotation_ptr = reinterpret_cast<M3*>((*rbr::CAR_ROTATION_STRUCT_PTR + 0x16C));
-        } else if (g::car_rotation_ptr && !horizon_lock_game_mode) {
-            g::car_rotation_ptr = nullptr;
+        if (!g::car_rotation_ptr) [[unlikely]] {
+            g::car_rotation_ptr = reinterpret_cast<M3*>((ptr + CAR_ROTATION_OFFSET));
         }
 
         if (g::game_mode == GameMode::MainMenu && !g::car_textures.empty()) [[unlikely]] {
@@ -168,8 +254,10 @@ namespace rbr {
         }
 
         if (!g::stage_id_ptr) [[unlikely]] {
-            g::stage_id_ptr = reinterpret_cast<uint32_t*>(*reinterpret_cast<uintptr_t*>(*GAME_MODE_EXT_2_PTR + 0x70) + 0x20);
-        } else if (g::current_stage_id != *g::stage_id_ptr) {
+            auto game_mode_ext_2 = *reinterpret_cast<uintptr_t*>(*GAME_MODE_EXT_2_PTR + 0x70);
+            g::car_id_ptr = reinterpret_cast<uint32_t*>(game_mode_ext_2 + 0x1C);
+            g::stage_id_ptr = reinterpret_cast<uint32_t*>(game_mode_ext_2 + 0x20);
+        } else if (g::vr && g::current_stage_id != *g::stage_id_ptr) {
             // Stage has changed
             g::current_stage_id = *g::stage_id_ptr;
 
@@ -186,46 +274,52 @@ namespace rbr {
             if (!found) {
                 g::vr->set_render_context("default");
             }
+
+            g::seat_position_loaded = false;
+        }
+
+        if (g::game_mode == GameMode::Driving) [[likely]] {
+            if (is_using_internal_camera()) {
+                if (!g::seat_position_loaded) {
+                    // Load saved seat translation matrix for the current car
+                    g::seat_translation = g::cfg.load_seat_translation(*g::car_id_ptr);
+                    force_camera_change(reinterpret_cast<void*>(ptr));
+                    g::seat_position_loaded = true;
+                }
+
+                static int seat_still_frames = 0;
+                static bool seat_saved = true;
+
+                if (update_seat_translation(g::seat_movement_request)) {
+                    seat_saved = false;
+                    seat_still_frames = 0;
+                    force_camera_change(reinterpret_cast<void*>(ptr));
+                } else {
+                    seat_still_frames++;
+                }
+
+                if (!seat_saved && seat_still_frames > 250) {
+                    g::cfg.insert_or_update_seat_translation(*g::car_id_ptr, g::seat_translation);
+                    g::game->WriteGameMessage("openRBRVR seat position saved.", 2.0, 100.0, 100.0);
+                    seat_saved = true;
+                }
+            } else if (g::seat_movement_request) {
+                g::game->WriteGameMessage("openRBRVR seat position adjustment is implemented for internal camera only.", 2.0, 100.0, 100.0);
+            }
         }
 
         return *reinterpret_cast<uint32_t*>(ptr + 0x720) == 0;
     }
 
-    void change_camera(void* p, uint32_t cameraType)
+    void* set_camera_target(void* a, float* cam_pos, float* cam_target)
     {
-        const auto camera_data = *reinterpret_cast<uintptr_t*>(*reinterpret_cast<uintptr_t*>(CAR_INFO_ADDR) + 0x758);
-        const auto camera_info = reinterpret_cast<void*>(*reinterpret_cast<uintptr_t*>(camera_data + 0x10));
-        const auto camera_fov_this = *reinterpret_cast<void**>(reinterpret_cast<uintptr_t>(p) + 0xcf4);
-
-        change_camera_fn(camera_info, cameraType, 1);
-        apply_camera_position(p, 0);
-        apply_camera_fov(camera_fov_this, 0);
-    }
-
-    M4 get_horizon_lock_matrix()
-    {
-        if (g::car_rotation_ptr) {
-            // If car quaternion is given, calculate matrix for locking the horizon
-            M3 car_rotation;
-            auto q = glm::quat_cast(car_rotation);
-            const auto multiplier = static_cast<float>(g::cfg.horizon_lock_multiplier);
-            auto pitch = (g::cfg.lock_to_horizon & HorizonLock::LOCK_PITCH) ? glm::pitch(q) * multiplier : 0.0f;
-            auto roll = (g::cfg.lock_to_horizon & HorizonLock::LOCK_ROLL) ? glm::yaw(q) * multiplier : 0.0f; // somehow in glm the axis is yaw
-
-            // Flip the yaw if the car goes upside down (by pitch)
-            auto yaw = 0.0f;
-            if (pitch > 1.5708f) {
-                yaw = 3.14159f;
-            }
-            if (pitch < -1.5708f) {
-                yaw = 3.14159f;
-            }
-
-            glm::quat cancel_car_rotation = glm::normalize(glm::quat(glm::vec3(pitch, yaw, roll)));
-            return glm::mat4_cast(cancel_car_rotation);
-        } else {
-            return glm::identity<M4>();
+        if (*g::camera_type_ptr == 0x0ddba11) {
+            memcpy(cam_pos, glm::value_ptr(g::seat_translation), 3 * sizeof(float));
+            // Align the position and target values to point the camera directly forward
+            memcpy(cam_target, cam_pos, 3 * sizeof(float));
+            cam_target[2] -= 0.001f; // Z needs to be adjusted to keep the camera pointing forward instead of backward
         }
+        return g::hooks::set_camera_target.call(a, cam_pos, cam_target);
     }
 
     // RBR 3D scene draw function is rerouted here
