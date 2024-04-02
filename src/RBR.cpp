@@ -48,6 +48,7 @@ namespace rbr {
     static uintptr_t CAR_INFO_ADDR = get_address(0x165FC68);
     static uintptr_t* GAME_MODE_EXT_2_PTR = reinterpret_cast<uintptr_t*>(get_address(0x7EA678));
     static auto CAR_ROTATION_OFFSET = 0x16C;
+    constexpr auto SEAT_MOVE_MAGIC = 0x0DDB411;
 
     using ChangeCameraFn = void(__thiscall*)(void* p, int cameraType, uint32_t a);
     using PrepareCameraFn = void(__thiscall*)(void* This, uint32_t a);
@@ -165,10 +166,10 @@ namespace rbr {
         }
     }
 
-    static void force_camera_change(void* p)
+    static void force_camera_change(void* p, uint32_t magic)
     {
         auto cam = *g::camera_type_ptr;
-        *g::camera_type_ptr = 0x0ddba11;
+        *g::camera_type_ptr = magic;
         change_camera(p, cam);
     }
 
@@ -282,8 +283,12 @@ namespace rbr {
             if (is_using_internal_camera()) {
                 if (!g::seat_position_loaded) {
                     // Load saved seat translation matrix for the current car
-                    g::seat_translation = g::cfg.load_seat_translation(*g::car_id_ptr);
-                    force_camera_change(reinterpret_cast<void*>(ptr));
+                    auto [translation, is_openrbrvr_translation] = g::cfg.load_seat_translation(*g::car_id_ptr);
+                    g::seat_translation = translation;
+
+                    if (is_openrbrvr_translation) {
+                        force_camera_change(reinterpret_cast<void*>(ptr), SEAT_MOVE_MAGIC);
+                    }
                     g::seat_position_loaded = true;
                 }
 
@@ -293,7 +298,7 @@ namespace rbr {
                 if (update_seat_translation(g::seat_movement_request)) {
                     seat_saved = false;
                     seat_still_frames = 0;
-                    force_camera_change(reinterpret_cast<void*>(ptr));
+                    force_camera_change(reinterpret_cast<void*>(ptr), SEAT_MOVE_MAGIC);
                 } else {
                     seat_still_frames++;
                 }
@@ -313,11 +318,11 @@ namespace rbr {
 
     void* set_camera_target(void* a, float* cam_pos, float* cam_target)
     {
-        if (*g::camera_type_ptr == 0x0ddba11) {
+        if (*g::camera_type_ptr == SEAT_MOVE_MAGIC) {
             memcpy(cam_pos, glm::value_ptr(g::seat_translation), 3 * sizeof(float));
             // Align the position and target values to point the camera directly forward
             memcpy(cam_target, cam_pos, 3 * sizeof(float));
-            cam_target[2] -= 0.001f; // Z needs to be adjusted to keep the camera pointing forward instead of backward
+            cam_target[2] -= 100.f; // Adjust Z target far forward
         }
         return g::hooks::set_camera_target.call(a, cam_pos, cam_target);
     }

@@ -316,49 +316,90 @@ struct Config {
         }
     }
 
-    static std::filesystem::path resolve_personal_car_ini_path(uint32_t car_id)
+    static std::optional<std::string> to_string(const std::filesystem::path& p)
+    {
+        return p.generic_string();
+    }
+
+    static std::optional<std::filesystem::path> resolve_car_ini_path(uint32_t car_id)
     {
         auto cars_ini_path = "Cars\\cars.ini";
         if (!std::filesystem::exists(cars_ini_path)) {
-            throw std::runtime_error("Could not locate cars.ini");
+            return std::nullopt;
         }
 
         ini::IniFile cars_ini(cars_ini_path);
         auto car_key = std::format("Car0{}", car_id);
-        auto ini_file_path = std::filesystem::path(cars_ini[car_key]["IniFile"].as<std::string>()
+        return std::filesystem::path(cars_ini[car_key]["IniFile"].as<std::string>()
             | std::ranges::views::filter([](char c) { return c != '"'; })
             | std::ranges::to<std::string>());
+    }
 
-        auto personal_filename = ini_file_path.filename();
+    static std::optional<std::filesystem::path> resolve_personal_car_ini_path(uint32_t car_id)
+    {
+        auto ini_file_path = resolve_car_ini_path(car_id);
+        if (!ini_file_path) {
+            return std::nullopt;
+        }
+
+        auto personal_filename = ini_file_path.value().filename();
         personal_filename.replace_extension("");
         personal_filename += "_personal";
         personal_filename.replace_extension(".ini");
-        ini_file_path.replace_filename(personal_filename);
+        ini_file_path.value().replace_filename(personal_filename);
 
         return ini_file_path;
     }
 
     static bool insert_or_update_seat_translation(uint32_t car_id, const glm::vec3& seat_translation)
     {
-        auto ini_path = resolve_personal_car_ini_path(car_id).generic_string();
+        auto ini_path = resolve_personal_car_ini_path(car_id).and_then(to_string);
+        if (!ini_path) {
+            return false;
+        }
 
-        ini::IniFile personal_ini(ini_path);
+        ini::IniFile personal_ini(ini_path.value());
         personal_ini["openRBRVR"]["seatPosition"] = vec3_as_space_separated_string(seat_translation);
-        personal_ini.save(ini_path);
+        personal_ini.save(ini_path.value());
 
         return true;
     }
 
-    glm::vec3 load_seat_translation(uint32_t car_id)
+    std::tuple<glm::vec3, bool> load_seat_translation(uint32_t car_id)
     {
-        const auto default_translation = glm::vec3 { 0.33, 1.0, -1.0 };
-        auto ini_path = resolve_personal_car_ini_path(car_id).generic_string();
-        if (!std::filesystem::exists(ini_path)) {
+        const auto default_translation = std::make_tuple(glm::vec3 { 0.33, 1.0, -1.0 }, true);
+        auto ini_path = resolve_personal_car_ini_path(car_id).and_then(to_string);
+        if (!ini_path) {
             return default_translation;
         }
 
-        ini::IniFile personal_ini(ini_path);
-        return vec3_from_space_separated_string(personal_ini["openRBRVR"]["seatPosition"].as<std::string>()).value_or(default_translation);
+        bool is_openrbrvr_translation = false;
+        std::optional<glm::vec3> seat_translation = std::nullopt;
+
+        if (std::filesystem::exists(ini_path.value())) {
+            ini::IniFile personal_ini(ini_path.value());
+
+            seat_translation = vec3_from_space_separated_string(personal_ini["openRBRVR"]["seatPosition"].as<std::string>());
+
+            if (!seat_translation) {
+                seat_translation = vec3_from_space_separated_string(personal_ini["Cam_internal"]["Pos"].as<std::string>());
+            } else {
+                is_openrbrvr_translation = true;
+            }
+        }
+
+        if (!seat_translation) {
+            ini_path = resolve_car_ini_path(car_id).and_then(to_string);
+            if (!ini_path) {
+                return default_translation;
+            }
+            ini::IniFile ini(ini_path.value());
+            seat_translation = vec3_from_space_separated_string(ini["Cam_internal"]["Pos"].as<std::string>());
+        }
+
+        return seat_translation
+            .and_then([&](const glm::vec3& t) { return std::optional(std::make_tuple(t, is_openrbrvr_translation)); })
+            .value_or(default_translation);
     }
 
     static Config from_path(const std::filesystem::path& path)
