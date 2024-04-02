@@ -54,13 +54,16 @@ edit `openRBRVR.toml` to contain `runtime = 'openxr'`. For Reverb headsets, sele
 
 ## My FPS is worse than what it is in RBRVR
 
-- Disable cubic env maps
 - Make sure anti-aliasing is not too high. Generally 4x SRS is the highest you
   can go and most systems can't go over 2x SRS.
 - If not needed, make sure you're not running the co-driver mode (also known as
   the bonnet camera desktop window mode). The setting can be found from
   `Options -> Plugins -> openRBRVR -> Desktop window settings -> Desktop window
   mode`. Use `VR view` or `Off` for better performance.
+- If using RBRHUD, there are some cars that use two RBRHUD config files. Those
+  tend to run pretty poorly in VR. Renaming or deleting `config2.ini` from
+  `Plugins/RBRHUD/Gauges/carname` can increase performance by 30% while
+  removing very little immersion from the RBRHUD gauges.
 
 ## How do I reset the VR view?
 

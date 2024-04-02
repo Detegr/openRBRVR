@@ -47,8 +47,6 @@ Values between 2.3-2.6 work fine for my wide FoV headset.
 
 - The seat position cannot be changed via keyboard. PaceNote plugin can and
   should be used instead. The UI works as expected.
-- BTB stages can have a really poor performance if cubic env maps are enabled.
-  I suggest disabling them for openRBRVR.
 
 ## Build instructions (for developers only)
 
