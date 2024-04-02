@@ -48,8 +48,6 @@ myši pro zobrazení menu). U mého headsetu dobře fungují hodnoty 2.3 až 2.6
 
 - Polohu sedadla nelze změnit pomocí klávesnice, ale musíte použít PaceNote
   plugin dvojklikem pravým tlačítkem myši v okně hry
-- BTB tratě mohou mít velký dopad na výkon pokud je zapnuto `cubic env maps`.
-  Doporučuju tuto možnost v launcheru vypnout pro openRBRVR.
 
 ## Pokyny pro sestavení
 

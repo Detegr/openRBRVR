@@ -51,13 +51,15 @@ Pokud máte Reverb headset, vyberte `OpenXR (Reverb compatibility mode)` ve hře
 
 ## Moje FPS jsou horší než v RBRVR pluginu
 
-- Vypněte (Disable) `Cubic env maps` v RFS launcheru
 - Ujistěte se, že nemáte nastavenou hodnotu anti-aliasingu moc vysoko. Obvykle je hodnota 4x SRS nejvyšší
   jakou dokáže počítač zvládnout (hodně záleží na PC sestavě a použitém VR). U většiny systémů
   použijte hodnotu 2x SRS, případně anti-aliasing úplně vypněte.
 - Pokud nepotřebujete co-driver mod (bonnet camera desktop window mode), tak se podívejte do
   `Options (Nastavení) -> Plugins -> openRBRVR -> Desktop window settings -> Desktop window mode` 
   a použijte `VR view` nebo `Off` pro dosažení více fps.
+- Pokud používáte RBRHUD, tak můžete narazit na auta, která používají dva RBRHUD konfigurační soubory.
+  Díky tomu může být výkon ve VR až o 30% horší než bez RBRHUDu. Proto přejmenujte nebo smažte soubor `config2.ini`
+  z `Plugins/RBRHUD/Gauges/carname`.  
 
 ## Jak resetovat (vycentrovat) obraz ve VR?
 
