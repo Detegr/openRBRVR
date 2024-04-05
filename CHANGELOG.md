@@ -3,6 +3,10 @@
 - Fix desktop window and 2D content window size calculation
 - Implement seat movement via RBRControls
 - Add explanation and troubleshooting tips for OpenXR error -32
+- Smooth out the camera movement for the feature that rotates the yaw of the
+  horizon locked camera 180 degrees if the car is upside down.
+- Disable the aforementioned feature by default.
+- Make the aforementioned feature toggleable on/off.
 
 ## 0.7.5
 

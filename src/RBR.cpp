@@ -140,7 +140,12 @@ namespace rbr {
         apply_camera_fov(camera_fov_this, 0);
     }
 
-    const M4 get_horizon_lock_matrix()
+    const M4& get_horizon_lock_matrix()
+    {
+        return g::horizon_lock_matrix;
+    }
+
+    void update_horizon_lock_matrix()
     {
         auto horizon_lock_game_mode = is_using_cockpit_camera() && (g::game_mode == Driving || g::game_mode == Replay);
         if (horizon_lock_game_mode && (g::cfg.lock_to_horizon != HorizonLock::LOCK_NONE)) {
@@ -150,19 +155,32 @@ namespace rbr {
             auto pitch = (g::cfg.lock_to_horizon & HorizonLock::LOCK_PITCH) ? glm::pitch(q) * multiplier : 0.0f;
             auto roll = (g::cfg.lock_to_horizon & HorizonLock::LOCK_ROLL) ? glm::yaw(q) * multiplier : 0.0f; // somehow in glm the axis is yaw
 
-            // Flip the yaw if the car goes upside down (by pitch)
             auto yaw = 0.0f;
-            if (pitch > 1.5708f) {
-                yaw = 3.14159f;
-            }
-            if (pitch < -1.5708f) {
-                yaw = 3.14159f;
+            if (g::cfg.horizon_lock_flip) {
+                constexpr auto flip_speed = 0.02f;
+                static float yaw_flip_progress = 0.0f;
+                static int frames_upside_down = 0;
+
+                // TODO: This still works awfully bad in some situations. A better solution is needed.
+                // Flip the yaw if the car goes upside down (by pitch)
+                // To prevent jerky movement, make sure the car has been upside down for a while before adjusting the view
+                // Also smooth out the rotation of the camera with linear interpolation
+                if (pitch > glm::radians(90.0f) || pitch < glm::radians(-90.0f)) {
+                    frames_upside_down += 1;
+                    if (frames_upside_down > 50) {
+                        yaw_flip_progress = std::min(yaw_flip_progress + flip_speed, 1.0f);
+                    }
+                } else {
+                    yaw_flip_progress = std::max(yaw_flip_progress - flip_speed, 0.0f);
+                    frames_upside_down = 0;
+                }
+                yaw = std::lerp(0.0, glm::radians(180.0f), yaw_flip_progress);
             }
 
             glm::quat cancel_car_rotation = glm::normalize(glm::quat(glm::vec3(pitch, yaw, roll)));
-            return glm::mat4_cast(cancel_car_rotation);
+            g::horizon_lock_matrix = glm::mat4_cast(cancel_car_rotation);
         } else {
-            return glm::identity<M4>();
+            g::horizon_lock_matrix = glm::identity<M4>();
         }
     }
 
@@ -239,6 +257,8 @@ namespace rbr {
 
         if (!g::car_rotation_ptr) [[unlikely]] {
             g::car_rotation_ptr = reinterpret_cast<M3*>((ptr + CAR_ROTATION_OFFSET));
+        } else {
+            update_horizon_lock_matrix();
         }
 
         if (g::game_mode == GameMode::MainMenu && !g::car_textures.empty()) [[unlikely]] {

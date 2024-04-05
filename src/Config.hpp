@@ -81,6 +81,7 @@ struct Config {
     float supersampling = 1.0;
     HorizonLock lock_to_horizon = HorizonLock::LOCK_NONE;
     double horizon_lock_multiplier = 1.0;
+    bool horizon_lock_flip = false;
     CompanionMode companion_mode;
     bool draw_loading_screen = true;
     bool debug = false;
@@ -107,6 +108,7 @@ struct Config {
         supersampling = rhs.supersampling;
         lock_to_horizon = rhs.lock_to_horizon;
         horizon_lock_multiplier = rhs.horizon_lock_multiplier;
+        horizon_lock_flip = rhs.horizon_lock_flip;
         companion_mode = rhs.companion_mode;
         draw_loading_screen = rhs.draw_loading_screen;
         debug = rhs.debug;
@@ -136,6 +138,7 @@ struct Config {
             && supersampling == rhs.supersampling
             && lock_to_horizon == rhs.lock_to_horizon
             && horizon_lock_multiplier == rhs.horizon_lock_multiplier
+            && horizon_lock_flip == rhs.horizon_lock_flip
             && companion_mode == rhs.companion_mode
             && draw_loading_screen == rhs.draw_loading_screen
             && debug == rhs.debug
@@ -168,6 +171,7 @@ struct Config {
             { "overlayTranslateZ", round(overlay_translation.z) },
             { "lockToHorizon", static_cast<int>(lock_to_horizon) },
             { "horizonLockMultiplier", round(horizon_lock_multiplier) },
+            { "horizonLockFlip", horizon_lock_flip },
             { "desktopWindowMode", companion_mode_str(companion_mode) },
             { "drawLoadingScreen", draw_loading_screen },
             { "debug", debug },
@@ -240,6 +244,7 @@ struct Config {
         cfg.overlay_translation.z = parsed["overlayTranslateZ"].value_or(0.0f);
         cfg.lock_to_horizon = static_cast<HorizonLock>(parsed["lockToHorizon"].value_or(0));
         cfg.horizon_lock_multiplier = parsed["horizonLockMultiplier"].value_or(1.0);
+        cfg.horizon_lock_flip = parsed["horizonLockFlip"].value_or(false);
         cfg.companion_mode = companion_mode_from_str(parsed["desktopWindowMode"].value_or("vreye"));
         cfg.draw_loading_screen = parsed["drawLoadingScreen"].value_or(true);
         cfg.debug = parsed["debug"].value_or(false);

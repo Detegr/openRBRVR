@@ -251,6 +251,13 @@ static class Menu horizon_lock_menu = { "openRBRVR horizon lock settings", {
     .left_action = [] { g::cfg.horizon_lock_multiplier = std::max<double>(0.05, (g::cfg.horizon_lock_multiplier * 100.0 - 5) / 100.0); },
     .right_action = [] { g::cfg.horizon_lock_multiplier = std::min<double>(1.0, (g::cfg.horizon_lock_multiplier * 100.0 + 5) / 100.0); },
   },
+  { .text = [] { return std::format("Flip camera when the car tilts: {}", g::cfg.horizon_lock_flip ? "ON" : "OFF"); },
+    .long_text = {
+        "Flip the camera 180 degrees if the car tilts over 90 degrees forwards or backwards.", "As the camera stays still, without this you may be looking through the back window", "if the car flips around.", "This may cause strange camera movements that may not feel good in VR, which", "is why it is disabled by default."
+    },
+    .left_action = [] { Toggle(g::cfg.horizon_lock_flip); },
+    .right_action = [] { Toggle(g::cfg.horizon_lock_flip); },
+  },
   { .text = id("Back to previous menu"),
     .select_action = [] { select_menu(0); }
   },
