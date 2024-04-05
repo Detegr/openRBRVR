@@ -44,8 +44,8 @@ set(HEADERS
 set(openRBRVR_Major 0)
 set(openRBRVR_Minor 8)
 set(openRBRVR_Patch 0)
-set(openRBRVR_Tweak 2)
-set(openRBRVR_TweakStr "-rc${openRBRVR_Tweak}")
+set(openRBRVR_Tweak 0)
+# set(openRBRVR_TweakStr "-rc${openRBRVR_Tweak}")
 
 configure_file(
   ${CMAKE_CURRENT_SOURCE_DIR}/src/version.rc.in

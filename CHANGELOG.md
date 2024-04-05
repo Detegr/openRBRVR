@@ -2,6 +2,7 @@
 
 - Fix desktop window and 2D content window size calculation
 - Implement seat movement via RBRControls
+- Add explanation and troubleshooting tips for OpenXR error -32
 
 ## 0.7.5
 
