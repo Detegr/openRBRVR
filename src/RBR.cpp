@@ -174,7 +174,7 @@ namespace rbr {
                     yaw_flip_progress = std::max(yaw_flip_progress - flip_speed, 0.0f);
                     frames_upside_down = 0;
                 }
-                yaw = std::lerp(0.0, glm::radians(180.0f), yaw_flip_progress);
+                yaw = std::lerp(0.0f, glm::radians(180.0f), yaw_flip_progress);
             }
 
             glm::quat cancel_car_rotation = glm::normalize(glm::quat(glm::vec3(pitch, yaw, roll)));
