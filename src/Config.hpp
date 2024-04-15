@@ -74,6 +74,12 @@ static std::optional<glm::vec3> vec3_from_space_separated_string(const std::stri
     return ret;
 }
 
+struct RenderContextConfig {
+    float supersampling = 1.0;
+    std::optional<D3DMULTISAMPLE_TYPE> msaa = std::nullopt;
+    std::vector<int> stage_ids = {};
+};
+
 struct Config {
     float menu_size = 1.0;
     float overlay_size = 1.0;
@@ -90,11 +96,10 @@ struct Config {
     bool render_pausemenu_3d = true;
     bool render_prestage_3d = false;
     bool render_replays_3d = false;
-    D3DMULTISAMPLE_TYPE msaa = D3DMULTISAMPLE_NONE;
     int anisotropy = 0;
     bool wmr_workaround = false;
     VRRuntime runtime = VRRuntime::OPENVR;
-    std::unordered_map<std::string, std::tuple<float, std::vector<int>>> gfx = { { "default", std::make_tuple(1.0f, std::vector<int> {}) } };
+    std::unordered_map<std::string, RenderContextConfig> gfx = { { "default", RenderContextConfig {} } };
     glm::ivec2 companion_offset;
     int companion_size = 100;
     RenderTarget companion_eye = LeftEye;
@@ -118,7 +123,6 @@ struct Config {
         render_replays_3d = rhs.render_replays_3d;
         wmr_workaround = rhs.wmr_workaround;
         runtime = rhs.runtime;
-        msaa = rhs.msaa;
         anisotropy = rhs.anisotropy;
         gfx = rhs.gfx;
         companion_offset = rhs.companion_offset;
@@ -192,13 +196,15 @@ struct Config {
             toml::table t;
             toml::array a;
 
-            double superSampling = std::get<0>(v.second);
-            const std::vector<int>& stages = std::get<1>(v.second);
-            for (const auto& stage : stages) {
+            const auto& ctx = v.second;
+            for (const auto& stage : ctx.stage_ids) {
                 a.push_back(stage);
             }
 
-            t.insert("superSampling", round(superSampling));
+            t.insert("superSampling", round(ctx.supersampling));
+            if (ctx.msaa) {
+                t.insert("antiAliasing", static_cast<int>(ctx.msaa.value()));
+            }
             if (std::string(v.first) != "default") {
                 t.insert("stages", a);
             }
@@ -273,7 +279,12 @@ struct Config {
             toml::table* gfx = gfxnode.as_table();
             gfx->for_each([&cfg](const toml::key& key, toml::table& val) {
                 auto k = std::string(key.data());
-                const auto ss = val["superSampling"].value_or(1.0f);
+                auto ss = val["superSampling"].value_or(1.0f);
+                auto msaa_int = val["antiAliasing"];
+                std::optional<D3DMULTISAMPLE_TYPE> msaa;
+                if (msaa_int) {
+                    msaa = static_cast<D3DMULTISAMPLE_TYPE>(msaa_int.value_or(0));
+                }
                 const auto stagesNode = val["stages"];
                 std::vector<int> stages;
                 if (stagesNode.is_array()) {
@@ -281,7 +292,7 @@ struct Config {
                         stages.push_back(static_cast<int>(*v));
                     });
                 }
-                cfg.gfx[k] = std::make_tuple(ss, stages);
+                cfg.gfx[k] = RenderContextConfig { ss, msaa, stages };
             });
         }
 
@@ -306,7 +317,7 @@ struct Config {
                     std::string key, value;
                     std::getline(ss, key, '=');
                     std::getline(ss, value);
-                    msaa = std::max<D3DMULTISAMPLE_TYPE>(D3DMULTISAMPLE_NONE, static_cast<D3DMULTISAMPLE_TYPE>(int_or_default(value, 0)));
+                    gfx["default"].msaa = std::max<D3DMULTISAMPLE_TYPE>(D3DMULTISAMPLE_NONE, static_cast<D3DMULTISAMPLE_TYPE>(int_or_default(value, 0)));
                 }
                 if (s.starts_with("d3d9.samplerAnisotropy")) {
                     std::stringstream ss { s };
@@ -317,7 +328,7 @@ struct Config {
                 }
             }
         } else {
-            msaa = D3DMULTISAMPLE_NONE;
+            gfx["default"].msaa = D3DMULTISAMPLE_NONE;
         }
     }
 

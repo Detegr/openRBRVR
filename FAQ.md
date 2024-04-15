@@ -105,3 +105,7 @@ changed by modifying `dxvk.conf` by hand:
 - This can happen without Anti-Aliasing and/or anisotropic filtering. Increase
   anisotropic filtering and try increasing Anti-Aliasing if your system can
   handle it.
+
+## How do I use per-stage anti-aliasing?
+
+- Per-stage anti-aliasing is best used in a way that the base anti-aliasing is set to 2x SRS or 4x SRS in the RSF launcher, and the `[gfx]` sections reduce the default multisampling for example disabling for BTB stages it by setting it 0. See openRBRVR.toml.sample for example.

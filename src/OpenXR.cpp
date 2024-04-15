@@ -120,7 +120,7 @@ OpenXR::OpenXR()
     }
 }
 
-void OpenXR::init(IDirect3DDevice9* dev, const Config& cfg, IDirect3DVR9** vrdev, uint32_t companion_window_width, uint32_t companion_window_height)
+void OpenXR::init(IDirect3DDevice9* dev, IDirect3DVR9** vrdev, uint32_t companion_window_width, uint32_t companion_window_height)
 {
     if (dev->CreateQuery(D3DQUERYTYPE_TIMESTAMP, &gpu_start_query) != D3D_OK) {
         throw std::runtime_error("VR initialization failed: CreateQuery");
@@ -224,11 +224,12 @@ void OpenXR::init(IDirect3DDevice9* dev, const Config& cfg, IDirect3DVR9** vrdev
         swapchain_format = swapchain_formats.front();
     }
 
-    for (const auto& gfx : cfg.gfx) {
-        auto supersampling = std::get<0>(gfx.second);
+    for (const auto& gfx : g::cfg.gfx) {
+        auto supersampling = gfx.second.supersampling;
 
         OpenXRRenderContext* xr_ctx = new OpenXRRenderContext {};
         RenderContext ctx = {
+            .msaa = gfx.second.msaa.value_or(g::cfg.gfx["default"].msaa.value()),
             .ext = xr_ctx
         };
 

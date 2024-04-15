@@ -55,7 +55,7 @@ public:
     OpenXR& operator=(const OpenXR&) = delete;
     OpenXR& operator=(const OpenXR&&) = delete;
 
-    void init(IDirect3DDevice9* dev, const Config& cfg, IDirect3DVR9** vrdev, uint32_t companionWindowWidth, uint32_t companionWindowHeight);
+    void init(IDirect3DDevice9* dev, IDirect3DVR9** vrdev, uint32_t companionWindowWidth, uint32_t companionWindowHeight);
     virtual ~OpenXR()
     {
         shutdown_vr();

@@ -285,7 +285,7 @@ namespace rbr {
             // Use per-stage render context
             bool found = false;
             for (const auto& v : g::cfg.gfx) {
-                const std::vector<int>& stages = std::get<1>(v.second);
+                const std::vector<int>& stages = v.second.stage_ids;
                 if (std::find(stages.cbegin(), stages.cend(), g::current_stage_id) != stages.cend()) {
                     g::vr->set_render_context(v.first);
                     found = true;

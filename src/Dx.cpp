@@ -120,7 +120,7 @@ namespace dx {
             const auto& [lw, lh] = g::vr->get_render_resolution(LeftEye);
             const auto& [rw, rh] = g::vr->get_render_resolution(RightEye);
             g::game->WriteText(0, 18 * ++i, std::format("Render resolution: {}x{} (left), {}x{} (right)", lw, lh, rw, rh).c_str());
-            g::game->WriteText(0, 18 * ++i, std::format("Anti-aliasing: {}x", static_cast<int>(g::cfg.msaa)).c_str());
+            g::game->WriteText(0, 18 * ++i, std::format("Anti-aliasing: {}x", static_cast<int>(g::vr->get_current_render_context()->msaa)).c_str());
             g::game->WriteText(0, 18 * ++i, std::format("Anisotropic filtering: {}x", g::cfg.anisotropy).c_str());
             g::game->WriteText(0, 18 * ++i, std::format("Current stage ID: {}", rbr::get_current_stage_id()).c_str());
         } else {
@@ -394,15 +394,7 @@ namespace dx {
         IDirect3DDevice9** ppReturnedDeviceInterface)
     {
         IDirect3DDevice9* dev = nullptr;
-        if (g::cfg.msaa != D3DMULTISAMPLE_NONE) {
-            DWORD q = 0;
-            if (This->CheckDeviceMultiSampleType(Adapter, DeviceType, D3DFMT_X8R8G8B8, true, g::cfg.msaa, &q) != D3D_OK) {
-                dbg("Selected MSAA mode not supported");
-                g::cfg.msaa = D3DMULTISAMPLE_NONE;
-            }
-            pPresentationParameters->MultiSampleType = g::cfg.msaa;
-            pPresentationParameters->MultiSampleQuality = q > 0 ? q - 1 : 0;
-        }
+
         pPresentationParameters->PresentationInterval = D3DPRESENT_INTERVAL_IMMEDIATE;
 
         auto ret = g::hooks::create_device.call(This, Adapter, DeviceType, hFocusWindow, BehaviorFlags, pPresentationParameters, &dev);
@@ -419,7 +411,7 @@ namespace dx {
         }
 
         *ppReturnedDeviceInterface = dev;
-        if (g::cfg.msaa != D3DMULTISAMPLE_NONE) {
+        if (g::cfg.gfx["default"].msaa != D3DMULTISAMPLE_NONE) {
             dev->SetRenderState(D3DRS_MULTISAMPLEANTIALIAS, 1);
         }
 
@@ -448,9 +440,9 @@ namespace dx {
                 const auto companion_window_height = pPresentationParameters->BackBufferHeight;
 
                 if (g::vr->get_runtime_type() == OPENXR) {
-                    reinterpret_cast<OpenXR*>(g::vr)->init(dev, g::cfg, &g::d3d_vr, companion_window_width, companion_window_height);
+                    reinterpret_cast<OpenXR*>(g::vr)->init(dev, &g::d3d_vr, companion_window_width, companion_window_height);
                 } else {
-                    reinterpret_cast<OpenVR*>(g::vr)->init(dev, g::cfg, &g::d3d_vr, companion_window_width, companion_window_height);
+                    reinterpret_cast<OpenVR*>(g::vr)->init(dev, &g::d3d_vr, companion_window_width, companion_window_height);
                 }
             }
         } catch (const std::runtime_error& e) {

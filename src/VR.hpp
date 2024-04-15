@@ -1,5 +1,6 @@
 #pragma once
 
+// #include "Globals.hpp"
 #include "RenderTarget.hpp"
 #include "Util.hpp"
 
@@ -91,6 +92,8 @@ struct RenderContext {
     IDirect3DSurface9* dx_depth_stencil_surface[4];
     IDirect3DTexture9* overlay_border;
 
+    D3DMULTISAMPLE_TYPE msaa;
+
     void* ext;
 };
 
@@ -148,10 +151,7 @@ public:
 
     virtual void reset_view() = 0;
     virtual VRRuntime get_runtime_type() const = 0;
-    virtual void set_render_context(const std::string& name)
-    {
-        current_render_context = &render_contexts[name];
-    }
+    virtual void set_render_context(const std::string& name);
 };
 
 bool create_quad(IDirect3DDevice9* dev, float size, float aspect, IDirect3DVertexBuffer9** dst);

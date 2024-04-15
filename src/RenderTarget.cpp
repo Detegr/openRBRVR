@@ -1,19 +1,20 @@
 #include "RenderTarget.hpp"
 #include "Globals.hpp"
 
-constexpr static bool is_aa_enabled_for_render_target(RenderTarget t)
+constexpr static bool is_aa_enabled_for_render_target(D3DMULTISAMPLE_TYPE msaa, RenderTarget t)
 {
-    return g::cfg.msaa > 0 && t < 2;
+    return msaa > 0 && t < 2;
 }
 
-bool is_using_texture_to_render(RenderTarget t)
+bool is_using_texture_to_render(D3DMULTISAMPLE_TYPE msaa, RenderTarget t)
 {
     const auto is_openxr_hmd_texture = g::vr && g::vr->get_runtime_type() == OPENXR && t < 2;
-    return !(is_aa_enabled_for_render_target(t) || is_openxr_hmd_texture);
+    return !(is_aa_enabled_for_render_target(msaa, t) || is_openxr_hmd_texture);
 }
 
 bool create_render_target(
     IDirect3DDevice9* dev,
+    D3DMULTISAMPLE_TYPE msaa,
     IDirect3DSurface9** msaa_surface,
     IDirect3DSurface9** depth_stencil_surface,
     IDirect3DTexture9** target_texture,
@@ -26,8 +27,8 @@ bool create_render_target(
 
     // If anti-aliasing is enabled, we need to first render into an anti-aliased render target.
     // If not, we can render directly to a texture that has D3DUSAGE_RENDERTARGET set.
-    if (!is_using_texture_to_render(tgt)) {
-        ret |= dev->CreateRenderTarget(w, h, fmt, g::cfg.msaa, 0, false, msaa_surface, nullptr);
+    if (!is_using_texture_to_render(msaa, tgt)) {
+        ret |= dev->CreateRenderTarget(w, h, fmt, msaa, 0, false, msaa_surface, nullptr);
     }
     ret |= dev->CreateTexture(w, h, 1, D3DUSAGE_RENDERTARGET, fmt, D3DPOOL_DEFAULT, target_texture, nullptr);
     if (ret != D3D_OK) {
@@ -59,7 +60,7 @@ bool create_render_target(
             }
         }
     }
-    auto msaa = is_aa_enabled_for_render_target(tgt) ? g::cfg.msaa : D3DMULTISAMPLE_NONE;
+
     ret |= dev->CreateDepthStencilSurface(w, h, depth_stencil_format, msaa, 0, TRUE, depth_stencil_surface, nullptr);
     if (FAILED(ret)) {
         dbg("D3D initialization failed: CreateRenderTarget");

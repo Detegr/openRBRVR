@@ -25,7 +25,7 @@ constexpr static M4 m4_from_steamvr_matrix(const vr::HmdMatrix34_t& m)
         { m.m[0][3], m.m[1][3], m.m[2][3], 1.0f });
 }
 
-void OpenVR::init(IDirect3DDevice9* dev, const Config& cfg, IDirect3DVR9** vrdev, uint32_t companionWindowWidth, uint32_t companionWindowHeight)
+void OpenVR::init(IDirect3DDevice9* dev, IDirect3DVR9** vrdev, uint32_t companionWindowWidth, uint32_t companionWindowHeight)
 {
     Direct3DCreateVR(dev, vrdev);
 
@@ -46,13 +46,14 @@ void OpenVR::init(IDirect3DDevice9* dev, const Config& cfg, IDirect3DVR9** vrdev
     // }
 
     try {
-        for (const auto& gfx : cfg.gfx) {
-            auto supersampling = std::get<0>(gfx.second);
+        for (const auto& gfx : g::cfg.gfx) {
+            auto supersampling = gfx.second.supersampling;
             auto wss = static_cast<uint32_t>(w * supersampling);
             auto hss = static_cast<uint32_t>(h * supersampling);
             RenderContext ctx = {
                 .width = { wss, wss },
                 .height = { hss, hss },
+                .msaa = gfx.second.msaa.value_or(g::cfg.gfx["default"].msaa.value()),
             };
             init_surfaces(dev, ctx, companionWindowWidth, companionWindowHeight);
             render_contexts[gfx.first] = ctx;
@@ -135,7 +136,7 @@ void OpenVR::set_render_context(const std::string& name)
 
 void OpenVR::prepare_frames_for_hmd(IDirect3DDevice9* dev)
 {
-    if (g::cfg.msaa != D3DMULTISAMPLE_NONE) {
+    if (current_render_context->msaa != D3DMULTISAMPLE_NONE) {
         // Resolve multisampling
         IDirect3DSurface9 *left_eye, *right_eye;
 

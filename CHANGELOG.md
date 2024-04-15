@@ -7,6 +7,7 @@
   horizon locked camera 180 degrees if the car is upside down.
 - Disable the aforementioned feature by default.
 - Make the aforementioned feature toggleable on/off.
+- Implement per-stage anti-aliasing.
 
 ## 0.7.5
 
