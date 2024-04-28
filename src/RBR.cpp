@@ -247,6 +247,11 @@ namespace rbr {
             g::game_mode = game_mode;
         }
 
+        if(g::previous_game_mode != g::game_mode && g::game_mode == GameMode::PreStage) {
+            // Make sure we reload the seat position whenever the stage is restarted
+            g::seat_position_loaded = false;
+        }
+
         g::is_driving = g::game_mode == GameMode::Driving;
         g::is_rendering_3d = g::is_driving
             || (g::cfg.render_mainmenu_3d && g::game_mode == GameMode::MainMenu)

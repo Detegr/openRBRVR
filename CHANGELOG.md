@@ -1,3 +1,8 @@
+## 0.8.1
+
+- Fix a bug where the seat position was not loaded correctly if a stage was
+  restarted
+
 ## 0.8.0
 
 - Fix desktop window and 2D content window size calculation
