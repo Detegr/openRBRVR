@@ -341,14 +341,20 @@ struct Config {
     {
         auto cars_ini_path = "Cars\\cars.ini";
         if (!std::filesystem::exists(cars_ini_path)) {
+            dbg("Could not resolve car ini path");
             return std::nullopt;
         }
 
-        ini::IniFile cars_ini(cars_ini_path);
-        auto car_key = std::format("Car0{}", car_id);
-        return std::filesystem::path(cars_ini[car_key]["IniFile"].as<std::string>()
-            | std::ranges::views::filter([](char c) { return c != '"'; })
-            | std::ranges::to<std::string>());
+        try {
+            ini::IniFile cars_ini(cars_ini_path);
+            auto car_key = std::format("Car0{}", car_id);
+            return std::filesystem::path(cars_ini[car_key]["IniFile"].as<std::string>()
+                | std::ranges::views::filter([](char c) { return c != '"'; })
+                | std::ranges::to<std::string>());
+        } catch (...) {
+            dbg("Could not resolve car ini path");
+            return std::nullopt;
+        }
     }
 
     static std::optional<std::filesystem::path> resolve_personal_car_ini_path(uint32_t car_id)
@@ -374,9 +380,14 @@ struct Config {
             return false;
         }
 
-        ini::IniFile personal_ini(ini_path.value());
-        personal_ini["openRBRVR"]["seatPosition"] = vec3_as_space_separated_string(seat_translation);
-        personal_ini.save(ini_path.value());
+        try {
+            ini::IniFile personal_ini(ini_path.value());
+            personal_ini["openRBRVR"]["seatPosition"] = vec3_as_space_separated_string(seat_translation);
+            personal_ini.save(ini_path.value());
+        } catch (...) {
+            dbg("Updating seat translation failed");
+            return false;
+        }
 
         return true;
     }
@@ -392,30 +403,36 @@ struct Config {
         bool is_openrbrvr_translation = false;
         std::optional<glm::vec3> seat_translation = std::nullopt;
 
-        if (std::filesystem::exists(ini_path.value())) {
-            ini::IniFile personal_ini(ini_path.value());
+        try {
+            if (std::filesystem::exists(ini_path.value())) {
+                ini::IniFile personal_ini(ini_path.value());
 
-            seat_translation = vec3_from_space_separated_string(personal_ini["openRBRVR"]["seatPosition"].as<std::string>());
+                seat_translation = vec3_from_space_separated_string(personal_ini["openRBRVR"]["seatPosition"].as<std::string>());
+
+                if (!seat_translation) {
+                    seat_translation = vec3_from_space_separated_string(personal_ini["Cam_internal"]["Pos"].as<std::string>());
+                } else {
+                    is_openrbrvr_translation = true;
+                }
+            }
 
             if (!seat_translation) {
-                seat_translation = vec3_from_space_separated_string(personal_ini["Cam_internal"]["Pos"].as<std::string>());
-            } else {
-                is_openrbrvr_translation = true;
+                ini_path = resolve_car_ini_path(car_id).and_then(to_string);
+                if (!ini_path) {
+                    return default_translation;
+                }
+                ini::IniFile ini(ini_path.value());
+                seat_translation = vec3_from_space_separated_string(ini["Cam_internal"]["Pos"].as<std::string>());
             }
-        }
 
-        if (!seat_translation) {
-            ini_path = resolve_car_ini_path(car_id).and_then(to_string);
-            if (!ini_path) {
-                return default_translation;
-            }
-            ini::IniFile ini(ini_path.value());
-            seat_translation = vec3_from_space_separated_string(ini["Cam_internal"]["Pos"].as<std::string>());
-        }
+            return seat_translation
+                .and_then([&](const glm::vec3& t) { return std::optional(std::make_tuple(t, is_openrbrvr_translation)); })
+                .value_or(default_translation);
 
-        return seat_translation
-            .and_then([&](const glm::vec3& t) { return std::optional(std::make_tuple(t, is_openrbrvr_translation)); })
-            .value_or(default_translation);
+        } catch (...) {
+            dbg("Loading seat translation failed");
+            return default_translation;
+        }
     }
 
     static Config from_path(const std::filesystem::path& path)

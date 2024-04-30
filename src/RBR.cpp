@@ -247,7 +247,7 @@ namespace rbr {
             g::game_mode = game_mode;
         }
 
-        if(g::previous_game_mode != g::game_mode && g::game_mode == GameMode::PreStage) {
+        if (g::previous_game_mode != g::game_mode && g::game_mode == GameMode::PreStage) {
             // Make sure we reload the seat position whenever the stage is restarted
             g::seat_position_loaded = false;
         }
@@ -329,8 +329,11 @@ namespace rbr {
                 }
 
                 if (!seat_saved && seat_still_frames > 250) {
-                    g::cfg.insert_or_update_seat_translation(*g::car_id_ptr, g::seat_translation);
-                    g::game->WriteGameMessage("openRBRVR seat position saved.", 2.0, 100.0, 100.0);
+                    if (g::cfg.insert_or_update_seat_translation(*g::car_id_ptr, g::seat_translation)) {
+                        g::game->WriteGameMessage("openRBRVR seat position saved.", 2.0, 100.0, 100.0);
+                    } else {
+                        g::game->WriteGameMessage("Failed to save openRBRVR seat position.", 2.0, 100.0, 100.0);
+                    }
                     seat_saved = true;
                 }
             } else if (g::seat_movement_request) {

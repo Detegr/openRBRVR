@@ -1,3 +1,7 @@
+## 0.8.2
+
+- Fix a crash that occurred if the car's ini file had invalid data
+
 ## 0.8.1
 
 - Fix a bug where the seat position was not loaded correctly if a stage was
