@@ -54,7 +54,7 @@ private:
     int64_t swapchain_format;
     XrPosef view_pose;
     XrViewConfigurationType primary_view_config_type;
-    InputState inputState;
+    InputState inputState; // For sending poses to OpenXR-MotionCompensation https://github.com/BuzzteeBear/OpenXR-MotionCompensation
     bool has_projection;
     bool reset_view_requested;
 
