@@ -299,91 +299,92 @@ void OpenXR::init(IDirect3DDevice9* dev, IDirect3DVR9** vrdev, uint32_t companio
     view_pose = { { 0, 0, 0, 1 }, { 0, 0, 0 } };
 
 
-    //Start pose registration.
-    XrActionSetCreateInfo actionSetInfo { XR_TYPE_ACTION_SET_CREATE_INFO };
-    strcpy_s(actionSetInfo.actionSetName, "gameplay");
-    strcpy_s(actionSetInfo.localizedActionSetName, "Gameplay");
-    actionSetInfo.priority = 0;
-    if (auto res = xrCreateActionSet(instance, &actionSetInfo, &inputState.actionSet); res != XR_SUCCESS) {
-        dbg(std::format("Failed xrCreateActionSet: {}", XrResultToString(instance, res)));
-        return;
-    }
-
-    if (auto res = xrStringToPath(instance, "/user/hand/left", &inputState.handSubactionPath[Side::LEFT]); res != XR_SUCCESS) {
-        dbg(std::format("Failed to get handsSubActionPath: {}", XrResultToString(instance, res)));
-        return;
-    }
-    if (auto res = xrStringToPath(instance, "/user/hand/right", &inputState.handSubactionPath[Side::RIGHT]); res != XR_SUCCESS) {
-        dbg(std::format("Failed to get handsSubActionPath: {}", XrResultToString(instance, res)));
-        return;
-    }
-
-    // Create an input action getting the left and right hand poses.
-    XrActionCreateInfo actionInfo { XR_TYPE_ACTION_CREATE_INFO };
-    actionInfo.actionType = XR_ACTION_TYPE_POSE_INPUT;
-    strcpy_s(actionInfo.actionName, "hand_pose");
-    strcpy_s(actionInfo.localizedActionName, "Hand Pose");
-    actionInfo.countSubactionPaths = uint32_t(inputState.handSubactionPath.size());
-    actionInfo.subactionPaths = inputState.handSubactionPath.data();
-    if (auto res = xrCreateAction(inputState.actionSet, &actionInfo, &inputState.poseAction); res != XR_SUCCESS) {
-        dbg(std::format("Failed pose xrCreateAction: {}", XrResultToString(instance, res)));
-        return;
-    }
-
-    std::array<XrPath, Side::COUNT> posePath;
-
-    if (auto res = xrStringToPath(instance, "/user/hand/left/input/grip/pose", &posePath[Side::LEFT]); res != XR_SUCCESS) {
-        dbg(std::format("xrStringToPath: {}", XrResultToString(instance, res)));
-        return;
-    }
-    if (auto res = xrStringToPath(instance, "/user/hand/right/input/grip/pose", &posePath[Side::RIGHT]); res != XR_SUCCESS) {
-        dbg(std::format("xrStringToPath: {}", XrResultToString(instance, res)));
-        return;
-    }
-
-    // TODO: Add Valve, KHR, WMR etc.
-    {
-        XrPath oculusTouchInteractionProfilePath;
-        if (auto res = xrStringToPath(instance, "/interaction_profiles/oculus/touch_controller", &oculusTouchInteractionProfilePath); res != XR_SUCCESS) {
-            dbg(std::format("Failed to recenter VR view: {}", XrResultToString(instance, res)));
+    // Start pose registration.
+    if (g::cfg.motion_compensation_support) {
+        XrActionSetCreateInfo actionSetInfo { XR_TYPE_ACTION_SET_CREATE_INFO };
+        strcpy_s(actionSetInfo.actionSetName, "gameplay");
+        strcpy_s(actionSetInfo.localizedActionSetName, "Gameplay");
+        actionSetInfo.priority = 0;
+        if (auto res = xrCreateActionSet(instance, &actionSetInfo, &inputState.actionSet); res != XR_SUCCESS) {
+            dbg(std::format("Failed xrCreateActionSet: {}", XrResultToString(instance, res)));
             return;
         }
-        std::vector<XrActionSuggestedBinding> bindings { {
-            { inputState.poseAction, posePath[Side::LEFT] },
-            { inputState.poseAction, posePath[Side::RIGHT] },
-        } };
-        XrInteractionProfileSuggestedBinding suggestedBindings { XR_TYPE_INTERACTION_PROFILE_SUGGESTED_BINDING };
-        suggestedBindings.interactionProfile = oculusTouchInteractionProfilePath;
-        suggestedBindings.suggestedBindings = bindings.data();
-        suggestedBindings.countSuggestedBindings = (uint32_t)bindings.size();
-        if (auto res = xrSuggestInteractionProfileBindings(instance, &suggestedBindings); res != XR_SUCCESS) {
-            dbg(std::format("xrSuggestInteractionProfileBindings: {}", XrResultToString(instance, res)));
+
+        if (auto res = xrStringToPath(instance, "/user/hand/left", &inputState.handSubactionPath[Side::LEFT]); res != XR_SUCCESS) {
+            dbg(std::format("Failed to get handsSubActionPath: {}", XrResultToString(instance, res)));
+            return;
+        }
+        if (auto res = xrStringToPath(instance, "/user/hand/right", &inputState.handSubactionPath[Side::RIGHT]); res != XR_SUCCESS) {
+            dbg(std::format("Failed to get handsSubActionPath: {}", XrResultToString(instance, res)));
+            return;
+        }
+
+        // Create an input action getting the left and right hand poses.
+        XrActionCreateInfo actionInfo { XR_TYPE_ACTION_CREATE_INFO };
+        actionInfo.actionType = XR_ACTION_TYPE_POSE_INPUT;
+        strcpy_s(actionInfo.actionName, "hand_pose");
+        strcpy_s(actionInfo.localizedActionName, "Hand Pose");
+        actionInfo.countSubactionPaths = uint32_t(inputState.handSubactionPath.size());
+        actionInfo.subactionPaths = inputState.handSubactionPath.data();
+        if (auto res = xrCreateAction(inputState.actionSet, &actionInfo, &inputState.poseAction); res != XR_SUCCESS) {
+            dbg(std::format("Failed pose xrCreateAction: {}", XrResultToString(instance, res)));
+            return;
+        }
+
+        std::array<XrPath, Side::COUNT> posePath;
+
+        if (auto res = xrStringToPath(instance, "/user/hand/left/input/grip/pose", &posePath[Side::LEFT]); res != XR_SUCCESS) {
+            dbg(std::format("xrStringToPath: {}", XrResultToString(instance, res)));
+            return;
+        }
+        if (auto res = xrStringToPath(instance, "/user/hand/right/input/grip/pose", &posePath[Side::RIGHT]); res != XR_SUCCESS) {
+            dbg(std::format("xrStringToPath: {}", XrResultToString(instance, res)));
+            return;
+        }
+
+        // TODO: Add Valve, KHR, WMR etc.
+        {
+            XrPath oculusTouchInteractionProfilePath;
+            if (auto res = xrStringToPath(instance, "/interaction_profiles/oculus/touch_controller", &oculusTouchInteractionProfilePath); res != XR_SUCCESS) {
+                dbg(std::format("Failed to recenter VR view: {}", XrResultToString(instance, res)));
+                return;
+            }
+            std::vector<XrActionSuggestedBinding> bindings { {
+                { inputState.poseAction, posePath[Side::LEFT] },
+                { inputState.poseAction, posePath[Side::RIGHT] },
+            } };
+            XrInteractionProfileSuggestedBinding suggestedBindings { XR_TYPE_INTERACTION_PROFILE_SUGGESTED_BINDING };
+            suggestedBindings.interactionProfile = oculusTouchInteractionProfilePath;
+            suggestedBindings.suggestedBindings = bindings.data();
+            suggestedBindings.countSuggestedBindings = (uint32_t)bindings.size();
+            if (auto res = xrSuggestInteractionProfileBindings(instance, &suggestedBindings); res != XR_SUCCESS) {
+                dbg(std::format("xrSuggestInteractionProfileBindings: {}", XrResultToString(instance, res)));
+                return;
+            }
+        }
+
+        XrActionSpaceCreateInfo actionSpaceInfo { XR_TYPE_ACTION_SPACE_CREATE_INFO };
+        actionSpaceInfo.action = inputState.poseAction;
+        actionSpaceInfo.poseInActionSpace.orientation.w = 1.f;
+        actionSpaceInfo.subactionPath = inputState.handSubactionPath[Side::LEFT];
+        if (auto res = xrCreateActionSpace(session, &actionSpaceInfo, &inputState.handSpace[Side::LEFT]); res != XR_SUCCESS) {
+            dbg(std::format("xrCreateActionSpace: {}", XrResultToString(instance, res)));
+            return;
+        }
+        actionSpaceInfo.subactionPath = inputState.handSubactionPath[Side::RIGHT];
+        if (auto res = xrCreateActionSpace(session, &actionSpaceInfo, &inputState.handSpace[Side::RIGHT]); res != XR_SUCCESS) {
+            dbg(std::format("xrCreateActionSpace {}", XrResultToString(instance, res)));
+            return;
+        }
+
+        XrSessionActionSetsAttachInfo attachInfo { XR_TYPE_SESSION_ACTION_SETS_ATTACH_INFO };
+        attachInfo.countActionSets = 1;
+        attachInfo.actionSets = &inputState.actionSet;
+        if (auto res = xrAttachSessionActionSets(session, &attachInfo); res != XR_SUCCESS) {
+            dbg(std::format("xrAttachSessionActionSets: {}", XrResultToString(instance, res)));
             return;
         }
     }
-
-    XrActionSpaceCreateInfo actionSpaceInfo { XR_TYPE_ACTION_SPACE_CREATE_INFO };
-    actionSpaceInfo.action = inputState.poseAction;
-    actionSpaceInfo.poseInActionSpace.orientation.w = 1.f;
-    actionSpaceInfo.subactionPath = inputState.handSubactionPath[Side::LEFT];
-    if (auto res = xrCreateActionSpace(session, &actionSpaceInfo, &inputState.handSpace[Side::LEFT]); res != XR_SUCCESS) {
-        dbg(std::format("xrCreateActionSpace: {}", XrResultToString(instance, res)));
-        return;
-    }
-    actionSpaceInfo.subactionPath = inputState.handSubactionPath[Side::RIGHT];
-    if (auto res = xrCreateActionSpace(session, &actionSpaceInfo, &inputState.handSpace[Side::RIGHT]); res != XR_SUCCESS) {
-        dbg(std::format("xrCreateActionSpace {}", XrResultToString(instance, res)));
-        return;
-    }
-
-    XrSessionActionSetsAttachInfo attachInfo { XR_TYPE_SESSION_ACTION_SETS_ATTACH_INFO };
-    attachInfo.countActionSets = 1;
-    attachInfo.actionSets = &inputState.actionSet;
-    if (auto res = xrAttachSessionActionSets(session, &attachInfo); res != XR_SUCCESS) {
-        dbg(std::format("xrAttachSessionActionSets: {}", XrResultToString(instance, res)));
-        return;
-    }
-    // End pose registration.
 
     XrReferenceSpaceCreateInfo view_space_create_info = {
         .type = XR_TYPE_REFERENCE_SPACE_CREATE_INFO,
@@ -665,8 +666,9 @@ std::optional<XrViewState> OpenXR::update_views()
 
 bool OpenXR::update_vr_poses()
 {
-    //TODO: Config toggle?
-    update_poll_hand_poses();
+    if (g::cfg.motion_compensation_support) {
+        update_poll_hand_poses();
+    }
 
     frame_state = {
         .type = XR_TYPE_FRAME_STATE,
@@ -719,7 +721,8 @@ void OpenXR::update_poll_hand_poses()
         dbg(std::format("xrPollEvent: {}", (int) eventData.type));
     }
 
-    //The rest in this function is probably not needed
+    //TODO: The rest in this function is probably not needed, needs testing.
+
     inputState.handActive = { XR_FALSE, XR_FALSE };
     const XrActiveActionSet activeActionSet { inputState.actionSet, XR_NULL_PATH };
     XrActionsSyncInfo syncInfo { XR_TYPE_ACTIONS_SYNC_INFO };
@@ -890,11 +893,12 @@ void OpenXR::recenter_view()
 
 void OpenXR::shutdown_vr()
 {
-    //TODO: More cleanup
-    if (inputState.actionSet != XR_NULL_HANDLE) {
-        xrDestroyActionSet(inputState.actionSet);
+    if (g::cfg.motion_compensation_support) {
+        // TODO: More cleanup
+        if (inputState.actionSet != XR_NULL_HANDLE) {
+            xrDestroyActionSet(inputState.actionSet);
+        }
     }
-
     xrDestroySpace(space);
     for (const auto& v : render_contexts) {
         const auto& ctx = v.second;
