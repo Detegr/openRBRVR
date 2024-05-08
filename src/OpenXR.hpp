@@ -16,6 +16,20 @@ struct OpenXRRenderContext {
     std::array<XrCompositionLayerProjectionView, 2> projection_views;
 };
 
+namespace Side {
+    const int LEFT = 0;
+    const int RIGHT = 1;
+    const int COUNT = 2;
+}
+
+struct InputState {
+    XrActionSet actionSet { XR_NULL_HANDLE };
+    XrAction poseAction { XR_NULL_HANDLE };
+    std::array<XrPath, Side::COUNT> handSubactionPath;
+    std::array<XrSpace, Side::COUNT> handSpace;
+    std::array<XrBool32, Side::COUNT> handActive;
+};
+
 class OpenXR : public VRInterface {
 private:
     XrSession session;
@@ -26,6 +40,7 @@ private:
     XrFrameState frame_state;
     int64_t swapchain_format;
     XrPosef view_pose;
+    InputState inputState;
     bool has_projection;
     bool reset_view_requested;
 
@@ -63,6 +78,7 @@ public:
 
     void shutdown_vr() override;
     bool update_vr_poses() override;
+    void update_poll_hand_poses();
     void prepare_frames_for_hmd(IDirect3DDevice9* dev) override;
     void submit_frames_to_hmd(IDirect3DDevice9* dev) override;
     void reset_view() override;
