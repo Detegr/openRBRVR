@@ -386,6 +386,17 @@ static class Menu openxr_menu = { "openRBRVR OpenXR settings", {
     .right_action = [] { g::cfg.peripheral_msaa = g::cfg.peripheral_msaa = static_cast<D3DMULTISAMPLE_TYPE>(std::clamp(g::cfg.peripheral_msaa + 2, 0, 8)); },
     .visible = [] { return g::cfg.quad_view_rendering; }
   },
+  { .text = [] { return std::format("Support for OpenXR Motion Compensation: {}", g::cfg.openxr_motion_compensation ? "ON" : "OFF"); },
+    .long_text = {
+        "When using a motion rig in combination with a VR headset (hmd) he movement of the rig ", 
+        "causes the in-game camera to change along with your position in the real world.", 
+        "Motion compensation reduces or ideally removes that effect by locking the in-game world", 
+        "to the pose of the motion rig.", 
+        "OXRMC API-layer is required for it to work."
+    },
+    .left_action = [] { Toggle(g::cfg.openxr_motion_compensation); },
+    .right_action = [] { Toggle(g::cfg.openxr_motion_compensation); },
+  },
   { .text = id("Back to previous menu"),
     .menu_color = IRBRGame::EMenuColors::MENU_TEXT,
     .select_action = [] { select_menu(0); },

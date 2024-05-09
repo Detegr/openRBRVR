@@ -92,6 +92,8 @@ public:
     OpenXR& operator=(const OpenXR&&) = delete;
 
     void init(IDirect3DDevice9* dev, IDirect3DVR9** vrdev, uint32_t companionWindowWidth, uint32_t companionWindowHeight, std::optional<XrPosef> old_view_pose = std::nullopt);
+    void init_motion_compensation_support();
+    bool init_motion_compensation_suggest_bindings();
     virtual ~OpenXR()
     {
         shutdown_vr();

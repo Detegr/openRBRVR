@@ -106,7 +106,7 @@ struct Config {
     int world_scale = 1000;
     bool quad_view_rendering = false;
     D3DMULTISAMPLE_TYPE peripheral_msaa = D3DMULTISAMPLE_NONE;
-    bool motion_compensation_support = false; // OpenXR-MotionCompensation support https://github.com/BuzzteeBear/OpenXR-MotionCompensation
+    bool openxr_motion_compensation = false; // OpenXR-MotionCompensation support https://github.com/BuzzteeBear/OpenXR-MotionCompensation
 
     Config& operator=(const Config& rhs)
     {
@@ -136,7 +136,7 @@ struct Config {
         world_scale = rhs.world_scale;
         quad_view_rendering = rhs.quad_view_rendering;
         peripheral_msaa = rhs.peripheral_msaa;
-        motion_compensation_support = rhs.motion_compensation_support;
+        openxr_motion_compensation = rhs.openxr_motion_compensation;
         return *this;
     }
 
@@ -165,7 +165,7 @@ struct Config {
             && world_scale == rhs.world_scale
             && quad_view_rendering == rhs.quad_view_rendering
             && peripheral_msaa == rhs.peripheral_msaa
-            && motion_compensation_support == rhs.motion_compensation_support;
+            && openxr_motion_compensation == rhs.openxr_motion_compensation;
     }
 
     bool write(const std::filesystem::path& path) const
@@ -198,7 +198,7 @@ struct Config {
             { "desktopWindowOffsetY", companion_offset.y },
             { "desktopWindowSize", companion_size },
             { "desktopEye", static_cast<int>(companion_eye) },
-            { "motion_compensation_support", motion_compensation_support },
+            { "openXRMotionCompensation", openxr_motion_compensation },
         };
 
         toml::table gfxTbl;
@@ -274,7 +274,7 @@ struct Config {
         cfg.companion_offset = { parsed["desktopWindowOffsetX"].value_or(0), parsed["desktopWindowOffsetY"].value_or(0) };
         cfg.companion_size = parsed["desktopWindowSize"].value_or(100);
         cfg.companion_eye = static_cast<RenderTarget>(std::clamp(parsed["desktopEye"].value_or(0), 0, 1));
-        cfg.motion_compensation_support = parsed["motion_compensation_support"].value_or(false);
+        cfg.openxr_motion_compensation = parsed["openXRMotionCompensation"].value_or(false);
 
         const std::string& runtime = parsed["runtime"].value_or("steamvr");
         if (runtime == "openxr" || runtime == "openxr-wmr") {
