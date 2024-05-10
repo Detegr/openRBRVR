@@ -388,10 +388,10 @@ static class Menu openxr_menu = { "openRBRVR OpenXR settings", {
   },
   { .text = [] { return std::format("Support for OpenXR Motion Compensation: {}", g::cfg.openxr_motion_compensation ? "ON" : "OFF"); },
     .long_text = {
-        "When using a motion rig in combination with a VR headset (hmd) he movement of the rig ", 
-        "causes the in-game camera to change along with your position in the real world.", 
-        "Motion compensation reduces or ideally removes that effect by locking the in-game world", 
-        "to the pose of the motion rig.", 
+        "When using a motion rig in combination with a VR headset (hmd) he movement of the", 
+        "rig causes the in-game camera to change along with your position in the real world.", 
+        "Motion compensation reduces or ideally removes that effect by locking the", 
+        "in-game world to the pose of the motion rig.", 
         "OXRMC API-layer is required for it to work."
     },
     .left_action = [] { Toggle(g::cfg.openxr_motion_compensation); },
