@@ -69,6 +69,33 @@ public:
     FrameTimingInfo get_frame_timing() override;
     VRRuntime get_runtime_type() const override { return OPENXR; }
 
+    constexpr XrInstance get_instance() const { return instance; }
+    constexpr XrSystemId get_system_id() const { return system_id; }
     const char* get_device_extensions();
     const char* get_instance_extensions();
+
+    template <typename T>
+    static T get_extension(XrInstance instance, const std::string& fnName)
+    {
+        T fn = nullptr;
+        if (auto err = xrGetInstanceProcAddr(instance, fnName.c_str(), reinterpret_cast<PFN_xrVoidFunction*>(&fn)); err != XR_SUCCESS) {
+            throw std::runtime_error(std::format("Failed to initialize OpenXR: xrGetInstanceProcAddr(\"{}\") {}", fnName, XrResultToString(instance, err)));
+        }
+        if (!fn) {
+            throw std::runtime_error(std::format("Failed to initialize OpenXR: Could not get extension function {}", fnName));
+        }
+        return fn;
+    }
+
+    static std::string XrResultToString(const XrInstance& instance, XrResult res)
+    {
+        char buf[XR_MAX_RESULT_STRING_SIZE] = { 0 };
+
+        if (auto err = xrResultToString(instance, res, buf); err != XR_SUCCESS) {
+            dbg("Could not convert XrResult to string");
+            return "";
+        }
+
+        return buf;
+    }
 };

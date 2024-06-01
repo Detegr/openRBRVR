@@ -8,37 +8,12 @@
 
 #include "D3D.hpp"
 
-static std::string XrResultToString(const XrInstance& instance, XrResult res)
-{
-    char buf[XR_MAX_RESULT_STRING_SIZE] = { 0 };
-
-    if (auto err = xrResultToString(instance, res, buf); err != XR_SUCCESS) {
-        dbg("Could not convert XrResult to string");
-        return "";
-    }
-
-    return buf;
-}
-
 static std::string XrVersionToString(const XrVersion version)
 {
     return std::format("{}.{}.{}",
         version >> 48,
         (version >> 32) & 0xFFFF,
         version & 0xFFFFFFFF);
-}
-
-template <typename T>
-T get_extension(XrInstance instance, const std::string& fnName)
-{
-    T fn = nullptr;
-    if (auto err = xrGetInstanceProcAddr(instance, fnName.c_str(), reinterpret_cast<PFN_xrVoidFunction*>(&fn)); err != XR_SUCCESS) {
-        throw std::runtime_error(std::format("Failed to initialize OpenXR: xrGetInstanceProcAddr {}", XrResultToString(instance, err)));
-    }
-    if (!fn) {
-        throw std::runtime_error(std::format("Failed to initialize OpenXR: Could not get extension function {}", fnName));
-    }
-    return fn;
 }
 
 static glm::mat4 create_projection_matrix(const XrFovf& fov, float near_z, float far_z)
@@ -88,8 +63,9 @@ OpenXR::OpenXR()
         .apiVersion = XR_CURRENT_API_VERSION,
     };
     const char* extensions[] = {
-        "XR_KHR_vulkan_enable"
+        "XR_KHR_vulkan_enable2"
     };
+
     XrInstanceCreateInfo instanceInfo = {
         .type = XR_TYPE_INSTANCE_CREATE_INFO,
         .next = nullptr,
@@ -97,7 +73,7 @@ OpenXR::OpenXR()
         .applicationInfo = appInfo,
         .enabledApiLayerCount = 0,
         .enabledApiLayerNames = nullptr,
-        .enabledExtensionCount = 1,
+        .enabledExtensionCount = sizeof(extensions) / sizeof(extensions[0]),
         .enabledExtensionNames = extensions,
     };
 
@@ -118,6 +94,16 @@ OpenXR::OpenXR()
     if (auto err = xrGetSystem(instance, &system_get_info, &system_id); err != XR_SUCCESS) {
         throw std::runtime_error(std::format("Failed to initialize OpenXR: xrGetSystem {}", XrResultToString(instance, err)));
     }
+
+    XrGraphicsRequirementsVulkanKHR gfx_requirements = { .type = XR_TYPE_GRAPHICS_REQUIREMENTS_VULKAN_KHR };
+    auto xrGetVulkanGraphicsRequirementsKHR = get_extension<PFN_xrGetVulkanGraphicsRequirementsKHR>(instance, "xrGetVulkanGraphicsRequirements2KHR");
+    if (auto err = xrGetVulkanGraphicsRequirementsKHR(instance, system_id, &gfx_requirements); err != XR_SUCCESS) {
+        throw std::runtime_error(std::format("Failed to initialize OpenXR: xrGetVulkanGraphicsRequirementsKHR {}", XrResultToString(instance, err)));
+    }
+
+    dbg(std::format("OpenXR graphicsRequirements: version {}-{}",
+        XrVersionToString(gfx_requirements.minApiVersionSupported),
+        XrVersionToString(gfx_requirements.maxApiVersionSupported)));
 }
 
 void OpenXR::init(IDirect3DDevice9* dev, IDirect3DVR9** vrdev, uint32_t companion_window_width, uint32_t companion_window_height)
@@ -145,12 +131,7 @@ void OpenXR::init(IDirect3DDevice9* dev, IDirect3DVR9** vrdev, uint32_t companio
         throw std::runtime_error("VR initialization failed: GetOXRVkDeviceDesc");
     }
 
-    VkPhysicalDevice phys;
-    auto xrGetVulkanGraphicsDeviceKHR = get_extension<PFN_xrGetVulkanGraphicsDeviceKHR>(instance, "xrGetVulkanGraphicsDeviceKHR");
-    // This needs to be called even though we get back the same pointer that we had already in OXR_VK_DEVICE_DESC
-    xrGetVulkanGraphicsDeviceKHR(instance, system_id, vkDesc.Instance, &phys);
-
-    XrGraphicsBindingVulkanKHR graphicsBinding = {
+    XrGraphicsBindingVulkanKHR gfx_binding = {
         .type = XR_TYPE_GRAPHICS_BINDING_VULKAN_KHR,
         .next = nullptr,
         .instance = vkDesc.Instance,
@@ -161,17 +142,10 @@ void OpenXR::init(IDirect3DDevice9* dev, IDirect3DVR9** vrdev, uint32_t companio
     };
     XrSessionCreateInfo sessionCreateInfo = {
         .type = XR_TYPE_SESSION_CREATE_INFO,
-        .next = &graphicsBinding,
+        .next = &gfx_binding,
         .createFlags = 0,
         .systemId = system_id,
     };
-
-    XrGraphicsRequirementsVulkanKHR gfx_requirements = { .type = XR_TYPE_GRAPHICS_REQUIREMENTS_VULKAN_KHR };
-    auto xrGetVulkanGraphicsRequirementsKHR = get_extension<PFN_xrGetVulkanGraphicsRequirementsKHR>(instance, "xrGetVulkanGraphicsRequirementsKHR");
-    if (auto err = xrGetVulkanGraphicsRequirementsKHR(instance, system_id, &gfx_requirements); err != XR_SUCCESS) {
-        throw std::runtime_error(std::format("Failed to initialize OpenXR: xrGetVulkanGraphicsRequirementsKHR {}", XrResultToString(instance, err)));
-    }
-
     if (auto err = xrCreateSession(instance, &sessionCreateInfo, &session); err != XR_SUCCESS) {
         throw std::runtime_error(std::format("Failed to initialize OpenXR: xrCreateSession {}", XrResultToString(instance, err)));
     }
@@ -204,12 +178,6 @@ void OpenXR::init(IDirect3DDevice9* dev, IDirect3DVR9** vrdev, uint32_t companio
     if (auto err = xrEnumerateSwapchainFormats(session, format_count, &format_count, swapchain_formats.data()); err != XR_SUCCESS) {
         throw std::runtime_error("Failed to enumerate swapchain formats");
     }
-
-    dbg(std::format("OpenXR graphicsRequirements: version {}-{}",
-        XrVersionToString(gfx_requirements.minApiVersionSupported),
-        XrVersionToString(gfx_requirements.maxApiVersionSupported)));
-    dbg(std::format("OpenXR instanceExtensions: {}", get_instance_extensions()));
-    dbg(std::format("OpenXR deviceExtensions: {}", get_device_extensions()));
 
     std::stringstream ss;
     ss << "OpenXR swapchainFormats:";
