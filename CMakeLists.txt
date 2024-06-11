@@ -44,8 +44,8 @@ set(HEADERS
 set(openRBRVR_Major 0)
 set(openRBRVR_Minor 8)
 set(openRBRVR_Patch 3)
-set(openRBRVR_Tweak 0)
-# set(openRBRVR_TweakStr "-rc${openRBRVR_Tweak}")
+set(openRBRVR_Tweak 2)
+set(openRBRVR_TweakStr "-rc${openRBRVR_Tweak}")
 
 configure_file(
   ${CMAKE_CURRENT_SOURCE_DIR}/src/version.rc.in
@@ -77,14 +77,12 @@ target_link_directories(${PROJECT_NAME} PUBLIC
   ${CMAKE_SOURCE_DIR}/thirdparty/minhook/bin
 )
 
-# set(OPENXR_LOADER "$<$<CONFIG:Debug>:openxr_loaderd>$<$<NOT:$<CONFIG:Debug>>:openxr_loader>")
 target_link_libraries(${PROJECT_NAME} PUBLIC
   d3d9
   d3dcompiler
   libminhook.x86
   openvr_api
   openxr_loader
-  #${OPENXR_LOADER}
 )
 
 cmake_path(NATIVE_PATH CMAKE_INSTALL_PREFIX NATIVE_CMAKE_INSTALL_PREFIX)
