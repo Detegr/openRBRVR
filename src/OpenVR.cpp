@@ -3,7 +3,39 @@
 #include "D3D.hpp"
 #include "Globals.hpp"
 
-constexpr std::string vr_compositor_error_str(vr::VRCompositorError e);
+static constexpr std::string vr_compositor_error_str(vr::VRCompositorError e)
+{
+    switch (e) {
+        case vr::VRCompositorError::VRCompositorError_AlreadySet:
+            return "AlreadySet";
+        case vr::VRCompositorError::VRCompositorError_AlreadySubmitted:
+            return "AlreadySubmitted";
+        case vr::VRCompositorError::VRCompositorError_DoNotHaveFocus:
+            return "DoNotHaveFocus";
+        case vr::VRCompositorError::VRCompositorError_IncompatibleVersion:
+            return "IncompatibleVersion";
+        case vr::VRCompositorError::VRCompositorError_IndexOutOfRange:
+            return "IndexOutOfRange";
+        case vr::VRCompositorError::VRCompositorError_InvalidBounds:
+            return "InvalidBounds";
+        case vr::VRCompositorError::VRCompositorError_InvalidTexture:
+            return "InvalidTexture";
+        case vr::VRCompositorError::VRCompositorError_IsNotSceneApplication:
+            return "IsNotSceneApplication";
+        case vr::VRCompositorError::VRCompositorError_None:
+            return "None";
+        case vr::VRCompositorError::VRCompositorError_RequestFailed:
+            return "RequestFailed";
+        case vr::VRCompositorError::VRCompositorError_SharedTexturesNotSupported:
+            return "SharedTexturesNotSupported";
+        case vr::VRCompositorError::VRCompositorError_TextureIsOnWrongDevice:
+            return "TextureIsOnWrongDevice";
+        case vr::VRCompositorError::VRCompositorError_TextureUsesUnsupportedFormat:
+            return "TextureUsesUnsupportedFormat";
+        default:
+            return "";
+    }
+}
 
 constexpr M4 OpenVR::get_projection_matrix(RenderTarget eye, float zNear, float zFar)
 {
@@ -212,38 +244,4 @@ FrameTimingInfo OpenVR::get_frame_timing()
         ret.dropped_frames = t.m_nNumDroppedFrames;
     }
     return ret;
-}
-
-static constexpr std::string vr_compositor_error_str(vr::VRCompositorError e)
-{
-    switch (e) {
-        case vr::VRCompositorError::VRCompositorError_AlreadySet:
-            return "AlreadySet";
-        case vr::VRCompositorError::VRCompositorError_AlreadySubmitted:
-            return "AlreadySubmitted";
-        case vr::VRCompositorError::VRCompositorError_DoNotHaveFocus:
-            return "DoNotHaveFocus";
-        case vr::VRCompositorError::VRCompositorError_IncompatibleVersion:
-            return "IncompatibleVersion";
-        case vr::VRCompositorError::VRCompositorError_IndexOutOfRange:
-            return "IndexOutOfRange";
-        case vr::VRCompositorError::VRCompositorError_InvalidBounds:
-            return "InvalidBounds";
-        case vr::VRCompositorError::VRCompositorError_InvalidTexture:
-            return "InvalidTexture";
-        case vr::VRCompositorError::VRCompositorError_IsNotSceneApplication:
-            return "IsNotSceneApplication";
-        case vr::VRCompositorError::VRCompositorError_None:
-            return "None";
-        case vr::VRCompositorError::VRCompositorError_RequestFailed:
-            return "RequestFailed";
-        case vr::VRCompositorError::VRCompositorError_SharedTexturesNotSupported:
-            return "SharedTexturesNotSupported";
-        case vr::VRCompositorError::VRCompositorError_TextureIsOnWrongDevice:
-            return "TextureIsOnWrongDevice";
-        case vr::VRCompositorError::VRCompositorError_TextureUsesUnsupportedFormat:
-            return "TextureUsesUnsupportedFormat";
-        default:
-            return "";
-    }
 }
