@@ -1,5 +1,3 @@
-#pragma once
-
 #include "API.hpp"
 #include "Config.hpp"
 #include "Globals.hpp"

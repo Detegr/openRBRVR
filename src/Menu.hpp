@@ -150,6 +150,6 @@ public:
         return ret;
     }
 
-    float row_height() const { return licenseRowHeight; }
-    const int index() const { return -1; }
+    float row_height() const override { return licenseRowHeight; }
+    const int index() const override { return -1; }
 };
