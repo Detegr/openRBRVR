@@ -104,6 +104,7 @@ struct Config {
     int companion_size = 100;
     RenderTarget companion_eye = LeftEye;
     int world_scale = 1000;
+    bool legacy_openxr_init = false;
 
     Config& operator=(const Config& rhs)
     {
@@ -131,6 +132,7 @@ struct Config {
         companion_mode = rhs.companion_mode;
         debug_mode = rhs.debug_mode;
         world_scale = rhs.world_scale;
+        legacy_openxr_init = rhs.legacy_openxr_init;
         return *this;
     }
 
@@ -156,7 +158,8 @@ struct Config {
             && companion_offset == rhs.companion_offset
             && companion_size == rhs.companion_size
             && companion_eye == rhs.companion_eye
-            && world_scale == rhs.world_scale;
+            && world_scale == rhs.world_scale
+            && legacy_openxr_init == rhs.legacy_openxr_init;
     }
 
     bool write(const std::filesystem::path& path) const
@@ -273,6 +276,11 @@ struct Config {
         } else {
             cfg.runtime = OPENVR;
         }
+
+        // Use legacy OpenXR init if WMR workaround is enabled
+        // WMR workaround isn't compatible with XR_KHR_vulkan_enable2
+        // However, WMR devices *maybe* work with XR_KHR_vulkan_enable2 without the workaround, we'll see
+        cfg.legacy_openxr_init = parsed["legacyOpenXRInit"].value_or(cfg.wmr_workaround);
 
         auto gfxnode = parsed["gfx"];
         if (gfxnode.is_table()) {
