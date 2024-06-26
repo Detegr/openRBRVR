@@ -1,3 +1,17 @@
+## 0.8.3
+
+- Use more recommended way for intializing OpenXR. The old initialization code
+  is supported by setting `useLegacyOpenXRInit = true` in openRBRVR.toml. The
+  old initialization code is also used automatically if `OpenXR (Reverb)` mode
+  is in use, which is a workaround for WMR devices. Hopefully WMR devices can
+  now change to use normal `OpenXR` mode, but due to some inconsistent findings
+  by beta testers the old way is still supported.
+- Changing the initialization has enabled full (SteamVR + OpenXR) support for
+  [OpenKneeboard](https://openkneeboard.com/). The version that will work with
+  openRBRVR is not yet released, the support should land in OpenKneeboard
+  1.8.4. OpenKneeboard can then be used to bring desktop windows into the VR
+  environment, like SimHub overlays.
+
 ## 0.8.2
 
 - Fix a crash that occurred if the car's ini file had invalid data
