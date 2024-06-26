@@ -4,14 +4,17 @@
 #include "VR.hpp"
 #include <array>
 #include <d3d9.h>
-#define XR_USE_GRAPHICS_API_VULKAN
+#include <d3d11.h>
+
+#define XR_USE_GRAPHICS_API_D3D11
 #include <openxr_platform.h>
 #include <openxr_reflection.h>
 #include <optional>
 
 struct OpenXRRenderContext {
     XrSwapchain swapchains[2];
-    std::vector<XrSwapchainImageVulkanKHR> swapchain_images[2];
+    std::vector<ID3D11Texture2D*> shared_images[2];
+    std::vector<XrSwapchainImageD3D11KHR> swapchain_images[2];
     std::array<XrView, 2> views;
     std::array<XrCompositionLayerProjectionView, 2> projection_views;
 };
@@ -38,7 +41,7 @@ private:
     IDirect3DQuery9* gpu_disjoint_query;
     IDirect3DQuery9* gpu_freq_query;
 
-    XrSwapchainImageVulkanKHR& acquire_swapchain_image(RenderTarget tgt);
+    XrSwapchainImageD3D11KHR& acquire_swapchain_image(RenderTarget tgt);
     std::optional<XrViewState> update_views();
     void update_poses();
     bool get_projection_matrix();

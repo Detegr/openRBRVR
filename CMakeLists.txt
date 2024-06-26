@@ -79,6 +79,8 @@ target_link_directories(${PROJECT_NAME} PUBLIC
 
 target_link_libraries(${PROJECT_NAME} PUBLIC
   d3d9
+  d3d11
+  dxgi
   d3dcompiler
   libminhook.x86
   openvr_api

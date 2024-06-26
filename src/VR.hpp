@@ -6,7 +6,7 @@
 
 #include <d3d9_vr.h>
 
-#define XR_USE_GRAPHICS_API_VULKAN
+#define XR_USE_GRAPHICS_API_D3D11
 #include <d3d9.h>
 #include <openvr.h>
 #include <openxr.h>
