@@ -24,6 +24,10 @@ extern "C" __declspec(dllexport) IPlugin* RBR_CreatePlugin(IRBRGame* game)
 
 extern "C" __declspec(dllexport) VkResult CreateVulkanInstance(VkInstanceCreateInfo* create_info, PFN_vkGetInstanceProcAddr get_instance_proc_addr_fn, VkInstance* vulkan_instance)
 {
+    if (g::cfg.legacy_openxr_init) {
+        return VK_ERROR_NOT_PERMITTED_KHR;
+    }
+
     if (!g::vr || g::vr->get_runtime_type() != OPENXR) {
         return VK_ERROR_INITIALIZATION_FAILED;
     }
@@ -70,6 +74,10 @@ extern "C" __declspec(dllexport) VkResult CreateVulkanInstance(VkInstanceCreateI
 
 extern "C" __declspec(dllexport) VkResult CreateVulkanDevice(VkPhysicalDevice vulkan_physical_device, VkDeviceCreateInfo* create_info, PFN_vkGetInstanceProcAddr get_instance_proc_addr_fn, VkDevice* vulkan_device)
 {
+    if (g::cfg.legacy_openxr_init) {
+        return VK_ERROR_NOT_PERMITTED_KHR;
+    }
+
     if (!g::vr || g::vr->get_runtime_type() != OPENXR) {
         return VK_ERROR_INITIALIZATION_FAILED;
     }
@@ -104,13 +112,29 @@ extern "C" __declspec(dllexport) int64_t openRBRVR_Exec(ApiOperation ops, uint64
     dbg(std::format("Exec: {} {}", (uint64_t)ops, (uint64_t)value));
 
     if (ops == API_VERSION) {
-        return 3;
+        return 2;
     }
     if (ops & MOVE_SEAT) {
         if (value > static_cast<uint64_t>(MOVE_SEAT_DOWN)) {
             return 1;
         }
         g::seat_movement_request = static_cast<SeatMovement>(value);
+    }
+    if ((ops & OPENXR_REQUEST_INSTANCE_EXTENSIONS) && g::vr && g::vr->get_runtime_type() == OPENXR && g::cfg.legacy_openxr_init) {
+        try {
+            OpenXR* vr = reinterpret_cast<OpenXR*>(g::vr);
+            return reinterpret_cast<int64_t>(vr->get_instance_extensions());
+        } catch (const std::runtime_error& e) {
+            MessageBoxA(nullptr, std::format("Could not get OpenXR extensions: {}", e.what()).c_str(), "OpenXR init error", MB_OK);
+        }
+    }
+    if ((ops & OPENXR_REQUEST_DEVICE_EXTENSIONS) && g::vr && g::vr->get_runtime_type() == OPENXR && g::cfg.legacy_openxr_init) {
+        try {
+            OpenXR* vr = reinterpret_cast<OpenXR*>(g::vr);
+            return reinterpret_cast<int64_t>(vr->get_device_extensions());
+        } catch (const std::runtime_error& e) {
+            MessageBoxA(nullptr, std::format("Could not get OpenXR extensions: {}", e.what()).c_str(), "OpenXR init error", MB_OK);
+        }
     }
     if (ops & RECENTER_VR_VIEW) {
         g::vr->reset_view();

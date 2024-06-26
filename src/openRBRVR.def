@@ -1,3 +1,2 @@
 LIBRARY openRBRVR
-    EXPORTS
-        RBR_CreatePlugin
+    EXPORTS RBR_CreatePlugin
