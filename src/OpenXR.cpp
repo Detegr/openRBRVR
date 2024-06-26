@@ -1,4 +1,5 @@
-#define XR_USE_GRAPHICS_API_VULKAN
+#define XR_USE_GRAPHICS_API_D3D11
+
 #include "OpenXR.hpp"
 #include "Config.hpp"
 #include "Globals.hpp"
@@ -7,6 +8,8 @@
 #include <gtx/quaternion.hpp>
 
 #include "D3D.hpp"
+#include <d3d11.h>
+#include <ranges>
 
 static std::string XrVersionToString(const XrVersion version)
 {
@@ -76,12 +79,7 @@ OpenXR::OpenXR()
         .apiVersion = XR_CURRENT_API_VERSION,
     };
 
-    const auto legacy_extensions = std::to_array({ "XR_KHR_vulkan_enable" });
-
-    const auto new_extensions = std::to_array({ "XR_KHR_vulkan_enable2" });
-
-    const auto& extensions = g::cfg.legacy_openxr_init ? legacy_extensions : new_extensions;
-
+    const auto extensions = std::to_array({ "XR_KHR_D3D11_enable" });
     XrInstanceCreateInfo instanceInfo = {
         .type = XR_TYPE_INSTANCE_CREATE_INFO,
         .next = nullptr,
@@ -110,18 +108,6 @@ OpenXR::OpenXR()
     if (auto err = xrGetSystem(instance, &system_get_info, &system_id); err != XR_SUCCESS) {
         throw std::runtime_error(std::format("Failed to initialize OpenXR: xrGetSystem {}", XrResultToString(instance, err)));
     }
-
-    if (!g::cfg.legacy_openxr_init) {
-        XrGraphicsRequirementsVulkanKHR gfx_requirements = { .type = XR_TYPE_GRAPHICS_REQUIREMENTS_VULKAN_KHR };
-        auto xrGetVulkanGraphicsRequirementsKHR = get_extension<PFN_xrGetVulkanGraphicsRequirementsKHR>(instance, "xrGetVulkanGraphicsRequirements2KHR");
-        if (auto err = xrGetVulkanGraphicsRequirementsKHR(instance, system_id, &gfx_requirements); err != XR_SUCCESS) {
-            throw std::runtime_error(std::format("Failed to initialize OpenXR: xrGetVulkanGraphicsRequirementsKHR {}", XrResultToString(instance, err)));
-        }
-
-        dbg(std::format("OpenXR graphicsRequirements: version {}-{}",
-            XrVersionToString(gfx_requirements.minApiVersionSupported),
-            XrVersionToString(gfx_requirements.maxApiVersionSupported)));
-    }
 }
 
 void OpenXR::init(IDirect3DDevice9* dev, IDirect3DVR9** vrdev, uint32_t companion_window_width, uint32_t companion_window_height)
@@ -139,51 +125,65 @@ void OpenXR::init(IDirect3DDevice9* dev, IDirect3DVR9** vrdev, uint32_t companio
         throw std::runtime_error("VR initialization failed: CreateQuery");
     }
 
-    Direct3DCreateVR(dev, vrdev);
-    if (!vrdev) {
-        throw std::runtime_error("VR initialization failed: Direct3DCreateVR");
+	XrGraphicsRequirementsD3D11KHR gfx_requirements = { .type = XR_TYPE_GRAPHICS_REQUIREMENTS_D3D11_KHR };
+	auto xrGetD3D11GraphicsRequirementsKHR = get_extension<PFN_xrGetD3D11GraphicsRequirementsKHR>(instance, "xrGetD3D11GraphicsRequirementsKHR");
+	if (auto err = xrGetD3D11GraphicsRequirementsKHR(instance, system_id, &gfx_requirements); err != XR_SUCCESS) {
+		throw std::runtime_error(std::format("Failed to initialize OpenXR: xrGetVulkanGraphicsRequirementsKHR {}", XrResultToString(instance, err)));
+	}
+
+	dbg(std::format("OpenXR D3D11 feature level {:x}", (int)gfx_requirements.minFeatureLevel));
+
+    IDXGIFactory1* dxgi_factory;
+	if (FAILED(CreateDXGIFactory1(__uuidof(IDXGIFactory1), reinterpret_cast<void**>(&dxgi_factory)))) {
+        throw std::runtime_error("Failed to create DXGI factory");
+	}
+	IDXGIAdapter1* dxgi_adapter = nullptr;
+	for (UINT adapterIndex = 0;; adapterIndex++) {
+		// EnumAdapters1 will fail with DXGI_ERROR_NOT_FOUND when there are no more adapters to
+		// enumerate.
+        if (FAILED(dxgi_factory->EnumAdapters1(adapterIndex, &dxgi_adapter))) {
+			throw std::runtime_error("Failed to create enumerate adapters");
+		}
+		DXGI_ADAPTER_DESC1 adapter_desc;
+        if (FAILED(dxgi_adapter->GetDesc1(&adapter_desc))) {
+			throw std::runtime_error("Failed to get adapter description");
+		}
+		if (!memcmp(&adapter_desc.AdapterLuid, &gfx_requirements.adapterLuid, sizeof(LUID))) {
+			const auto adapter_description = std::wstring(adapter_desc.Description)
+				| std::views::transform([](wchar_t c) { return static_cast<char>(c); })
+                | std::ranges::to<std::string>();
+
+			dbg(std::format("Using D3D11 adapter {}", adapter_description));
+			break;
+		}
+	}
+	if (!dxgi_adapter) {
+		throw std::runtime_error("No adapter found");
     }
 
-    OXR_VK_DEVICE_DESC vk_desc;
-    if ((*vrdev)->GetOXRVkDeviceDesc(&vk_desc) != D3D_OK) {
-        throw std::runtime_error("VR initialization failed: GetOXRVkDeviceDesc");
+    ID3D11Device* d3d11dev;
+    ID3D11DeviceContext* d3d11ctx;
+
+    if (auto ret = D3D11CreateDevice(dxgi_adapter, D3D_DRIVER_TYPE_UNKNOWN, nullptr, D3D11_CREATE_DEVICE_BGRA_SUPPORT, &gfx_requirements.minFeatureLevel, 1, D3D11_SDK_VERSION, &d3d11dev, nullptr, &d3d11ctx); ret != D3D_OK)
+    {
+		throw std::runtime_error(std::format("Failed to create D3D11 device: {}", ret));
     }
 
-    if (g::cfg.legacy_openxr_init) {
-        VkPhysicalDevice phys;
-        auto xrGetVulkanGraphicsDeviceKHR = get_extension<PFN_xrGetVulkanGraphicsDeviceKHR>(instance, "xrGetVulkanGraphicsDeviceKHR");
+	dxgi_adapter->Release();
+    dxgi_factory->Release();
 
-        // This needs to be called even though we get back the same pointer that we had already in OXR_VK_DEVICE_DESC
-        xrGetVulkanGraphicsDeviceKHR(instance, system_id, vk_desc.Instance, &phys);
-    }
-
-    XrGraphicsBindingVulkanKHR gfx_binding = {
-        .type = XR_TYPE_GRAPHICS_BINDING_VULKAN_KHR,
+    XrGraphicsBindingD3D11KHR gfx_binding = {
+        .type = XR_TYPE_GRAPHICS_BINDING_D3D11_KHR,
         .next = nullptr,
-        .instance = vk_desc.Instance,
-        .physicalDevice = vk_desc.PhysicalDevice,
-        .device = vk_desc.Device,
-        .queueFamilyIndex = vk_desc.QueueFamilyIndex,
-        .queueIndex = vk_desc.QueueIndex,
+        .device = d3d11dev,
     };
+
     XrSessionCreateInfo sessionCreateInfo = {
         .type = XR_TYPE_SESSION_CREATE_INFO,
         .next = &gfx_binding,
         .createFlags = 0,
         .systemId = system_id,
     };
-
-    if (g::cfg.legacy_openxr_init) {
-        XrGraphicsRequirementsVulkanKHR gfx_requirements = { .type = XR_TYPE_GRAPHICS_REQUIREMENTS_VULKAN_KHR };
-        auto xrGetVulkanGraphicsRequirementsKHR = get_extension<PFN_xrGetVulkanGraphicsRequirementsKHR>(instance, "xrGetVulkanGraphicsRequirementsKHR");
-        if (auto err = xrGetVulkanGraphicsRequirementsKHR(instance, system_id, &gfx_requirements); err != XR_SUCCESS) {
-            throw std::runtime_error(std::format("Failed to initialize OpenXR: xrGetVulkanGraphicsRequirementsKHR {}", XrResultToString(instance, err)));
-        }
-
-        dbg(std::format("OpenXR graphicsRequirements: version {}-{}",
-            XrVersionToString(gfx_requirements.minApiVersionSupported),
-            XrVersionToString(gfx_requirements.maxApiVersionSupported)));
-    }
 
     if (auto err = xrCreateSession(instance, &sessionCreateInfo, &session); err != XR_SUCCESS) {
         throw std::runtime_error(std::format("Failed to initialize OpenXR: xrCreateSession {}", XrResultToString(instance, err)));
@@ -225,8 +225,8 @@ void OpenXR::init(IDirect3DDevice9* dev, IDirect3DVR9** vrdev, uint32_t companio
     }
     dbg(ss.str());
 
-    if (std::find(swapchain_formats.begin(), swapchain_formats.end(), VK_FORMAT_R8G8B8A8_SRGB) != swapchain_formats.end()) {
-        swapchain_format = VK_FORMAT_R8G8B8A8_SRGB;
+    if (std::find(swapchain_formats.begin(), swapchain_formats.end(), DXGI_FORMAT_R8G8B8A8_UNORM_SRGB) != swapchain_formats.end()) {
+        swapchain_format = static_cast<int64_t>(DXGI_FORMAT_R8G8B8A8_UNORM_SRGB);
     } else {
         swapchain_format = swapchain_formats.front();
     }
@@ -247,7 +247,7 @@ void OpenXR::init(IDirect3DDevice9* dev, IDirect3DVR9** vrdev, uint32_t companio
             XrSwapchainCreateInfo swapchain_create_info = {
                 .type = XR_TYPE_SWAPCHAIN_CREATE_INFO,
                 .createFlags = 0,
-                .usageFlags = XR_SWAPCHAIN_USAGE_TRANSFER_DST_BIT,
+                .usageFlags = 0,
                 .format = swapchain_format,
                 .sampleCount = 1,
                 .width = ctx.width[i],
@@ -266,7 +266,8 @@ void OpenXR::init(IDirect3DDevice9* dev, IDirect3DVR9** vrdev, uint32_t companio
             if (auto err = xrEnumerateSwapchainImages(xr_ctx->swapchains[i], 0, &imageCount, nullptr); err != XR_SUCCESS) {
                 throw std::runtime_error(std::format("Failed to initialize OpenXR: xrEnumerateSwapchainImages {}", XrResultToString(instance, err)));
             }
-            xr_ctx->swapchain_images[i].resize(imageCount, { .type = XR_TYPE_SWAPCHAIN_IMAGE_VULKAN_KHR });
+
+            xr_ctx->swapchain_images[i].resize(imageCount, { .type = XR_TYPE_SWAPCHAIN_IMAGE_D3D11_KHR });
             if (auto err = xrEnumerateSwapchainImages(
                     xr_ctx->swapchains[i],
                     xr_ctx->swapchain_images[i].size(),
@@ -274,6 +275,26 @@ void OpenXR::init(IDirect3DDevice9* dev, IDirect3DVR9** vrdev, uint32_t companio
                     reinterpret_cast<XrSwapchainImageBaseHeader*>(xr_ctx->swapchain_images[i].data()));
                 err != XR_SUCCESS) {
                 throw std::runtime_error(std::format("Failed to initialize OpenXR: xrEnumerateSwapchainImages {}", XrResultToString(instance, err)));
+            }
+
+			D3D11_TEXTURE2D_DESC desc = {
+				.Width = ctx.width[i],
+                .Height = ctx.height[i],
+				.MipLevels = 1,
+				.ArraySize = 1,
+				.Format = static_cast<DXGI_FORMAT>(swapchain_format),
+				.SampleDesc = 1,
+				.Usage = D3D11_USAGE_DEFAULT,
+                .BindFlags = 0,
+                .CPUAccessFlags = 0,
+                .MiscFlags = D3D11_RESOURCE_MISC_SHARED,
+			};
+
+            xr_ctx->shared_images[i].resize(imageCount, {});
+			for (int texi = 0; texi < imageCount; ++texi) {
+				if (auto ret = d3d11dev->CreateTexture2D(&desc, nullptr, &xr_ctx->shared_images[i][texi]); ret != D3D_OK) {
+					throw std::runtime_error(std::format("Failed to create shared texture: {}", ret));
+				}
             }
         }
 
@@ -374,37 +395,37 @@ void OpenXR::init(IDirect3DDevice9* dev, IDirect3DVR9** vrdev, uint32_t companio
 
 const char* OpenXR::get_device_extensions()
 {
-    if (device_extensions.empty()) {
-        uint32_t extension_list_len;
-        auto xrGetVulkanDeviceExtensionsKHR = get_extension<PFN_xrGetVulkanDeviceExtensionsKHR>(instance, "xrGetVulkanDeviceExtensionsKHR");
-        if (auto err = xrGetVulkanDeviceExtensionsKHR(instance, system_id, 0, &extension_list_len, nullptr); err != XR_SUCCESS) {
-            throw std::runtime_error(std::format("OpenXR init failed: xrGetVulkanDeviceExtensionsKHR: {}", XrResultToString(instance, err)));
-        }
-        device_extensions.resize(extension_list_len, 0);
-        if (auto err = xrGetVulkanDeviceExtensionsKHR(instance, system_id, device_extensions.size(), &extension_list_len, device_extensions.data()); err != XR_SUCCESS) {
-            throw std::runtime_error(std::format("OpenXR init failed: xrGetVulkanDeviceExtensionsKHR: {}", XrResultToString(instance, err)));
-        }
-    }
+    //if (device_extensions.empty()) {
+    //    uint32_t extension_list_len;
+    //    auto xrGetVulkanDeviceExtensionsKHR = get_extension<PFN_xrGetVulkanDeviceExtensionsKHR>(instance, "xrGetVulkanDeviceExtensionsKHR");
+    //    if (auto err = xrGetVulkanDeviceExtensionsKHR(instance, system_id, 0, &extension_list_len, nullptr); err != XR_SUCCESS) {
+    //        throw std::runtime_error(std::format("OpenXR init failed: xrGetVulkanDeviceExtensionsKHR: {}", XrResultToString(instance, err)));
+    //    }
+    //    device_extensions.resize(extension_list_len, 0);
+    //    if (auto err = xrGetVulkanDeviceExtensionsKHR(instance, system_id, device_extensions.size(), &extension_list_len, device_extensions.data()); err != XR_SUCCESS) {
+    //        throw std::runtime_error(std::format("OpenXR init failed: xrGetVulkanDeviceExtensionsKHR: {}", XrResultToString(instance, err)));
+    //    }
+    //}
     return device_extensions.data();
 }
 
 const char* OpenXR::get_instance_extensions()
 {
-    if (instance_extensions.empty()) {
-        uint32_t extension_list_len;
-        auto xrGetVulkanInstanceExtensionsKHR = get_extension<PFN_xrGetVulkanInstanceExtensionsKHR>(instance, "xrGetVulkanInstanceExtensionsKHR");
-        if (auto err = xrGetVulkanInstanceExtensionsKHR(instance, system_id, 0, &extension_list_len, nullptr); err != XR_SUCCESS) {
-            throw std::runtime_error(std::format("OpenXR init failed: xrGetVulkanInstanceExtensionsKHR: {}", XrResultToString(instance, err)));
-        }
-        instance_extensions.resize(extension_list_len, 0);
-        if (auto err = xrGetVulkanInstanceExtensionsKHR(instance, system_id, instance_extensions.size(), &extension_list_len, instance_extensions.data()); err != XR_SUCCESS) {
-            throw std::runtime_error(std::format("OpenXR init failed: xrGetVulkanInstanceExtensionsKHR: {}", XrResultToString(instance, err)));
-        }
-    }
+    //if (instance_extensions.empty()) {
+    //    uint32_t extension_list_len;
+    //    auto xrGetVulkanInstanceExtensionsKHR = get_extension<PFN_xrGetVulkanInstanceExtensionsKHR>(instance, "xrGetVulkanInstanceExtensionsKHR");
+    //    if (auto err = xrGetVulkanInstanceExtensionsKHR(instance, system_id, 0, &extension_list_len, nullptr); err != XR_SUCCESS) {
+    //        throw std::runtime_error(std::format("OpenXR init failed: xrGetVulkanInstanceExtensionsKHR: {}", XrResultToString(instance, err)));
+    //    }
+    //    instance_extensions.resize(extension_list_len, 0);
+    //    if (auto err = xrGetVulkanInstanceExtensionsKHR(instance, system_id, instance_extensions.size(), &extension_list_len, instance_extensions.data()); err != XR_SUCCESS) {
+    //        throw std::runtime_error(std::format("OpenXR init failed: xrGetVulkanInstanceExtensionsKHR: {}", XrResultToString(instance, err)));
+    //    }
+    //}
     return instance_extensions.data();
 }
 
-XrSwapchainImageVulkanKHR& OpenXR::acquire_swapchain_image(RenderTarget tgt)
+XrSwapchainImageD3D11KHR& OpenXR::acquire_swapchain_image(RenderTarget tgt)
 {
     XrSwapchainImageAcquireInfo acquire_info = {
         .type = XR_TYPE_SWAPCHAIN_IMAGE_ACQUIRE_INFO,
@@ -470,19 +491,19 @@ void OpenXR::prepare_frames_for_hmd(IDirect3DDevice9* dev)
         g::d3d_vr->Flush();
     }
 
-    g::d3d_vr->CopySurfaceToVulkanImage(
-        current_render_context->dx_surface[LeftEye],
-        left.image,
-        swapchain_format,
-        current_render_context->width[LeftEye],
-        current_render_context->height[LeftEye]);
+    // g::d3d_vr->CopySurfaceToVulkanImage(
+    //     current_render_context->dx_surface[LeftEye],
+    //     left.image,
+    //     swapchain_format,
+    //     current_render_context->width[LeftEye],
+    //     current_render_context->height[LeftEye]);
 
-    g::d3d_vr->CopySurfaceToVulkanImage(
-        current_render_context->dx_surface[RightEye],
-        right.image,
-        swapchain_format,
-        current_render_context->width[RightEye],
-        current_render_context->height[RightEye]);
+    // g::d3d_vr->CopySurfaceToVulkanImage(
+    //     current_render_context->dx_surface[RightEye],
+    //     right.image,
+    //     swapchain_format,
+    //     current_render_context->width[RightEye],
+    //     current_render_context->height[RightEye]);
 
     xrReleaseSwapchainImage(xr_context()->swapchains[LeftEye], &release_info);
     xrReleaseSwapchainImage(xr_context()->swapchains[RightEye], &release_info);
@@ -521,11 +542,11 @@ void OpenXR::submit_frames_to_hmd(IDirect3DDevice9* dev)
         .layers = layers,
     };
 
-    g::d3d_vr->BeginVRSubmit();
+    // g::d3d_vr->BeginVRSubmit();
     if (auto res = xrEndFrame(session, &frame_end_info); res != XR_SUCCESS) {
         dbg(std::format("xrEndFrame failed: {}", XrResultToString(instance, res)));
     }
-    g::d3d_vr->EndVRSubmit();
+    // g::d3d_vr->EndVRSubmit();
 }
 
 std::optional<XrViewState> OpenXR::update_views()
