@@ -365,7 +365,6 @@ void OpenXR::init(IDirect3DDevice9* dev, IDirect3DVR9** vrdev, uint32_t companio
 
     view_pose = old_view_pose.value_or(XrPosef { { 0, 0, 0, 1 }, { 0, 0, 0 } });
 
-
     // Start pose registration.
     if (g::cfg.openxr_motion_compensation) {
         init_motion_compensation_support();
@@ -472,8 +471,7 @@ void OpenXR::init_motion_compensation_support()
         return;
     }
 
-
-    if (!init_motion_compensation_suggest_bindings()) { 
+    if (!init_motion_compensation_suggest_bindings()) {
         return;
     }
 
@@ -942,10 +940,10 @@ void OpenXR::update_poll_hand_poses()
     };
 
     if (auto res = xrPollEvent(instance, &eventData); res == XR_SUCCESS) {
-        dbg(std::format("xrPollEvent: {}", (int) eventData.type));
+        dbg(std::format("xrPollEvent: {}", (int)eventData.type));
     }
 
-    //TODO: The rest in this function is probably not needed, needs testing.
+    // TODO: The rest in this function is probably not needed, needs testing.
 
     inputState.handActive = { XR_FALSE, XR_FALSE };
     const XrActiveActionSet activeActionSet { inputState.actionSet, XR_NULL_PATH };
@@ -955,7 +953,6 @@ void OpenXR::update_poll_hand_poses()
     if (auto res = xrSyncActions(session, &syncInfo); res != XR_SUCCESS) {
         dbg(std::format("xrSyncActions: {}", XrResultToString(instance, res)));
     }
-
 
     for (auto hand : { Side::LEFT, Side::RIGHT }) {
         XrActionStateGetInfo getInfo { XR_TYPE_ACTION_STATE_GET_INFO };
