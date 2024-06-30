@@ -70,7 +70,7 @@ Pokud máte Reverb headset, vyberte `OpenXR (Reverb compatibility mode)` ve hře
 - V RSF launcheru klikněte na `Controls` respektivě `Ovládání` a  
   povolte `3-2-1 countdown pause` respektivě `Odpočítávání 3-2-1 pozastaveno` díky čemuž získáte čas na
   nastavení pohledu před startem RZety.
-- Před startem RZety pak otevřete PaceNote plugin dvojklikem pravým tlačítkem myši v okně hry a pohled si nastavte.
+- Před startem RZety otevřete PaceNote plugin dvojklikem pravým tlačítkem myši v okně hry a pohled si nastavte.
   Nezapomeňte si polohu uložit kliknutím na tlačítko `Save` respektivě `Uložit` a zavřete okno s nastavením
   kliknutím na `X` v pravém horním rohu.
   
@@ -101,3 +101,7 @@ s tímto nastavením v RSF launcheru:
 
 - K tomu dochází bez zapnutého Anti-Aliasingu a/nebo anizotropního filtrování. Zvyšte
   anizotropní filtrování a potom i anti-aliasing, pokud to vaše PC utáhne.
+
+## Jak nastavím anti-aliasing pro jednotlivé tratě?
+
+- Nejlepší je nastavit základní vyhlazování v RSF launcheru na 2x SRS nebo 4x SRS a potom v sekci `[gfx]` snížit tuto hodnotu (například u BTB tratí) nastavením na 0. Příklad neleznete v souboru `openRBRVR.toml.sample`.
