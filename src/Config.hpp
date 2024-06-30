@@ -198,7 +198,6 @@ struct Config {
             { "desktopWindowOffsetY", companion_offset.y },
             { "desktopWindowSize", companion_size },
             { "desktopEye", static_cast<int>(companion_eye) },
-            { "openXRMotionCompensation", openxr_motion_compensation },
         };
 
         toml::table gfxTbl;
@@ -222,11 +221,12 @@ struct Config {
         }
         out.insert("gfx", gfxTbl);
 
-        toml::table OXRTbl;
-        OXRTbl.insert("worldScale", world_scale);
-        OXRTbl.insert("quadViewRendering", quad_view_rendering);
-        OXRTbl.insert("peripheralAntiAliasing", peripheral_msaa);
-        out.insert("OpenXR", OXRTbl);
+        toml::table openxr;
+        openxr.insert("worldScale", world_scale);
+        openxr.insert("quadViewRendering", quad_view_rendering);
+        openxr.insert("peripheralAntiAliasing", peripheral_msaa);
+        openxr.insert("motionCompensation", openxr_motion_compensation);
+        out.insert("OpenXR", openxr);
 
         f << out;
         f.close();
@@ -274,7 +274,6 @@ struct Config {
         cfg.companion_offset = { parsed["desktopWindowOffsetX"].value_or(0), parsed["desktopWindowOffsetY"].value_or(0) };
         cfg.companion_size = parsed["desktopWindowSize"].value_or(100);
         cfg.companion_eye = static_cast<RenderTarget>(std::clamp(parsed["desktopEye"].value_or(0), 0, 1));
-        cfg.openxr_motion_compensation = parsed["openXRMotionCompensation"].value_or(false);
 
         const std::string& runtime = parsed["runtime"].value_or("steamvr");
         if (runtime == "openxr" || runtime == "openxr-wmr") {
@@ -310,6 +309,7 @@ struct Config {
             cfg.world_scale = std::clamp(oxrnode["worldScale"].value_or(1000), 500, 1500);
             cfg.quad_view_rendering = oxrnode["quadViewRendering"].value_or(true);
             cfg.peripheral_msaa = static_cast<D3DMULTISAMPLE_TYPE>(oxrnode["peripheralAntiAliasing"].value_or(0));
+            cfg.openxr_motion_compensation = oxrnode["motionCompensation"].value_or(false);
         }
 
         return cfg;
