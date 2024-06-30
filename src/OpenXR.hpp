@@ -36,11 +36,10 @@ namespace Side {
 }
 
 struct InputState {
-    XrActionSet actionSet { XR_NULL_HANDLE };
-    XrAction poseAction { XR_NULL_HANDLE };
-    std::array<XrPath, Side::COUNT> handSubactionPath;
-    std::array<XrSpace, Side::COUNT> handSpace;
-    std::array<XrBool32, Side::COUNT> handActive;
+    XrActionSet action_set { XR_NULL_HANDLE };
+    XrAction pose_action { XR_NULL_HANDLE };
+    std::array<XrPath, Side::COUNT> hand_subaction_path;
+    std::array<XrSpace, Side::COUNT> hand_space;
 };
 
 class OpenXR : public VRInterface {
@@ -54,7 +53,7 @@ private:
     int64_t swapchain_format;
     XrPosef view_pose;
     XrViewConfigurationType primary_view_config_type;
-    InputState inputState; // For sending poses to OpenXR-MotionCompensation https://github.com/BuzzteeBear/OpenXR-MotionCompensation
+    InputState input_state; // For sending poses to OpenXR-MotionCompensation https://github.com/BuzzteeBear/OpenXR-MotionCompensation
     bool has_projection;
     bool reset_view_requested;
 
@@ -84,6 +83,11 @@ private:
         return reinterpret_cast<OpenXRRenderContext*>(current_render_context->ext);
     }
 
+    std::optional<std::string> init_motion_compensation_support();
+    bool set_interaction_profile_bindings();
+    std::vector<XrInteractionProfileSuggestedBinding> get_supported_interaction_profiles(const std::array<XrActionSuggestedBinding, 2>& bindings);
+    void update_hand_poses();
+
 public:
     OpenXR();
     OpenXR(const OpenXR&) = delete;
@@ -92,8 +96,6 @@ public:
     OpenXR& operator=(const OpenXR&&) = delete;
 
     void init(IDirect3DDevice9* dev, IDirect3DVR9** vrdev, uint32_t companionWindowWidth, uint32_t companionWindowHeight, std::optional<XrPosef> old_view_pose = std::nullopt);
-    void init_motion_compensation_support();
-    bool init_motion_compensation_suggest_bindings();
     virtual ~OpenXR()
     {
         shutdown_vr();
@@ -101,7 +103,6 @@ public:
 
     void shutdown_vr() override;
     bool update_vr_poses() override;
-    void update_poll_hand_poses();
     void prepare_frames_for_hmd(IDirect3DDevice9* dev) override;
     void submit_frames_to_hmd(IDirect3DDevice9* dev) override;
     void reset_view() override;
