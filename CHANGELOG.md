@@ -11,6 +11,12 @@
   openRBRVR is not yet released, the support should land in OpenKneeboard
   1.8.4. OpenKneeboard can then be used to bring desktop windows into the VR
   environment, like SimHub overlays.
+- Add support for [OpenXR motion compensation layer]
+  (https://github.com/BuzzteeBear/OpenXR-MotionCompensation), contributed by
+  MatteKarla.
+  At least for now it needs a custom version of OpenXR-MotionCompensation layer
+  in order to work, available [here]
+  (https://github.com/MatsKarlsson/OpenXR-MotionCompensation/releases/download/v0.3.4-32-bit-beta/Install_OpenXR-MotionCompensation_32bit_0.3.4.exe).
 
 ## 0.8.2
 
