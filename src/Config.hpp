@@ -105,6 +105,7 @@ struct Config {
     RenderTarget companion_eye = LeftEye;
     int world_scale = 1000;
     bool legacy_openxr_init = false;
+    bool openxr_motion_compensation = false; // OpenXR-MotionCompensation support https://github.com/BuzzteeBear/OpenXR-MotionCompensation
 
     Config& operator=(const Config& rhs)
     {
@@ -133,6 +134,7 @@ struct Config {
         debug_mode = rhs.debug_mode;
         world_scale = rhs.world_scale;
         legacy_openxr_init = rhs.legacy_openxr_init;
+        openxr_motion_compensation = rhs.openxr_motion_compensation;
         return *this;
     }
 
@@ -159,7 +161,8 @@ struct Config {
             && companion_size == rhs.companion_size
             && companion_eye == rhs.companion_eye
             && world_scale == rhs.world_scale
-            && legacy_openxr_init == rhs.legacy_openxr_init;
+            && legacy_openxr_init == rhs.legacy_openxr_init
+            && openxr_motion_compensation == rhs.openxr_motion_compensation;
     }
 
     bool write(const std::filesystem::path& path) const
@@ -192,6 +195,7 @@ struct Config {
             { "desktopWindowOffsetY", companion_offset.y },
             { "desktopWindowSize", companion_size },
             { "desktopEye", static_cast<int>(companion_eye) },
+            { "openXRMotionCompensation", openxr_motion_compensation },
         };
 
         toml::table gfxTbl;
@@ -265,6 +269,7 @@ struct Config {
         cfg.companion_offset = { parsed["desktopWindowOffsetX"].value_or(0), parsed["desktopWindowOffsetY"].value_or(0) };
         cfg.companion_size = parsed["desktopWindowSize"].value_or(100);
         cfg.companion_eye = static_cast<RenderTarget>(std::clamp(parsed["desktopEye"].value_or(0), 0, 1));
+        cfg.openxr_motion_compensation = parsed["openXRMotionCompensation"].value_or(false);
 
         const std::string& runtime = parsed["runtime"].value_or("steamvr");
         if (runtime == "openxr") {
