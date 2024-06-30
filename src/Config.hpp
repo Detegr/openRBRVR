@@ -195,7 +195,6 @@ struct Config {
             { "desktopWindowOffsetY", companion_offset.y },
             { "desktopWindowSize", companion_size },
             { "desktopEye", static_cast<int>(companion_eye) },
-            { "openXRMotionCompensation", openxr_motion_compensation },
         };
 
         toml::table gfxTbl;
@@ -219,9 +218,10 @@ struct Config {
         }
         out.insert("gfx", gfxTbl);
 
-        toml::table OXRTbl;
-        OXRTbl.insert("worldScale", world_scale);
-        out.insert("OpenXR", OXRTbl);
+        toml::table openxr;
+        openxr.insert("worldScale", world_scale);
+        openxr.insert("motionCompensation", openxr_motion_compensation);
+        out.insert("OpenXR", openxr);
 
         f << out;
         f.close();
@@ -269,7 +269,6 @@ struct Config {
         cfg.companion_offset = { parsed["desktopWindowOffsetX"].value_or(0), parsed["desktopWindowOffsetY"].value_or(0) };
         cfg.companion_size = parsed["desktopWindowSize"].value_or(100);
         cfg.companion_eye = static_cast<RenderTarget>(std::clamp(parsed["desktopEye"].value_or(0), 0, 1));
-        cfg.openxr_motion_compensation = parsed["openXRMotionCompensation"].value_or(false);
 
         const std::string& runtime = parsed["runtime"].value_or("steamvr");
         if (runtime == "openxr") {
@@ -312,6 +311,7 @@ struct Config {
         auto oxrnode = parsed["OpenXR"];
         if (oxrnode.is_table()) {
             cfg.world_scale = std::clamp(oxrnode["worldScale"].value_or(1000), 500, 1500);
+            cfg.openxr_motion_compensation = oxrnode["motionCompensation"].value_or(false);
         }
 
         return cfg;
