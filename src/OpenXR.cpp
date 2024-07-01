@@ -803,11 +803,10 @@ void OpenXR::update_poll_hand_poses()
         .next = nullptr,
     };
 
+    // This should perhaps be moved to the main loop to be able to detect changes (disconnects) where you need to recreate xrSession and re-init.
     if (auto res = xrPollEvent(instance, &eventData); res == XR_SUCCESS) {
         dbg(std::format("xrPollEvent: {}", (int) eventData.type));
     }
-
-    //TODO: The rest in this function is probably not needed, needs testing.
 
     inputState.handActive = { XR_FALSE, XR_FALSE };
     const XrActiveActionSet activeActionSet { inputState.actionSet, XR_NULL_PATH };
@@ -817,7 +816,6 @@ void OpenXR::update_poll_hand_poses()
     if (auto res = xrSyncActions(session, &syncInfo); res != XR_SUCCESS) {
         dbg(std::format("xrSyncActions: {}", XrResultToString(instance, res)));
     }
-
 
     for (auto hand : { Side::LEFT, Side::RIGHT }) {
         XrActionStateGetInfo getInfo { XR_TYPE_ACTION_STATE_GET_INFO };
