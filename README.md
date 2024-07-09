@@ -16,6 +16,7 @@ Open source VR plugin for Richard Burns Rally.
   originally by TheIronWolf that adds D3D9 VR support).
 - PaceNote plugin UI works correctly.
 - Gaugerplugin works correctly (but has a performance impact).
+- Supports both OpenXR and OpenVR.
 
 ## Installation instructions
 
