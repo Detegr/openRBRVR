@@ -15,6 +15,7 @@ bool create_render_target(
     IDirect3DSurface9** msaa_surface,
     IDirect3DSurface9** depth_stencil_surface,
     IDirect3DTexture9** target_texture,
+    HANDLE* shared_handle,
     RenderTarget tgt,
     D3DFORMAT fmt,
     uint32_t w,

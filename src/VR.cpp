@@ -126,7 +126,7 @@ void VRInterface::finish_vr_rendering(IDirect3DDevice9* dev, RenderTarget tgt)
 
 static bool create_render_target(IDirect3DDevice9* dev, D3DMULTISAMPLE_TYPE msaa, RenderContext& ctx, RenderTarget tgt, D3DFORMAT fmt, uint32_t w, uint32_t h)
 {
-    return create_render_target(dev, msaa, &ctx.dx_surface[tgt], &ctx.dx_depth_stencil_surface[tgt], &ctx.dx_texture[tgt], tgt, fmt, w, h);
+    return create_render_target(dev, msaa, &ctx.dx_surface[tgt], &ctx.dx_depth_stencil_surface[tgt], &ctx.dx_texture[tgt], &ctx.dx_shared_handle[tgt], tgt, fmt, w, h);
 }
 
 void VRInterface::init_surfaces(IDirect3DDevice9* dev, RenderContext& ctx, uint32_t res_x_2d, uint32_t res_y_2d)

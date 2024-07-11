@@ -9,6 +9,7 @@
 
 #include "D3D.hpp"
 #include <d3d11.h>
+#include <d3d11_1.h>
 #include <ranges>
 
 static std::string XrVersionToString(const XrVersion version)
@@ -125,52 +126,53 @@ void OpenXR::init(IDirect3DDevice9* dev, IDirect3DVR9** vrdev, uint32_t companio
         throw std::runtime_error("VR initialization failed: CreateQuery");
     }
 
-	XrGraphicsRequirementsD3D11KHR gfx_requirements = { .type = XR_TYPE_GRAPHICS_REQUIREMENTS_D3D11_KHR };
-	auto xrGetD3D11GraphicsRequirementsKHR = get_extension<PFN_xrGetD3D11GraphicsRequirementsKHR>(instance, "xrGetD3D11GraphicsRequirementsKHR");
-	if (auto err = xrGetD3D11GraphicsRequirementsKHR(instance, system_id, &gfx_requirements); err != XR_SUCCESS) {
-		throw std::runtime_error(std::format("Failed to initialize OpenXR: xrGetVulkanGraphicsRequirementsKHR {}", XrResultToString(instance, err)));
-	}
+    XrGraphicsRequirementsD3D11KHR gfx_requirements = { .type = XR_TYPE_GRAPHICS_REQUIREMENTS_D3D11_KHR };
+    auto xrGetD3D11GraphicsRequirementsKHR = get_extension<PFN_xrGetD3D11GraphicsRequirementsKHR>(instance, "xrGetD3D11GraphicsRequirementsKHR");
+    if (auto err = xrGetD3D11GraphicsRequirementsKHR(instance, system_id, &gfx_requirements); err != XR_SUCCESS) {
+        throw std::runtime_error(std::format("Failed to initialize OpenXR: xrGetVulkanGraphicsRequirementsKHR {}", XrResultToString(instance, err)));
+    }
 
-	dbg(std::format("OpenXR D3D11 feature level {:x}", (int)gfx_requirements.minFeatureLevel));
+    dbg(std::format("OpenXR D3D11 feature level {:x}", (int)gfx_requirements.minFeatureLevel));
 
     IDXGIFactory1* dxgi_factory;
-	if (FAILED(CreateDXGIFactory1(__uuidof(IDXGIFactory1), reinterpret_cast<void**>(&dxgi_factory)))) {
+    if (FAILED(CreateDXGIFactory1(__uuidof(IDXGIFactory1), reinterpret_cast<void**>(&dxgi_factory)))) {
         throw std::runtime_error("Failed to create DXGI factory");
-	}
-	IDXGIAdapter1* dxgi_adapter = nullptr;
-	for (UINT adapterIndex = 0;; adapterIndex++) {
-		// EnumAdapters1 will fail with DXGI_ERROR_NOT_FOUND when there are no more adapters to
-		// enumerate.
+    }
+    IDXGIAdapter1* dxgi_adapter = nullptr;
+    for (UINT adapterIndex = 0;; adapterIndex++) {
+        // EnumAdapters1 will fail with DXGI_ERROR_NOT_FOUND when there are no more adapters to
+        // enumerate.
         if (FAILED(dxgi_factory->EnumAdapters1(adapterIndex, &dxgi_adapter))) {
-			throw std::runtime_error("Failed to create enumerate adapters");
-		}
-		DXGI_ADAPTER_DESC1 adapter_desc;
+            throw std::runtime_error("Failed to create enumerate adapters");
+        }
+        DXGI_ADAPTER_DESC1 adapter_desc;
         if (FAILED(dxgi_adapter->GetDesc1(&adapter_desc))) {
-			throw std::runtime_error("Failed to get adapter description");
-		}
-		if (!memcmp(&adapter_desc.AdapterLuid, &gfx_requirements.adapterLuid, sizeof(LUID))) {
-			const auto adapter_description = std::wstring(adapter_desc.Description)
-				| std::views::transform([](wchar_t c) { return static_cast<char>(c); })
+            throw std::runtime_error("Failed to get adapter description");
+        }
+        if (!memcmp(&adapter_desc.AdapterLuid, &gfx_requirements.adapterLuid, sizeof(LUID))) {
+            const auto adapter_description = std::wstring(adapter_desc.Description)
+                | std::views::transform([](wchar_t c) { return static_cast<char>(c); })
                 | std::ranges::to<std::string>();
 
-			dbg(std::format("Using D3D11 adapter {}", adapter_description));
-			break;
-		}
-	}
-	if (!dxgi_adapter) {
-		throw std::runtime_error("No adapter found");
+            dbg(std::format("Using D3D11 adapter {}", adapter_description));
+            break;
+        }
+    }
+    if (!dxgi_adapter) {
+        throw std::runtime_error("No adapter found");
     }
 
     ID3D11Device* d3d11dev;
     ID3D11DeviceContext* d3d11ctx;
 
-    if (auto ret = D3D11CreateDevice(dxgi_adapter, D3D_DRIVER_TYPE_UNKNOWN, nullptr, D3D11_CREATE_DEVICE_BGRA_SUPPORT, &gfx_requirements.minFeatureLevel, 1, D3D11_SDK_VERSION, &d3d11dev, nullptr, &d3d11ctx); ret != D3D_OK)
-    {
-		throw std::runtime_error(std::format("Failed to create D3D11 device: {}", ret));
+    if (auto ret = D3D11CreateDevice(dxgi_adapter, D3D_DRIVER_TYPE_UNKNOWN, nullptr, D3D11_CREATE_DEVICE_BGRA_SUPPORT | D3D11_CREATE_DEVICE_DEBUG, &gfx_requirements.minFeatureLevel, 1, D3D11_SDK_VERSION, &d3d11dev, nullptr, &d3d11ctx); ret != D3D_OK) {
+        throw std::runtime_error(std::format("Failed to create D3D11 device: {}", ret));
     }
 
-	dxgi_adapter->Release();
+    dxgi_adapter->Release();
     dxgi_factory->Release();
+
+    g::d3d11_dev = d3d11dev;
 
     XrGraphicsBindingD3D11KHR gfx_binding = {
         .type = XR_TYPE_GRAPHICS_BINDING_D3D11_KHR,
@@ -236,6 +238,7 @@ void OpenXR::init(IDirect3DDevice9* dev, IDirect3DVR9** vrdev, uint32_t companio
 
         OpenXRRenderContext* xr_ctx = new OpenXRRenderContext {};
         RenderContext ctx = {
+            .dx_shared_handle = { 0 },
             .msaa = gfx.second.msaa.value_or(g::cfg.gfx["default"].msaa.value()),
             .ext = xr_ctx
         };
@@ -277,25 +280,33 @@ void OpenXR::init(IDirect3DDevice9* dev, IDirect3DVR9** vrdev, uint32_t companio
                 throw std::runtime_error(std::format("Failed to initialize OpenXR: xrEnumerateSwapchainImages {}", XrResultToString(instance, err)));
             }
 
-			D3D11_TEXTURE2D_DESC desc = {
-				.Width = ctx.width[i],
+            D3D11_TEXTURE2D_DESC desc = {
+                .Width = ctx.width[i],
                 .Height = ctx.height[i],
-				.MipLevels = 1,
-				.ArraySize = 1,
-				.Format = static_cast<DXGI_FORMAT>(swapchain_format),
-				.SampleDesc = 1,
-				.Usage = D3D11_USAGE_DEFAULT,
-                .BindFlags = 0,
+                .MipLevels = 1,
+                .ArraySize = 1,
+                .Format = static_cast<DXGI_FORMAT>(swapchain_format),
+                .SampleDesc = 1,
+                .Usage = D3D11_USAGE_DEFAULT,
+                .BindFlags = D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE,
                 .CPUAccessFlags = 0,
-                .MiscFlags = D3D11_RESOURCE_MISC_SHARED,
-			};
+                .MiscFlags = D3D11_RESOURCE_MISC_SHARED | D3D11_RESOURCE_MISC_SHARED_NTHANDLE,
+            };
 
-            xr_ctx->shared_images[i].resize(imageCount, {});
-			for (int texi = 0; texi < imageCount; ++texi) {
-				if (auto ret = d3d11dev->CreateTexture2D(&desc, nullptr, &xr_ctx->shared_images[i][texi]); ret != D3D_OK) {
-					throw std::runtime_error(std::format("Failed to create shared texture: {}", ret));
-				}
+            if (auto ret = d3d11dev->CreateTexture2D(&desc, nullptr, &xr_ctx->shared_textures[i]); ret != D3D_OK) {
+                throw std::runtime_error(std::format("Failed to create shared texture: {}", ret));
             }
+
+            IDXGIResource1* dxgi_res = nullptr;
+            if (auto ret = xr_ctx->shared_textures[i]->QueryInterface(__uuidof(IDXGIResource1), (void**)&dxgi_res); ret != D3D_OK) {
+                throw std::runtime_error(std::format("Failed to query interface IDXGIResource1: {}", ret));
+            }
+
+            if (auto ret = dxgi_res->CreateSharedHandle(nullptr, DXGI_SHARED_RESOURCE_READ | DXGI_SHARED_RESOURCE_WRITE, nullptr, &ctx.dx_shared_handle[i]); ret != D3D_OK) {
+                throw std::runtime_error(std::format("Failed to create shared handle: {}", ret));
+            }
+
+            dxgi_res->Release();
         }
 
         init_surfaces(dev, ctx, companion_window_width, companion_window_height);
@@ -395,33 +406,33 @@ void OpenXR::init(IDirect3DDevice9* dev, IDirect3DVR9** vrdev, uint32_t companio
 
 const char* OpenXR::get_device_extensions()
 {
-    //if (device_extensions.empty()) {
-    //    uint32_t extension_list_len;
-    //    auto xrGetVulkanDeviceExtensionsKHR = get_extension<PFN_xrGetVulkanDeviceExtensionsKHR>(instance, "xrGetVulkanDeviceExtensionsKHR");
-    //    if (auto err = xrGetVulkanDeviceExtensionsKHR(instance, system_id, 0, &extension_list_len, nullptr); err != XR_SUCCESS) {
-    //        throw std::runtime_error(std::format("OpenXR init failed: xrGetVulkanDeviceExtensionsKHR: {}", XrResultToString(instance, err)));
-    //    }
-    //    device_extensions.resize(extension_list_len, 0);
-    //    if (auto err = xrGetVulkanDeviceExtensionsKHR(instance, system_id, device_extensions.size(), &extension_list_len, device_extensions.data()); err != XR_SUCCESS) {
-    //        throw std::runtime_error(std::format("OpenXR init failed: xrGetVulkanDeviceExtensionsKHR: {}", XrResultToString(instance, err)));
-    //    }
-    //}
+    if (device_extensions.empty()) {
+        uint32_t extension_list_len;
+        auto xrGetVulkanDeviceExtensionsKHR = get_extension<PFN_xrGetVulkanDeviceExtensionsKHR>(instance, "xrGetVulkanDeviceExtensionsKHR");
+        if (auto err = xrGetVulkanDeviceExtensionsKHR(instance, system_id, 0, &extension_list_len, nullptr); err != XR_SUCCESS) {
+            throw std::runtime_error(std::format("OpenXR init failed: xrGetVulkanDeviceExtensionsKHR: {}", XrResultToString(instance, err)));
+        }
+        device_extensions.resize(extension_list_len, 0);
+        if (auto err = xrGetVulkanDeviceExtensionsKHR(instance, system_id, device_extensions.size(), &extension_list_len, device_extensions.data()); err != XR_SUCCESS) {
+            throw std::runtime_error(std::format("OpenXR init failed: xrGetVulkanDeviceExtensionsKHR: {}", XrResultToString(instance, err)));
+        }
+    }
     return device_extensions.data();
 }
 
 const char* OpenXR::get_instance_extensions()
 {
-    //if (instance_extensions.empty()) {
-    //    uint32_t extension_list_len;
-    //    auto xrGetVulkanInstanceExtensionsKHR = get_extension<PFN_xrGetVulkanInstanceExtensionsKHR>(instance, "xrGetVulkanInstanceExtensionsKHR");
-    //    if (auto err = xrGetVulkanInstanceExtensionsKHR(instance, system_id, 0, &extension_list_len, nullptr); err != XR_SUCCESS) {
-    //        throw std::runtime_error(std::format("OpenXR init failed: xrGetVulkanInstanceExtensionsKHR: {}", XrResultToString(instance, err)));
-    //    }
-    //    instance_extensions.resize(extension_list_len, 0);
-    //    if (auto err = xrGetVulkanInstanceExtensionsKHR(instance, system_id, instance_extensions.size(), &extension_list_len, instance_extensions.data()); err != XR_SUCCESS) {
-    //        throw std::runtime_error(std::format("OpenXR init failed: xrGetVulkanInstanceExtensionsKHR: {}", XrResultToString(instance, err)));
-    //    }
-    //}
+    if (instance_extensions.empty()) {
+        uint32_t extension_list_len;
+        auto xrGetVulkanInstanceExtensionsKHR = get_extension<PFN_xrGetVulkanInstanceExtensionsKHR>(instance, "xrGetVulkanInstanceExtensionsKHR");
+        if (auto err = xrGetVulkanInstanceExtensionsKHR(instance, system_id, 0, &extension_list_len, nullptr); err != XR_SUCCESS) {
+            throw std::runtime_error(std::format("OpenXR init failed: xrGetVulkanInstanceExtensionsKHR: {}", XrResultToString(instance, err)));
+        }
+        instance_extensions.resize(extension_list_len, 0);
+        if (auto err = xrGetVulkanInstanceExtensionsKHR(instance, system_id, instance_extensions.size(), &extension_list_len, instance_extensions.data()); err != XR_SUCCESS) {
+            throw std::runtime_error(std::format("OpenXR init failed: xrGetVulkanInstanceExtensionsKHR: {}", XrResultToString(instance, err)));
+        }
+    }
     return instance_extensions.data();
 }
 
@@ -442,21 +453,25 @@ XrSwapchainImageD3D11KHR& OpenXR::acquire_swapchain_image(RenderTarget tgt)
 
 void OpenXR::prepare_frames_for_hmd(IDirect3DDevice9* dev)
 {
-    if (g::cfg.companion_mode != CompanionMode::Off) {
-        // To draw the companion window, we must have the scene drawn to the texture
-        // We can't show the swapchain image because of DXVK/Vulkan/OpenXR incompatibilities
-        // Technically it would be possible I think but this will do for now.
+    if (current_render_context->msaa != D3DMULTISAMPLE_NONE) {
+        // Resolve multisampling
+        IDirect3DSurface9 *left_eye, *right_eye;
 
-        IDirect3DSurface9* eye;
-        if (current_render_context->dx_texture[g::cfg.companion_eye]->GetSurfaceLevel(0, &eye) != D3D_OK) {
-            dbg("Could not get surface level");
-            eye = nullptr;
+        if (current_render_context->dx_texture[LeftEye]->GetSurfaceLevel(0, &left_eye) != D3D_OK) {
+            dbg("Failed to get left eye surface");
+            return;
+        }
+        if (current_render_context->dx_texture[RightEye]->GetSurfaceLevel(0, &right_eye) != D3D_OK) {
+            dbg("Failed to get right eye surface");
+            left_eye->Release();
+            return;
         }
 
-        if (eye) {
-            dev->StretchRect(current_render_context->dx_surface[g::cfg.companion_eye], nullptr, eye, nullptr, D3DTEXF_NONE);
-            eye->Release();
-        }
+        dev->StretchRect(current_render_context->dx_surface[LeftEye], nullptr, left_eye, nullptr, D3DTEXF_NONE);
+        dev->StretchRect(current_render_context->dx_surface[RightEye], nullptr, right_eye, nullptr, D3DTEXF_NONE);
+
+        left_eye->Release();
+        right_eye->Release();
     }
 
     auto& left = acquire_swapchain_image(LeftEye);
@@ -482,28 +497,12 @@ void OpenXR::prepare_frames_for_hmd(IDirect3DDevice9* dev)
         return;
     }
 
-    // Essentially StretchRect but works directly with VkImage as a target
-    // We need to do this copy as OpenXR wants to handle the swapchain images internally
-    // and in DXVK there is no way to create a texture that would use this swapchain image.
-    // Also, if we're using anti-aliasing, this step is needed anyways.
-
-    if (g::cfg.wmr_workaround) {
-        g::d3d_vr->Flush();
-    }
-
-    // g::d3d_vr->CopySurfaceToVulkanImage(
-    //     current_render_context->dx_surface[LeftEye],
-    //     left.image,
-    //     swapchain_format,
-    //     current_render_context->width[LeftEye],
-    //     current_render_context->height[LeftEye]);
-
-    // g::d3d_vr->CopySurfaceToVulkanImage(
-    //     current_render_context->dx_surface[RightEye],
-    //     right.image,
-    //     swapchain_format,
-    //     current_render_context->width[RightEye],
-    //     current_render_context->height[RightEye]);
+    // TODO: Add synchronization between D3D11/Vulkan
+    ID3D11DeviceContext* ctx;
+    g::d3d11_dev->GetImmediateContext(&ctx);
+    ctx->CopyResource(left.texture, ((OpenXRRenderContext*)current_render_context->ext)->shared_textures[LeftEye]);
+    ctx->CopyResource(right.texture, ((OpenXRRenderContext*)current_render_context->ext)->shared_textures[RightEye]);
+    ctx->Release();
 
     xrReleaseSwapchainImage(xr_context()->swapchains[LeftEye], &release_info);
     xrReleaseSwapchainImage(xr_context()->swapchains[RightEye], &release_info);

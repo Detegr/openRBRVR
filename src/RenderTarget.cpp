@@ -8,8 +8,7 @@ constexpr static bool is_aa_enabled_for_render_target(D3DMULTISAMPLE_TYPE msaa, 
 
 bool is_using_texture_to_render(D3DMULTISAMPLE_TYPE msaa, RenderTarget t)
 {
-    const auto is_openxr_hmd_texture = g::vr && g::vr->get_runtime_type() == OPENXR && t < 2;
-    return !(is_aa_enabled_for_render_target(msaa, t) || is_openxr_hmd_texture);
+    return !is_aa_enabled_for_render_target(msaa, t);
 }
 
 bool create_render_target(
@@ -18,6 +17,7 @@ bool create_render_target(
     IDirect3DSurface9** msaa_surface,
     IDirect3DSurface9** depth_stencil_surface,
     IDirect3DTexture9** target_texture,
+    HANDLE* shared_handle,
     RenderTarget tgt,
     D3DFORMAT fmt,
     uint32_t w,
@@ -30,8 +30,8 @@ bool create_render_target(
     if (!is_using_texture_to_render(msaa, tgt)) {
         ret |= dev->CreateRenderTarget(w, h, fmt, msaa, 0, false, msaa_surface, nullptr);
     }
-    ret |= dev->CreateTexture(w, h, 1, D3DUSAGE_RENDERTARGET, fmt, D3DPOOL_DEFAULT, target_texture, nullptr);
-    if (ret != D3D_OK) {
+    ret |= dev->CreateTexture(w, h, 1, D3DUSAGE_RENDERTARGET, fmt, D3DPOOL_DEFAULT, target_texture, *shared_handle == nullptr ? nullptr : shared_handle);
+    if (ret != D3D_OK || *shared_handle == INVALID_HANDLE_VALUE) {
         dbg("D3D initialization failed: CreateRenderTarget");
         return false;
     }

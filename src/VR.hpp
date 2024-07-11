@@ -90,6 +90,7 @@ struct RenderContext {
     IDirect3DTexture9* dx_texture[4];
     IDirect3DSurface9* dx_surface[4];
     IDirect3DSurface9* dx_depth_stencil_surface[4];
+    HANDLE dx_shared_handle[4];
     IDirect3DTexture9* overlay_border;
 
     D3DMULTISAMPLE_TYPE msaa;

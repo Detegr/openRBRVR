@@ -10,6 +10,7 @@ namespace g {
     Config saved_cfg;
     bool draw_overlay_border;
     IDirect3DDevice9* d3d_dev;
+    ID3D11Device* d3d11_dev;
     IDirect3DVR9* d3d_vr;
     std::vector<IDirect3DVertexShader9*> base_game_shaders;
     std::unordered_map<std::string, IDirect3DTexture9*> car_textures;
