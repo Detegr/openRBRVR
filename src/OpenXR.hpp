@@ -3,8 +3,8 @@
 #include "Config.hpp"
 #include "VR.hpp"
 #include <array>
-#include <d3d9.h>
 #include <d3d11.h>
+#include <d3d9.h>
 
 #define XR_USE_GRAPHICS_API_D3D11
 #include <openxr_platform.h>
@@ -13,7 +13,7 @@
 
 struct OpenXRRenderContext {
     XrSwapchain swapchains[2];
-    std::vector<ID3D11Texture2D*> shared_images[2];
+    ID3D11Texture2D* shared_textures[2];
     std::vector<XrSwapchainImageD3D11KHR> swapchain_images[2];
     std::array<XrView, 2> views;
     std::array<XrCompositionLayerProjectionView, 2> projection_views;
