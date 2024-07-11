@@ -7,6 +7,7 @@
 #include "RBR.hpp"
 #include "VR.hpp"
 
+#include <d3d11.h>
 #include <optional>
 
 // Forward declarations
@@ -43,8 +44,11 @@ namespace g {
     // Draw border to the 2D overlay
     extern bool draw_overlay_border;
 
-    // Pointer to hooked D3D device. Used for everything graphics related.
+    // Pointer to hooked D3D9 device. Used for everything graphics related.
     extern IDirect3DDevice9* d3d_dev;
+
+    // Pointer to D3D11 device used with OpenXR
+    extern ID3D11Device* d3d11_dev;
 
     // D3D VR interface. Used to invoke VR specific operations on the D3D device.
     extern IDirect3DVR9* d3d_vr;
