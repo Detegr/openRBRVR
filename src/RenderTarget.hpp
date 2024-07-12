@@ -5,8 +5,10 @@
 enum RenderTarget : size_t {
     LeftEye = 0,
     RightEye = 1,
-    GameMenu = 2,
-    Overlay = 3,
+    FocusLeft = 2,
+    FocusRight = 3,
+    GameMenu = 4,
+    Overlay = 5,
 };
 
 bool create_render_target(

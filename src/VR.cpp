@@ -126,15 +126,23 @@ void VRInterface::finish_vr_rendering(IDirect3DDevice9* dev, RenderTarget tgt)
 
 static bool create_render_target(IDirect3DDevice9* dev, D3DMULTISAMPLE_TYPE msaa, RenderContext& ctx, RenderTarget tgt, D3DFORMAT fmt, uint32_t w, uint32_t h)
 {
-    return create_render_target(dev, msaa, &ctx.dx_surface[tgt], &ctx.dx_depth_stencil_surface[tgt], &ctx.dx_texture[tgt], &ctx.dx_shared_handle[tgt], tgt, fmt, w, h);
+    HANDLE null_handle = nullptr;
+    HANDLE* shared_handle = (tgt == LeftEye || tgt == RightEye || tgt == FocusLeft || tgt == FocusRight) ? &ctx.dx_shared_handle[tgt] : &null_handle;
+    return create_render_target(dev, msaa, &ctx.dx_surface[tgt], &ctx.dx_depth_stencil_surface[tgt], &ctx.dx_texture[tgt], shared_handle, tgt, fmt, w, h);
 }
 
 void VRInterface::init_surfaces(IDirect3DDevice9* dev, RenderContext& ctx, uint32_t res_x_2d, uint32_t res_y_2d)
 {
-    if (!create_render_target(dev, ctx.msaa, ctx, LeftEye, D3DFMT_X8B8G8R8, ctx.width[0], ctx.height[0]))
+    if (!create_render_target(dev, ctx.msaa, ctx, LeftEye, D3DFMT_X8B8G8R8, ctx.width[LeftEye], ctx.height[LeftEye]))
         throw std::runtime_error("Could not create texture for left eye");
-    if (!create_render_target(dev, ctx.msaa, ctx, RightEye, D3DFMT_X8B8G8R8, ctx.width[1], ctx.height[1]))
+    if (!create_render_target(dev, ctx.msaa, ctx, RightEye, D3DFMT_X8B8G8R8, ctx.width[RightEye], ctx.height[RightEye]))
         throw std::runtime_error("Could not create texture for right eye");
+    if (g::cfg.quad_view_rendering) {
+        if (!create_render_target(dev, ctx.msaa, ctx, FocusLeft, D3DFMT_X8B8G8R8, ctx.width[FocusLeft], ctx.height[FocusLeft]))
+            throw std::runtime_error("Could not create texture for left eye");
+        if (!create_render_target(dev, ctx.msaa, ctx, FocusRight, D3DFMT_X8B8G8R8, ctx.width[FocusRight], ctx.height[FocusRight]))
+            throw std::runtime_error("Could not create texture for right eye");
+    }
     if (!create_render_target(dev, D3DMULTISAMPLE_NONE, ctx, GameMenu, D3DFMT_X8B8G8R8, res_x_2d, res_y_2d))
         throw std::runtime_error("Could not create texture for menus");
     if (!create_render_target(dev, D3DMULTISAMPLE_NONE, ctx, Overlay, D3DFMT_A8B8G8R8, res_x_2d, res_y_2d))
