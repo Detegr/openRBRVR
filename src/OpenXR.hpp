@@ -4,6 +4,7 @@
 #include "VR.hpp"
 #include <array>
 #include <d3d11.h>
+#include <d3d11_4.h>
 #include <d3d9.h>
 
 #define XR_USE_GRAPHICS_API_D3D11
@@ -32,6 +33,12 @@ private:
     bool has_projection;
     bool reset_view_requested;
 
+    struct {
+        uint64_t value;
+        ID3D11Fence* fence;
+        HANDLE shared_handle;
+    } cross_api_fence;
+
     std::vector<char> device_extensions;
     std::vector<char> instance_extensions;
 
@@ -46,6 +53,7 @@ private:
     void update_poses();
     bool get_projection_matrix();
     void recenter_view();
+    void synchronize_graphics_apis();
     OpenXRRenderContext* xr_context()
     {
         return reinterpret_cast<OpenXRRenderContext*>(current_render_context->ext);

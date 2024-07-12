@@ -113,6 +113,8 @@ OpenXR::OpenXR()
 
 void OpenXR::init(IDirect3DDevice9* dev, IDirect3DVR9** vrdev, uint32_t companion_window_width, uint32_t companion_window_height)
 {
+    Direct3DCreateVR(g::d3d_dev, &g::d3d_vr);
+
     if (dev->CreateQuery(D3DQUERYTYPE_TIMESTAMP, &gpu_start_query) != D3D_OK) {
         throw std::runtime_error("VR initialization failed: CreateQuery");
     }
@@ -172,12 +174,16 @@ void OpenXR::init(IDirect3DDevice9* dev, IDirect3DVR9** vrdev, uint32_t companio
     dxgi_adapter->Release();
     dxgi_factory->Release();
 
-    g::d3d11_dev = d3d11dev;
+    d3d11dev->QueryInterface(__uuidof(ID3D11Device5), reinterpret_cast<void**>(&g::d3d11_dev));
+    d3d11ctx->QueryInterface(__uuidof(ID3D11DeviceContext4), reinterpret_cast<void**>(&g::d3d11_ctx));
+
+    d3d11ctx->Release();
+    d3d11dev->Release();
 
     XrGraphicsBindingD3D11KHR gfx_binding = {
         .type = XR_TYPE_GRAPHICS_BINDING_D3D11_KHR,
         .next = nullptr,
-        .device = d3d11dev,
+        .device = g::d3d11_dev,
     };
 
     XrSessionCreateInfo sessionCreateInfo = {
@@ -232,6 +238,16 @@ void OpenXR::init(IDirect3DDevice9* dev, IDirect3DVR9** vrdev, uint32_t companio
     } else {
         swapchain_format = swapchain_formats.front();
     }
+
+    // Create shared fence for D3D11/Vulkan synchronization
+    cross_api_fence.value = 0;
+    if (auto ret = g::d3d11_dev->CreateFence(cross_api_fence.value, D3D11_FENCE_FLAG_SHARED, __uuidof(ID3D11Fence), reinterpret_cast<void**>(&cross_api_fence.fence)); ret != D3D_OK) {
+        throw std::runtime_error(std::format("Failed to create fence: {}", ret));
+    }
+    if (auto ret = cross_api_fence.fence->CreateSharedHandle(nullptr, GENERIC_ALL, nullptr, &cross_api_fence.shared_handle); ret != D3D_OK) {
+        throw std::runtime_error(std::format("Failed to create shared handle: {}", ret));
+    }
+    g::d3d_vr->ImportFence(cross_api_fence.shared_handle, cross_api_fence.value);
 
     for (const auto& gfx : g::cfg.gfx) {
         auto supersampling = gfx.second.supersampling;
@@ -497,12 +513,12 @@ void OpenXR::prepare_frames_for_hmd(IDirect3DDevice9* dev)
         return;
     }
 
-    // TODO: Add synchronization between D3D11/Vulkan
-    ID3D11DeviceContext* ctx;
-    g::d3d11_dev->GetImmediateContext(&ctx);
-    ctx->CopyResource(left.texture, ((OpenXRRenderContext*)current_render_context->ext)->shared_textures[LeftEye]);
-    ctx->CopyResource(right.texture, ((OpenXRRenderContext*)current_render_context->ext)->shared_textures[RightEye]);
-    ctx->Release();
+    synchronize_graphics_apis();
+
+    // Copy shared textures to OpenXR textures
+    const auto oxr_ctx = (OpenXRRenderContext*)current_render_context->ext;
+    g::d3d11_ctx->CopyResource(left.texture, oxr_ctx->shared_textures[LeftEye]);
+    g::d3d11_ctx->CopyResource(right.texture, oxr_ctx->shared_textures[RightEye]);
 
     xrReleaseSwapchainImage(xr_context()->swapchains[LeftEye], &release_info);
     xrReleaseSwapchainImage(xr_context()->swapchains[RightEye], &release_info);
@@ -510,6 +526,20 @@ void OpenXR::prepare_frames_for_hmd(IDirect3DDevice9* dev)
     if (g::cfg.debug && perf_query_free_to_use) [[unlikely]] {
         gpu_end_query->Issue(D3DISSUE_END);
         gpu_disjoint_query->Issue(D3DISSUE_END);
+    }
+}
+
+void OpenXR::synchronize_graphics_apis()
+{
+    cross_api_fence.value += 1;
+
+    g::d3d_vr->Flush();
+    g::d3d_vr->LockSubmissionQueue();
+    g::d3d_vr->SignalFence(cross_api_fence.value);
+    g::d3d_vr->UnlockSubmissionQueue();
+
+    if (auto ret = g::d3d11_ctx->Wait(cross_api_fence.fence, cross_api_fence.value); ret != D3D_OK) {
+        dbg(std::format("Failed to wait shared semaphore: {}", ret));
     }
 }
 
@@ -541,11 +571,9 @@ void OpenXR::submit_frames_to_hmd(IDirect3DDevice9* dev)
         .layers = layers,
     };
 
-    // g::d3d_vr->BeginVRSubmit();
     if (auto res = xrEndFrame(session, &frame_end_info); res != XR_SUCCESS) {
         dbg(std::format("xrEndFrame failed: {}", XrResultToString(instance, res)));
     }
-    // g::d3d_vr->EndVRSubmit();
 }
 
 std::optional<XrViewState> OpenXR::update_views()
