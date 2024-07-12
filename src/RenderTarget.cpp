@@ -3,7 +3,7 @@
 
 constexpr static bool is_aa_enabled_for_render_target(D3DMULTISAMPLE_TYPE msaa, RenderTarget t)
 {
-    return msaa > 0 && t < 2;
+    return msaa > 0 && t < 4;
 }
 
 bool is_using_texture_to_render(D3DMULTISAMPLE_TYPE msaa, RenderTarget t)

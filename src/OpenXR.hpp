@@ -13,11 +13,20 @@
 #include <optional>
 
 struct OpenXRRenderContext {
-    XrSwapchain swapchains[2];
-    ID3D11Texture2D* shared_textures[2];
-    std::vector<XrSwapchainImageD3D11KHR> swapchain_images[2];
-    std::array<XrView, 2> views;
-    std::array<XrCompositionLayerProjectionView, 2> projection_views;
+    std::vector<XrSwapchain> swapchains;
+    std::vector<ID3D11Texture2D*> shared_textures;
+    std::vector<std::vector<XrSwapchainImageD3D11KHR>> swapchain_images;
+    std::vector<XrView> views;
+    std::vector<XrCompositionLayerProjectionView> projection_views;
+
+    OpenXRRenderContext(size_t view_count)
+        : swapchains(view_count)
+        , shared_textures(view_count)
+        , swapchain_images(view_count)
+        , views(view_count)
+        , projection_views(view_count)
+    {
+    }
 };
 
 class OpenXR : public VRInterface {
@@ -30,6 +39,7 @@ private:
     XrFrameState frame_state;
     int64_t swapchain_format;
     XrPosef view_pose;
+    XrViewConfigurationType primary_view_config_type;
     bool has_projection;
     bool reset_view_requested;
 

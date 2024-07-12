@@ -84,15 +84,17 @@ struct FrameTimingInfo {
 };
 
 struct RenderContext {
-    uint32_t width[2];
-    uint32_t height[2];
-
-    IDirect3DTexture9* dx_texture[4];
-    IDirect3DSurface9* dx_surface[4];
-    IDirect3DSurface9* dx_depth_stencil_surface[4];
+    // One for each possible view (2 for stereo, 4 for quad views)
+    uint32_t width[4];
+    uint32_t height[4];
     HANDLE dx_shared_handle[4];
-    IDirect3DTexture9* overlay_border;
 
+    // One for each render target
+    IDirect3DTexture9* dx_texture[6];
+    IDirect3DSurface9* dx_surface[6];
+    IDirect3DSurface9* dx_depth_stencil_surface[6];
+
+    IDirect3DTexture9* overlay_border;
     D3DMULTISAMPLE_TYPE msaa;
 
     void* ext;
@@ -103,11 +105,11 @@ protected:
     std::unordered_map<std::string, RenderContext> render_contexts;
     RenderContext* current_render_context;
 
-    M4 hmd_pose[2];
-    M4 eye_pos[2];
-    M4 cockpit_projection[2];
-    M4 stage_projection[2];
-    M4 mainmenu_projection[2];
+    M4 hmd_pose[4];
+    M4 eye_pos[4];
+    M4 cockpit_projection[4];
+    M4 stage_projection[4];
+    M4 mainmenu_projection[4];
 
     void init_surfaces(IDirect3DDevice9* dev, RenderContext& ctx, uint32_t res_x_2d, uint32_t res_y_2d);
 

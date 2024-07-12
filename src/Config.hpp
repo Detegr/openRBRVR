@@ -105,6 +105,7 @@ struct Config {
     RenderTarget companion_eye = LeftEye;
     int world_scale = 1000;
     bool legacy_openxr_init = false;
+    bool quad_view_rendering = false;
 
     Config& operator=(const Config& rhs)
     {
@@ -133,6 +134,7 @@ struct Config {
         debug_mode = rhs.debug_mode;
         world_scale = rhs.world_scale;
         legacy_openxr_init = rhs.legacy_openxr_init;
+        quad_view_rendering = rhs.quad_view_rendering;
         return *this;
     }
 
@@ -159,7 +161,8 @@ struct Config {
             && companion_size == rhs.companion_size
             && companion_eye == rhs.companion_eye
             && world_scale == rhs.world_scale
-            && legacy_openxr_init == rhs.legacy_openxr_init;
+            && legacy_openxr_init == rhs.legacy_openxr_init
+            && quad_view_rendering == rhs.quad_view_rendering;
     }
 
     bool write(const std::filesystem::path& path) const
@@ -217,6 +220,7 @@ struct Config {
 
         toml::table OXRTbl;
         OXRTbl.insert("worldScale", world_scale);
+        OXRTbl.insert("quadViewRendering", quad_view_rendering);
         out.insert("OpenXR", OXRTbl);
 
         f << out;
@@ -307,6 +311,7 @@ struct Config {
         auto oxrnode = parsed["OpenXR"];
         if (oxrnode.is_table()) {
             cfg.world_scale = std::clamp(oxrnode["worldScale"].value_or(1000), 500, 1500);
+            cfg.quad_view_rendering = oxrnode["quadViewRendering"].value_or(false);
         }
 
         return cfg;
