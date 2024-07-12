@@ -385,6 +385,11 @@ namespace rbr {
                 dx::render_vr_eye(p, LeftEye);
                 dx::render_vr_eye(p, RightEye);
 
+                if (g::cfg.quad_view_rendering) {
+                    dx::render_vr_eye(p, FocusLeft);
+                    dx::render_vr_eye(p, FocusRight);
+                }
+
                 if (g::cfg.companion_mode == CompanionMode::Static && g::game_mode != PreStage && g::game_mode != Replay) {
                     auto orig_camera = *g::camera_type_ptr;
                     // 13 is the CFH camera. We don't want to change the camera while it is active.

@@ -120,6 +120,11 @@ namespace dx {
             const auto& [lw, lh] = g::vr->get_render_resolution(LeftEye);
             const auto& [rw, rh] = g::vr->get_render_resolution(RightEye);
             g::game->WriteText(0, 18 * ++i, std::format("Render resolution: {}x{} (left), {}x{} (right)", lw, lh, rw, rh).c_str());
+            if (g::cfg.quad_view_rendering) {
+                const auto& [flw, flh] = g::vr->get_render_resolution(FocusLeft);
+                const auto& [frw, frh] = g::vr->get_render_resolution(FocusRight);
+                g::game->WriteText(0, 18 * ++i, std::format("                         {}x{} (focus left), {}x{} (focus right)", flw, flh, frw, frh).c_str());
+            }
             g::game->WriteText(0, 18 * ++i, std::format("Anti-aliasing: {}x", static_cast<int>(g::vr->get_current_render_context()->msaa)).c_str());
             g::game->WriteText(0, 18 * ++i, std::format("Anisotropic filtering: {}x", g::cfg.anisotropy).c_str());
             g::game->WriteText(0, 18 * ++i, std::format("Current stage ID: {}", rbr::get_current_stage_id()).c_str());
@@ -168,6 +173,22 @@ namespace dx {
         } else {
             dbg("Failed to render left eye overlay");
         }
+
+        if (g::cfg.quad_view_rendering) {
+            if (g::vr->prepare_vr_rendering(g::d3d_dev, FocusLeft, clear)) {
+                render_menu_quad(g::d3d_dev, g::vr, texture, FocusLeft, render_target_2d, projection_type, size, translation, horizon_lock);
+                g::vr->finish_vr_rendering(g::d3d_dev, FocusLeft);
+            } else {
+                dbg("Failed to render left eye overlay");
+            }
+
+            if (g::vr->prepare_vr_rendering(g::d3d_dev, FocusRight, clear)) {
+                render_menu_quad(g::d3d_dev, g::vr, texture, FocusRight, render_target_2d, projection_type, size, translation, horizon_lock);
+                g::vr->finish_vr_rendering(g::d3d_dev, FocusRight);
+            } else {
+                dbg("Failed to render left eye overlay");
+            }
+        }
     }
 
     HRESULT __stdcall Present(IDirect3DDevice9* This, const RECT* pSourceRect, const RECT* pDestRect, HWND hDestWindowOverride, const RGNDATA* pDirtyRegion)
@@ -190,7 +211,7 @@ namespace dx {
             dbg("Failed to reset depth stencil surface to original");
         }
         auto ret = 0;
-        if (g::vr) {
+        if (g::vr && !g::vr_error) {
             auto game_mode = rbr::get_game_mode();
             if (g::cfg.companion_mode == CompanionMode::Static) {
                 if (game_mode == GameMode::Driving || game_mode == GameMode::Pause) {
@@ -214,7 +235,7 @@ namespace dx {
         ret = g::hooks::present.call(g::d3d_dev, pSourceRect, pDestRect, hDestWindowOverride, pDirtyRegion);
         g::current_frames++;
 
-        if (g::vr) {
+        if (g::vr && !g::vr_error) {
             g::vr->submit_frames_to_hmd(g::d3d_dev);
 
             if (g::cfg.debug) {

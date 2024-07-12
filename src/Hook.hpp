@@ -26,7 +26,7 @@ struct Hook {
     void enable()
     {
         if (MH_EnableHook(reinterpret_cast<void*>(src)) != MH_OK) {
-            throw std::runtime_error("Could not disable hook");
+            throw std::runtime_error("Could not enable hook");
         }
     }
     void disable()

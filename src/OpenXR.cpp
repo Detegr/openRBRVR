@@ -80,7 +80,14 @@ OpenXR::OpenXR()
         .apiVersion = XR_CURRENT_API_VERSION,
     };
 
-    const auto extensions = std::to_array({ "XR_KHR_D3D11_enable" });
+    auto extensions = std::vector { "XR_KHR_D3D11_enable" };
+
+    // TODO: query available extensions and check if XR_VARJO extensions are available before trying to use them
+    if (g::cfg.quad_view_rendering) {
+        extensions.push_back("XR_VARJO_quad_views");
+        extensions.push_back("XR_VARJO_foveated_rendering");
+    }
+
     XrInstanceCreateInfo instanceInfo = {
         .type = XR_TYPE_INSTANCE_CREATE_INFO,
         .next = nullptr,
@@ -167,7 +174,7 @@ void OpenXR::init(IDirect3DDevice9* dev, IDirect3DVR9** vrdev, uint32_t companio
     ID3D11Device* d3d11dev;
     ID3D11DeviceContext* d3d11ctx;
 
-    if (auto ret = D3D11CreateDevice(dxgi_adapter, D3D_DRIVER_TYPE_UNKNOWN, nullptr, D3D11_CREATE_DEVICE_BGRA_SUPPORT | D3D11_CREATE_DEVICE_DEBUG, &gfx_requirements.minFeatureLevel, 1, D3D11_SDK_VERSION, &d3d11dev, nullptr, &d3d11ctx); ret != D3D_OK) {
+    if (auto ret = D3D11CreateDevice(dxgi_adapter, D3D_DRIVER_TYPE_UNKNOWN, nullptr, D3D11_CREATE_DEVICE_BGRA_SUPPORT, &gfx_requirements.minFeatureLevel, 1, D3D11_SDK_VERSION, &d3d11dev, nullptr, &d3d11ctx); ret != D3D_OK) {
         throw std::runtime_error(std::format("Failed to create D3D11 device: {}", ret));
     }
 
@@ -197,9 +204,9 @@ void OpenXR::init(IDirect3DDevice9* dev, IDirect3DVR9** vrdev, uint32_t companio
         throw std::runtime_error(std::format("Failed to initialize OpenXR: xrCreateSession {}", XrResultToString(instance, err)));
     }
 
-    XrViewConfigurationType view_config_type = XR_VIEW_CONFIGURATION_TYPE_PRIMARY_STEREO;
+    XrViewConfigurationType view_config_types[] = { XR_VIEW_CONFIGURATION_TYPE_PRIMARY_STEREO, XR_VIEW_CONFIGURATION_TYPE_PRIMARY_QUAD_VARJO };
     uint32_t view_config_count;
-    if (auto err = xrEnumerateViewConfigurations(instance, system_id, 0, &view_config_count, &view_config_type); err != XR_SUCCESS) {
+    if (auto err = xrEnumerateViewConfigurations(instance, system_id, 0, &view_config_count, view_config_types); err != XR_SUCCESS) {
         throw std::runtime_error("Failed to enumerate view configurations");
     }
     std::vector<XrViewConfigurationType> view_configs(view_config_count);
@@ -207,13 +214,16 @@ void OpenXR::init(IDirect3DDevice9* dev, IDirect3DVR9** vrdev, uint32_t companio
         throw std::runtime_error("Failed to enumerate view configurations");
     }
 
-    auto view_config = view_configs.front();
+    // Store view config type for later use
+    primary_view_config_type = view_configs.front();
+
     uint32_t view_count;
-    if (auto err = xrEnumerateViewConfigurationViews(instance, system_id, view_config, 0, &view_count, nullptr); err != XR_SUCCESS) {
+    if (auto err = xrEnumerateViewConfigurationViews(instance, system_id, primary_view_config_type, 0, &view_count, nullptr); err != XR_SUCCESS) {
         throw std::runtime_error("Failed to enumerate view config views");
     }
+
     std::vector<XrViewConfigurationView> view_config_views(view_count, { .type = XR_TYPE_VIEW_CONFIGURATION_VIEW });
-    if (auto err = xrEnumerateViewConfigurationViews(instance, system_id, view_config, view_count, &view_count, view_config_views.data()); err != XR_SUCCESS) {
+    if (auto err = xrEnumerateViewConfigurationViews(instance, system_id, primary_view_config_type, view_count, &view_count, view_config_views.data()); err != XR_SUCCESS) {
         throw std::runtime_error("Failed to enumerate view config views");
     }
 
@@ -252,7 +262,7 @@ void OpenXR::init(IDirect3DDevice9* dev, IDirect3DVR9** vrdev, uint32_t companio
     for (const auto& gfx : g::cfg.gfx) {
         auto supersampling = gfx.second.supersampling;
 
-        OpenXRRenderContext* xr_ctx = new OpenXRRenderContext {};
+        OpenXRRenderContext* xr_ctx = new OpenXRRenderContext(view_config_views.size());
         RenderContext ctx = {
             .dx_shared_handle = { 0 },
             .msaa = gfx.second.msaa.value_or(g::cfg.gfx["default"].msaa.value()),
@@ -266,7 +276,7 @@ void OpenXR::init(IDirect3DDevice9* dev, IDirect3DVR9** vrdev, uint32_t companio
             XrSwapchainCreateInfo swapchain_create_info = {
                 .type = XR_TYPE_SWAPCHAIN_CREATE_INFO,
                 .createFlags = 0,
-                .usageFlags = 0,
+                .usageFlags = XR_SWAPCHAIN_USAGE_COLOR_ATTACHMENT_BIT,
                 .format = swapchain_format,
                 .sampleCount = 1,
                 .width = ctx.width[i],
@@ -388,7 +398,7 @@ void OpenXR::init(IDirect3DDevice9* dev, IDirect3DVR9** vrdev, uint32_t companio
                     XrSessionBeginInfo sessionBeginInfo = {
                         .type = XR_TYPE_SESSION_BEGIN_INFO,
                         .next = nullptr,
-                        .primaryViewConfigurationType = XR_VIEW_CONFIGURATION_TYPE_PRIMARY_STEREO,
+                        .primaryViewConfigurationType = primary_view_config_type,
                     };
                     if (auto res = xrBeginSession(session, &sessionBeginInfo); res != XR_SUCCESS) {
                         throw std::runtime_error(std::format("Failed to initialize OpenXR. xrBeginSession: {}", XrResultToString(instance, res)));
@@ -407,7 +417,7 @@ void OpenXR::init(IDirect3DDevice9* dev, IDirect3DVR9** vrdev, uint32_t companio
         XrSessionBeginInfo sessionBeginInfo = {
             .type = XR_TYPE_SESSION_BEGIN_INFO,
             .next = nullptr,
-            .primaryViewConfigurationType = XR_VIEW_CONFIGURATION_TYPE_PRIMARY_STEREO,
+            .primaryViewConfigurationType = primary_view_config_type,
         };
         if (auto res = xrBeginSession(session, &sessionBeginInfo); res != XR_SUCCESS) {
             throw std::runtime_error(std::format("Failed to initialize OpenXR. xrBeginSession: {}", XrResultToString(instance, res)));
@@ -418,6 +428,8 @@ void OpenXR::init(IDirect3DDevice9* dev, IDirect3DVR9** vrdev, uint32_t companio
     // The eye position is taken account in the projection matrix already
     eye_pos[LeftEye] = glm::identity<glm::mat4x4>();
     eye_pos[RightEye] = glm::identity<glm::mat4x4>();
+    eye_pos[FocusLeft] = glm::identity<glm::mat4x4>();
+    eye_pos[FocusRight] = glm::identity<glm::mat4x4>();
 }
 
 const char* OpenXR::get_device_extensions()
@@ -471,7 +483,7 @@ void OpenXR::prepare_frames_for_hmd(IDirect3DDevice9* dev)
 {
     if (current_render_context->msaa != D3DMULTISAMPLE_NONE) {
         // Resolve multisampling
-        IDirect3DSurface9 *left_eye, *right_eye;
+        IDirect3DSurface9 *left_eye, *right_eye, *focus_left, *focus_right;
 
         if (current_render_context->dx_texture[LeftEye]->GetSurfaceLevel(0, &left_eye) != D3D_OK) {
             dbg("Failed to get left eye surface");
@@ -488,10 +500,33 @@ void OpenXR::prepare_frames_for_hmd(IDirect3DDevice9* dev)
 
         left_eye->Release();
         right_eye->Release();
+
+        if (g::cfg.quad_view_rendering) {
+            if (current_render_context->dx_texture[FocusLeft]->GetSurfaceLevel(0, &focus_left) != D3D_OK) {
+                dbg("Failed to get focus left eye surface");
+                return;
+            }
+            if (current_render_context->dx_texture[FocusRight]->GetSurfaceLevel(0, &focus_right) != D3D_OK) {
+                dbg("Failed to get focus right eye surface");
+                focus_left->Release();
+                return;
+            }
+            dev->StretchRect(current_render_context->dx_surface[FocusLeft], nullptr, focus_left, nullptr, D3DTEXF_NONE);
+            dev->StretchRect(current_render_context->dx_surface[FocusRight], nullptr, focus_right, nullptr, D3DTEXF_NONE);
+            focus_left->Release();
+            focus_right->Release();
+        }
     }
 
     auto& left = acquire_swapchain_image(LeftEye);
     auto& right = acquire_swapchain_image(RightEye);
+
+    XrSwapchainImageD3D11KHR focus_left;
+    XrSwapchainImageD3D11KHR focus_right;
+    if (g::cfg.quad_view_rendering) {
+        focus_left = acquire_swapchain_image(FocusLeft);
+        focus_right = acquire_swapchain_image(FocusRight);
+    }
 
     XrSwapchainImageWaitInfo info = {
         .type = XR_TYPE_SWAPCHAIN_IMAGE_WAIT_INFO,
@@ -513,12 +548,28 @@ void OpenXR::prepare_frames_for_hmd(IDirect3DDevice9* dev)
         return;
     }
 
+    if (g::cfg.quad_view_rendering) {
+        if (auto res = xrWaitSwapchainImage(xr_context()->swapchains[FocusLeft], &info); res != XR_SUCCESS) {
+            dbg(std::format("xrWaitSwapchainImage (focus left): {}", XrResultToString(instance, res)));
+            return;
+        }
+        if (auto res = xrWaitSwapchainImage(xr_context()->swapchains[FocusRight], &info); res != XR_SUCCESS) {
+            dbg(std::format("xrWaitSwapchainImage (focus right): {}", XrResultToString(instance, res)));
+            return;
+        }
+    }
+
     synchronize_graphics_apis();
 
     // Copy shared textures to OpenXR textures
-    const auto oxr_ctx = (OpenXRRenderContext*)current_render_context->ext;
-    g::d3d11_ctx->CopyResource(left.texture, oxr_ctx->shared_textures[LeftEye]);
-    g::d3d11_ctx->CopyResource(right.texture, oxr_ctx->shared_textures[RightEye]);
+    g::d3d11_ctx->CopyResource(left.texture, xr_context()->shared_textures[LeftEye]);
+    g::d3d11_ctx->CopyResource(right.texture, xr_context()->shared_textures[RightEye]);
+    if (g::cfg.quad_view_rendering) {
+        g::d3d11_ctx->CopyResource(focus_left.texture, xr_context()->shared_textures[FocusLeft]);
+        g::d3d11_ctx->CopyResource(focus_right.texture, xr_context()->shared_textures[FocusRight]);
+        xrReleaseSwapchainImage(xr_context()->swapchains[FocusLeft], &release_info);
+        xrReleaseSwapchainImage(xr_context()->swapchains[FocusRight], &release_info);
+    }
 
     xrReleaseSwapchainImage(xr_context()->swapchains[LeftEye], &release_info);
     xrReleaseSwapchainImage(xr_context()->swapchains[RightEye], &release_info);
@@ -549,6 +600,12 @@ void OpenXR::submit_frames_to_hmd(IDirect3DDevice9* dev)
     xr_context()->projection_views[LeftEye].pose = xr_context()->views[LeftEye].pose;
     xr_context()->projection_views[RightEye].fov = xr_context()->views[RightEye].fov;
     xr_context()->projection_views[RightEye].pose = xr_context()->views[RightEye].pose;
+    if (g::cfg.quad_view_rendering) {
+        xr_context()->projection_views[FocusLeft].fov = xr_context()->views[FocusLeft].fov;
+        xr_context()->projection_views[FocusLeft].pose = xr_context()->views[FocusLeft].pose;
+        xr_context()->projection_views[FocusRight].fov = xr_context()->views[FocusRight].fov;
+        xr_context()->projection_views[FocusRight].pose = xr_context()->views[FocusRight].pose;
+    }
 
     XrCompositionLayerProjection projection_layer = {
         .type = XR_TYPE_COMPOSITION_LAYER_PROJECTION,
@@ -586,7 +643,7 @@ std::optional<XrViewState> OpenXR::update_views()
     const XrViewLocateInfo view_locate_info = {
         .type = XR_TYPE_VIEW_LOCATE_INFO,
         .next = nullptr,
-        .viewConfigurationType = XR_VIEW_CONFIGURATION_TYPE_PRIMARY_STEREO,
+        .viewConfigurationType = primary_view_config_type,
         .displayTime = frame_state.predictedDisplayTime,
         .space = space,
     };
@@ -604,28 +661,30 @@ std::optional<XrViewState> OpenXR::update_views()
     auto& views = xr_context()->views;
 
     // Adjust "World scale" if needed
-    if (g::cfg.world_scale != 1000 && view_count >= 2) {
-        // Ported from:
-        // https://github.com/mbucchia/OpenXR-Toolkit/blob/main/XR_APILAYER_MBUCCHIA_toolkit/layer.cpp#L1775-L1782
-        // MIT License
-        // Copyright (c) 2021-2022 Matthieu Bucchianeri
-        // Copyright (c) 2021-2022 Jean-Luc Dupiot - Reality XP
+    if (g::cfg.world_scale != 1000) {
+        for (auto i = 0; i < xr_context()->views.size(); i += 2) {
+            // Ported from:
+            // https://github.com/mbucchia/OpenXR-Toolkit/blob/main/XR_APILAYER_MBUCCHIA_toolkit/layer.cpp#L1775-L1782
+            // MIT License
+            // Copyright (c) 2021-2022 Matthieu Bucchianeri
+            // Copyright (c) 2021-2022 Jean-Luc Dupiot - Reality XP
 
-        auto& pos0xr = views[0].pose.position;
-        auto& pos1xr = views[1].pose.position;
-        const auto pos0 = glm::vec3(pos0xr.x, pos0xr.y, pos0xr.z);
-        const auto pos1 = glm::vec3(pos1xr.x, pos1xr.y, pos1xr.z);
-        const auto vec = pos1 - pos0;
-        const auto ipd = glm::length(vec);
-        const float newIpd = (ipd * 1000) / g::cfg.world_scale;
-        const auto center = pos0 + (vec * 0.5f);
-        const auto offset = glm::normalize(vec) * (newIpd * 0.5f);
+            auto& pos0xr = views[i].pose.position;
+            auto& pos1xr = views[i + 1].pose.position;
+            const auto pos0 = glm::vec3(pos0xr.x, pos0xr.y, pos0xr.z);
+            const auto pos1 = glm::vec3(pos1xr.x, pos1xr.y, pos1xr.z);
+            const auto vec = pos1 - pos0;
+            const auto ipd = glm::length(vec);
+            const float newIpd = (ipd * 1000) / g::cfg.world_scale;
+            const auto center = pos0 + (vec * 0.5f);
+            const auto offset = glm::normalize(vec) * (newIpd * 0.5f);
 
-        const auto left = center - offset;
-        const auto right = center + offset;
+            const auto left = center - offset;
+            const auto right = center + offset;
 
-        views[0].pose.position = XrVector3f { left.x, left.y, left.z };
-        views[1].pose.position = XrVector3f { right.x, right.y, right.z };
+            views[i].pose.position = XrVector3f { left.x, left.y, left.z };
+            views[i + 1].pose.position = XrVector3f { right.x, right.y, right.z };
+        }
     }
 
     return view_state;
@@ -680,7 +739,8 @@ bool OpenXR::get_projection_matrix()
         dbg("Failed to update OpenXR views");
         return false;
     }
-    for (auto i = 0; i < 2; ++i) {
+    const auto view_count = xr_context()->views.size();
+    for (auto i = 0; i < view_count; ++i) {
         stage_projection[i] = create_projection_matrix(xr_context()->views[i].fov, zNearStage, zFar);
         cockpit_projection[i] = create_projection_matrix(xr_context()->views[i].fov, zNearCockpit, zFar);
         mainmenu_projection[i] = create_projection_matrix(xr_context()->views[i].fov, zNearMainMenu, zFar);
@@ -697,7 +757,8 @@ void OpenXR::update_poses()
     }
 
     auto& vs = viewState.value();
-    for (size_t i = 0; i < xr_context()->views.size(); ++i) {
+    const auto view_count = xr_context()->views.size();
+    for (size_t i = 0; i < view_count; ++i) {
         if (vs.viewStateFlags & (XR_VIEW_STATE_POSITION_VALID_BIT | XR_VIEW_STATE_ORIENTATION_VALID_BIT)) {
             hmd_pose[i] = glm::inverse(xr_pose_to_m4(xr_context()->views[i].pose));
         } else {
@@ -816,6 +877,10 @@ void OpenXR::shutdown_vr()
         auto xr_ctx = reinterpret_cast<OpenXRRenderContext*>(ctx.ext);
         xrDestroySwapchain(xr_ctx->swapchains[LeftEye]);
         xrDestroySwapchain(xr_ctx->swapchains[RightEye]);
+        if (g::cfg.quad_view_rendering) {
+            xrDestroySwapchain(xr_ctx->swapchains[FocusLeft]);
+            xrDestroySwapchain(xr_ctx->swapchains[FocusRight]);
+        }
     }
     xrDestroySession(session);
     xrDestroyInstance(instance);
