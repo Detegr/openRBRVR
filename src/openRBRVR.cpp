@@ -56,7 +56,6 @@ openRBRVR::openRBRVR(IRBRGame* g)
 openRBRVR::~openRBRVR()
 {
     if (g::vr) {
-        g::vr->shutdown_vr();
         delete g::vr;
     }
 }

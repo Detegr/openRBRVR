@@ -120,7 +120,7 @@ OpenXR::OpenXR()
 
 void OpenXR::init(IDirect3DDevice9* dev, IDirect3DVR9** vrdev, uint32_t companion_window_width, uint32_t companion_window_height)
 {
-    Direct3DCreateVR(g::d3d_dev, &g::d3d_vr);
+    Direct3DCreateVR(g::d3d_dev, vrdev);
 
     if (dev->CreateQuery(D3DQUERYTYPE_TIMESTAMP, &gpu_start_query) != D3D_OK) {
         throw std::runtime_error("VR initialization failed: CreateQuery");
@@ -143,49 +143,51 @@ void OpenXR::init(IDirect3DDevice9* dev, IDirect3DVR9** vrdev, uint32_t companio
 
     dbg(std::format("OpenXR D3D11 feature level {:x}", (int)gfx_requirements.minFeatureLevel));
 
-    IDXGIFactory1* dxgi_factory;
-    if (FAILED(CreateDXGIFactory1(__uuidof(IDXGIFactory1), reinterpret_cast<void**>(&dxgi_factory)))) {
-        throw std::runtime_error("Failed to create DXGI factory");
-    }
-    IDXGIAdapter1* dxgi_adapter = nullptr;
-    for (UINT adapterIndex = 0;; adapterIndex++) {
-        // EnumAdapters1 will fail with DXGI_ERROR_NOT_FOUND when there are no more adapters to
-        // enumerate.
-        if (FAILED(dxgi_factory->EnumAdapters1(adapterIndex, &dxgi_adapter))) {
-            throw std::runtime_error("Failed to create enumerate adapters");
+    if (!g::d3d11_dev) {
+        IDXGIFactory1* dxgi_factory;
+        if (FAILED(CreateDXGIFactory1(__uuidof(IDXGIFactory1), reinterpret_cast<void**>(&dxgi_factory)))) {
+            throw std::runtime_error("Failed to create DXGI factory");
         }
-        DXGI_ADAPTER_DESC1 adapter_desc;
-        if (FAILED(dxgi_adapter->GetDesc1(&adapter_desc))) {
-            throw std::runtime_error("Failed to get adapter description");
+        IDXGIAdapter1* dxgi_adapter = nullptr;
+        for (UINT adapterIndex = 0;; adapterIndex++) {
+            // EnumAdapters1 will fail with DXGI_ERROR_NOT_FOUND when there are no more adapters to
+            // enumerate.
+            if (FAILED(dxgi_factory->EnumAdapters1(adapterIndex, &dxgi_adapter))) {
+                throw std::runtime_error("Failed to create enumerate adapters");
+            }
+            DXGI_ADAPTER_DESC1 adapter_desc;
+            if (FAILED(dxgi_adapter->GetDesc1(&adapter_desc))) {
+                throw std::runtime_error("Failed to get adapter description");
+            }
+            if (!memcmp(&adapter_desc.AdapterLuid, &gfx_requirements.adapterLuid, sizeof(LUID))) {
+                const auto adapter_description = std::wstring(adapter_desc.Description)
+                    | std::views::transform([](wchar_t c) { return static_cast<char>(c); })
+                    | std::ranges::to<std::string>();
+
+                dbg(std::format("Using D3D11 adapter {}", adapter_description));
+                break;
+            }
         }
-        if (!memcmp(&adapter_desc.AdapterLuid, &gfx_requirements.adapterLuid, sizeof(LUID))) {
-            const auto adapter_description = std::wstring(adapter_desc.Description)
-                | std::views::transform([](wchar_t c) { return static_cast<char>(c); })
-                | std::ranges::to<std::string>();
-
-            dbg(std::format("Using D3D11 adapter {}", adapter_description));
-            break;
+        if (!dxgi_adapter) {
+            throw std::runtime_error("No adapter found");
         }
+
+        ID3D11Device* d3d11dev;
+        ID3D11DeviceContext* d3d11ctx;
+
+        if (auto ret = D3D11CreateDevice(dxgi_adapter, D3D_DRIVER_TYPE_UNKNOWN, nullptr, D3D11_CREATE_DEVICE_BGRA_SUPPORT, &gfx_requirements.minFeatureLevel, 1, D3D11_SDK_VERSION, &d3d11dev, nullptr, &d3d11ctx); ret != D3D_OK) {
+            throw std::runtime_error(std::format("Failed to create D3D11 device: {}", ret));
+        }
+
+        dxgi_adapter->Release();
+        dxgi_factory->Release();
+
+        d3d11dev->QueryInterface(__uuidof(ID3D11Device5), reinterpret_cast<void**>(&g::d3d11_dev));
+        d3d11ctx->QueryInterface(__uuidof(ID3D11DeviceContext4), reinterpret_cast<void**>(&g::d3d11_ctx));
+
+        d3d11ctx->Release();
+        d3d11dev->Release();
     }
-    if (!dxgi_adapter) {
-        throw std::runtime_error("No adapter found");
-    }
-
-    ID3D11Device* d3d11dev;
-    ID3D11DeviceContext* d3d11ctx;
-
-    if (auto ret = D3D11CreateDevice(dxgi_adapter, D3D_DRIVER_TYPE_UNKNOWN, nullptr, D3D11_CREATE_DEVICE_BGRA_SUPPORT, &gfx_requirements.minFeatureLevel, 1, D3D11_SDK_VERSION, &d3d11dev, nullptr, &d3d11ctx); ret != D3D_OK) {
-        throw std::runtime_error(std::format("Failed to create D3D11 device: {}", ret));
-    }
-
-    dxgi_adapter->Release();
-    dxgi_factory->Release();
-
-    d3d11dev->QueryInterface(__uuidof(ID3D11Device5), reinterpret_cast<void**>(&g::d3d11_dev));
-    d3d11ctx->QueryInterface(__uuidof(ID3D11DeviceContext4), reinterpret_cast<void**>(&g::d3d11_ctx));
-
-    d3d11ctx->Release();
-    d3d11dev->Release();
 
     XrGraphicsBindingD3D11KHR gfx_binding = {
         .type = XR_TYPE_GRAPHICS_BINDING_D3D11_KHR,
@@ -215,7 +217,7 @@ void OpenXR::init(IDirect3DDevice9* dev, IDirect3DVR9** vrdev, uint32_t companio
     }
 
     // Store view config type for later use
-    primary_view_config_type = view_configs.front();
+    primary_view_config_type = g::cfg.quad_view_rendering ? view_configs.front() : XR_VIEW_CONFIGURATION_TYPE_PRIMARY_STEREO;
 
     uint32_t view_count;
     if (auto err = xrEnumerateViewConfigurationViews(instance, system_id, primary_view_config_type, 0, &view_count, nullptr); err != XR_SUCCESS) {
@@ -319,7 +321,7 @@ void OpenXR::init(IDirect3DDevice9* dev, IDirect3DVR9** vrdev, uint32_t companio
                 .MiscFlags = D3D11_RESOURCE_MISC_SHARED | D3D11_RESOURCE_MISC_SHARED_NTHANDLE,
             };
 
-            if (auto ret = d3d11dev->CreateTexture2D(&desc, nullptr, &xr_ctx->shared_textures[i]); ret != D3D_OK) {
+            if (auto ret = g::d3d11_dev->CreateTexture2D(&desc, nullptr, &xr_ctx->shared_textures[i]); ret != D3D_OK) {
                 throw std::runtime_error(std::format("Failed to create shared texture: {}", ret));
             }
 
@@ -580,7 +582,7 @@ void OpenXR::prepare_frames_for_hmd(IDirect3DDevice9* dev)
     }
 }
 
-void OpenXR::synchronize_graphics_apis()
+void OpenXR::synchronize_graphics_apis(bool wait_for_cpu)
 {
     cross_api_fence.value += 1;
 
@@ -589,8 +591,19 @@ void OpenXR::synchronize_graphics_apis()
     g::d3d_vr->SignalFence(cross_api_fence.value);
     g::d3d_vr->UnlockSubmissionQueue();
 
-    if (auto ret = g::d3d11_ctx->Wait(cross_api_fence.fence, cross_api_fence.value); ret != D3D_OK) {
-        dbg(std::format("Failed to wait shared semaphore: {}", ret));
+    if (wait_for_cpu) [[unlikely]] {
+        HANDLE evt = CreateEventEx(nullptr, "Flush event", 0, EVENT_ALL_ACCESS);
+        if (evt != INVALID_HANDLE_VALUE) {
+            cross_api_fence.fence->SetEventOnCompletion(cross_api_fence.value, evt);
+            if (auto ret = g::d3d11_ctx->Wait(cross_api_fence.fence, cross_api_fence.value); ret != D3D_OK) {
+                dbg(std::format("Failed to wait shared semaphore: {}", ret));
+            }
+            WaitForSingleObject(evt, INFINITE);
+        }
+    } else {
+        if (auto ret = g::d3d11_ctx->Wait(cross_api_fence.fence, cross_api_fence.value); ret != D3D_OK) {
+            dbg(std::format("Failed to wait shared semaphore: {}", ret));
+        }
     }
 }
 
@@ -662,7 +675,7 @@ std::optional<XrViewState> OpenXR::update_views()
 
     // Adjust "World scale" if needed
     if (g::cfg.world_scale != 1000) {
-        for (auto i = 0; i < xr_context()->views.size(); i += 2) {
+        for (size_t i = 0; i < xr_context()->views.size(); i += 2) {
             // Ported from:
             // https://github.com/mbucchia/OpenXR-Toolkit/blob/main/XR_APILAYER_MBUCCHIA_toolkit/layer.cpp#L1775-L1782
             // MIT License
@@ -740,7 +753,7 @@ bool OpenXR::get_projection_matrix()
         return false;
     }
     const auto view_count = xr_context()->views.size();
-    for (auto i = 0; i < view_count; ++i) {
+    for (size_t i = 0; i < view_count; ++i) {
         stage_projection[i] = create_projection_matrix(xr_context()->views[i].fov, zNearStage, zFar);
         cockpit_projection[i] = create_projection_matrix(xr_context()->views[i].fov, zNearCockpit, zFar);
         mainmenu_projection[i] = create_projection_matrix(xr_context()->views[i].fov, zNearMainMenu, zFar);
@@ -871,17 +884,44 @@ void OpenXR::recenter_view()
 
 void OpenXR::shutdown_vr()
 {
+    synchronize_graphics_apis(true);
+    g::d3d_vr->WaitDeviceIdle(true);
+    cross_api_fence.fence->Release();
+
     xrDestroySpace(space);
+    xrDestroySpace(view_space);
+
     for (const auto& v : render_contexts) {
         const auto& ctx = v.second;
+
+        for (int i = 0; i < 6; ++i) {
+            if (ctx.dx_texture[i]) {
+                ctx.dx_texture[i]->Release();
+            }
+            if (ctx.dx_surface[i]) {
+                ctx.dx_surface[i]->Release();
+            }
+            if (ctx.dx_depth_stencil_surface[i]) {
+                ctx.dx_depth_stencil_surface[i]->Release();
+            }
+            if (i < 4 && ctx.dx_shared_handle[i] != nullptr && ctx.dx_shared_handle != INVALID_HANDLE_VALUE) {
+                CloseHandle(ctx.dx_shared_handle[i]);
+            }
+        }
+
         auto xr_ctx = reinterpret_cast<OpenXRRenderContext*>(ctx.ext);
-        xrDestroySwapchain(xr_ctx->swapchains[LeftEye]);
-        xrDestroySwapchain(xr_ctx->swapchains[RightEye]);
-        if (g::cfg.quad_view_rendering) {
-            xrDestroySwapchain(xr_ctx->swapchains[FocusLeft]);
-            xrDestroySwapchain(xr_ctx->swapchains[FocusRight]);
+        for (size_t i = 0; i < xr_ctx->swapchains.size(); ++i) {
+            xrDestroySwapchain(xr_ctx->swapchains[i]);
+            xr_ctx->shared_textures[i]->Release();
+            ;
         }
     }
+
     xrDestroySession(session);
     xrDestroyInstance(instance);
+
+    gpu_start_query->Release();
+    gpu_end_query->Release();
+    gpu_freq_query->Release();
+    gpu_disjoint_query->Release();
 }
