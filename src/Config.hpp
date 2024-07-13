@@ -104,7 +104,6 @@ struct Config {
     int companion_size = 100;
     RenderTarget companion_eye = LeftEye;
     int world_scale = 1000;
-    bool legacy_openxr_init = false;
     bool quad_view_rendering = false;
 
     Config& operator=(const Config& rhs)
@@ -133,7 +132,6 @@ struct Config {
         companion_mode = rhs.companion_mode;
         debug_mode = rhs.debug_mode;
         world_scale = rhs.world_scale;
-        legacy_openxr_init = rhs.legacy_openxr_init;
         quad_view_rendering = rhs.quad_view_rendering;
         return *this;
     }
@@ -161,7 +159,6 @@ struct Config {
             && companion_size == rhs.companion_size
             && companion_eye == rhs.companion_eye
             && world_scale == rhs.world_scale
-            && legacy_openxr_init == rhs.legacy_openxr_init
             && quad_view_rendering == rhs.quad_view_rendering;
     }
 
@@ -271,20 +268,11 @@ struct Config {
         cfg.companion_eye = static_cast<RenderTarget>(std::clamp(parsed["desktopEye"].value_or(0), 0, 1));
 
         const std::string& runtime = parsed["runtime"].value_or("steamvr");
-        if (runtime == "openxr") {
+        if (runtime == "openxr" || runtime == "openxr-wmr") {
             cfg.runtime = OPENXR;
-            cfg.wmr_workaround = false;
-        } else if (runtime == "openxr-wmr") {
-            cfg.runtime = OPENXR;
-            cfg.wmr_workaround = true;
         } else {
             cfg.runtime = OPENVR;
         }
-
-        // Use legacy OpenXR init if WMR workaround is enabled
-        // WMR workaround isn't compatible with XR_KHR_vulkan_enable2
-        // However, WMR devices *maybe* work with XR_KHR_vulkan_enable2 without the workaround, we'll see
-        cfg.legacy_openxr_init = parsed["legacyOpenXRInit"].value_or(cfg.wmr_workaround);
 
         auto gfxnode = parsed["gfx"];
         if (gfxnode.is_table()) {
