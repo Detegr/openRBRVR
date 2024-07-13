@@ -63,7 +63,7 @@ private:
     void update_poses();
     bool get_projection_matrix();
     void recenter_view();
-    void synchronize_graphics_apis();
+    void synchronize_graphics_apis(bool wait_for_cpu = false);
     OpenXRRenderContext* xr_context()
     {
         return reinterpret_cast<OpenXRRenderContext*>(current_render_context->ext);

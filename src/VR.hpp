@@ -87,12 +87,12 @@ struct RenderContext {
     // One for each possible view (2 for stereo, 4 for quad views)
     uint32_t width[4];
     uint32_t height[4];
-    HANDLE dx_shared_handle[4];
+    HANDLE dx_shared_handle[4] = { 0 };
 
     // One for each render target
-    IDirect3DTexture9* dx_texture[6];
-    IDirect3DSurface9* dx_surface[6];
-    IDirect3DSurface9* dx_depth_stencil_surface[6];
+    IDirect3DTexture9* dx_texture[6] = { 0 };
+    IDirect3DSurface9* dx_surface[6] = { 0 };
+    IDirect3DSurface9* dx_depth_stencil_surface[6] = { 0 };
 
     IDirect3DTexture9* overlay_border;
     D3DMULTISAMPLE_TYPE msaa;
@@ -119,6 +119,12 @@ protected:
     static constexpr float zNearMainMenu = 0.1f;
 
 public:
+    virtual ~VRInterface()
+    {
+    }
+
+    double companion_window_width;
+    double companion_window_height;
     double aspect_ratio; // Desktop window aspect ratio
 
     virtual void shutdown_vr() = 0;

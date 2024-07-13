@@ -150,6 +150,8 @@ void VRInterface::init_surfaces(IDirect3DDevice9* dev, RenderContext& ctx, uint3
     if (dev->CreateTexture(res_x_2d, res_y_2d, 1, D3DUSAGE_RENDERTARGET, D3DFMT_A8B8G8R8, D3DPOOL_DEFAULT, &ctx.overlay_border, nullptr) != D3D_OK)
         throw std::runtime_error("Could not create overlay border texture");
 
+    this->companion_window_width = res_x_2d;
+    this->companion_window_height = res_y_2d;
     auto aspect_ratio = static_cast<float>(static_cast<double>(res_x_2d) / static_cast<double>(res_y_2d));
     static bool quads_created = false;
     if (!quads_created) {

@@ -5,6 +5,7 @@
 #include "Util.hpp"
 #include "VR.hpp"
 
+#include "OpenXR.hpp"
 #include <ranges>
 
 // Compilation unit global variables
@@ -16,6 +17,7 @@ namespace g {
 
     static rbr::GameMode game_mode;
     static rbr::GameMode previous_game_mode;
+    static bool previously_on_btb_stage;
     static uint32_t current_stage_id;
     static M4 horizon_lock_matrix = glm::identity<M4>();
     static glm::vec3 seat_translation;
@@ -271,6 +273,29 @@ namespace rbr {
             // Not sure if this is needed, but better be safe than sorry,
             // the car textures will be reloaded when loading the stage.
             g::car_textures.clear();
+            g::previously_on_btb_stage = false;
+        }
+
+        if (is_on_btb_stage() && !g::previously_on_btb_stage) {
+            static bool was_using_quad_view_rendering;
+            // BTB stage started, restart OpenXR session if quad view rendering was in use
+            // BTB rendering does not play along well with quad view rendering so revert back to stereo rendering for BTB stages
+            g::previously_on_btb_stage = true;
+
+            if (g::vr && g::vr->get_runtime_type() == OPENXR) {
+                if (g::cfg.quad_view_rendering || was_using_quad_view_rendering) {
+                    dbg("Restarting OpenXR session");
+                    was_using_quad_view_rendering = g::cfg.quad_view_rendering;
+                    g::cfg.quad_view_rendering = !g::cfg.quad_view_rendering;
+
+                    const auto w = g::vr->companion_window_width;
+                    const auto h = g::vr->companion_window_height;
+
+                    delete g::vr;
+                    g::vr = new OpenXR();
+                    reinterpret_cast<OpenXR*>(g::vr)->init(g::d3d_dev, &g::d3d_vr, w, h);
+                }
+            }
         }
 
         if (!g::camera_type_ptr) [[unlikely]] {
