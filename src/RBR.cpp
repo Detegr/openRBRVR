@@ -288,8 +288,8 @@ namespace rbr {
                     was_using_quad_view_rendering = g::cfg.quad_view_rendering;
                     g::cfg.quad_view_rendering = !g::cfg.quad_view_rendering;
 
-                    const auto w = g::vr->companion_window_width;
-                    const auto h = g::vr->companion_window_height;
+                    const auto w = static_cast<uint32_t>(g::vr->companion_window_width);
+                    const auto h = static_cast<uint32_t>(g::vr->companion_window_height);
 
                     delete g::vr;
                     g::vr = new OpenXR();
