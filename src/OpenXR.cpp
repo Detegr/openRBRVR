@@ -485,39 +485,26 @@ void OpenXR::prepare_frames_for_hmd(IDirect3DDevice9* dev)
 {
     if (current_render_context->msaa != D3DMULTISAMPLE_NONE) {
         // Resolve multisampling
-        IDirect3DSurface9 *left_eye, *right_eye, *focus_left, *focus_right;
+        IDirect3DSurface9 *left_eye, *right_eye;
+        const RenderTarget left_eye_tgt = g::cfg.quad_view_rendering ? FocusLeft : LeftEye;
+        const RenderTarget right_eye_tgt = g::cfg.quad_view_rendering ? FocusRight : RightEye;
 
-        if (current_render_context->dx_texture[LeftEye]->GetSurfaceLevel(0, &left_eye) != D3D_OK) {
+        if (current_render_context->dx_texture[left_eye_tgt]->GetSurfaceLevel(0, &left_eye) != D3D_OK) {
             dbg("Failed to get left eye surface");
             return;
         }
-        if (current_render_context->dx_texture[RightEye]->GetSurfaceLevel(0, &right_eye) != D3D_OK) {
+
+        if (current_render_context->dx_texture[right_eye_tgt]->GetSurfaceLevel(0, &right_eye) != D3D_OK) {
             dbg("Failed to get right eye surface");
             left_eye->Release();
             return;
         }
 
-        dev->StretchRect(current_render_context->dx_surface[LeftEye], nullptr, left_eye, nullptr, D3DTEXF_NONE);
-        dev->StretchRect(current_render_context->dx_surface[RightEye], nullptr, right_eye, nullptr, D3DTEXF_NONE);
+        dev->StretchRect(current_render_context->dx_surface[left_eye_tgt], nullptr, left_eye, nullptr, D3DTEXF_NONE);
+        dev->StretchRect(current_render_context->dx_surface[right_eye_tgt], nullptr, right_eye, nullptr, D3DTEXF_NONE);
 
         left_eye->Release();
         right_eye->Release();
-
-        if (g::cfg.quad_view_rendering) {
-            if (current_render_context->dx_texture[FocusLeft]->GetSurfaceLevel(0, &focus_left) != D3D_OK) {
-                dbg("Failed to get focus left eye surface");
-                return;
-            }
-            if (current_render_context->dx_texture[FocusRight]->GetSurfaceLevel(0, &focus_right) != D3D_OK) {
-                dbg("Failed to get focus right eye surface");
-                focus_left->Release();
-                return;
-            }
-            dev->StretchRect(current_render_context->dx_surface[FocusLeft], nullptr, focus_left, nullptr, D3DTEXF_NONE);
-            dev->StretchRect(current_render_context->dx_surface[FocusRight], nullptr, focus_right, nullptr, D3DTEXF_NONE);
-            focus_left->Release();
-            focus_right->Release();
-        }
     }
 
     auto& left = acquire_swapchain_image(LeftEye);

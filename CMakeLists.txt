@@ -44,7 +44,7 @@ set(HEADERS
 set(openRBRVR_Major 0)
 set(openRBRVR_Minor 8)
 set(openRBRVR_Patch 3)
-set(openRBRVR_Tweak 3)
+set(openRBRVR_Tweak 4)
 set(openRBRVR_TweakStr "-quad-view-foveated")
 
 configure_file(

@@ -3,6 +3,10 @@
 
 constexpr static bool is_aa_enabled_for_render_target(D3DMULTISAMPLE_TYPE msaa, RenderTarget t)
 {
+    if (g::cfg.quad_view_rendering && t < 2) {
+        // Only apply MSAA to focus views if using quad view rendering
+        return false;
+    }
     return msaa > 0 && t < 4;
 }
 
@@ -61,7 +65,7 @@ bool create_render_target(
         }
     }
 
-    ret |= dev->CreateDepthStencilSurface(w, h, depth_stencil_format, msaa, 0, TRUE, depth_stencil_surface, nullptr);
+    ret |= dev->CreateDepthStencilSurface(w, h, depth_stencil_format, is_aa_enabled_for_render_target(msaa, tgt) ? msaa : D3DMULTISAMPLE_NONE, 0, TRUE, depth_stencil_surface, nullptr);
     if (FAILED(ret)) {
         dbg("D3D initialization failed: CreateRenderTarget");
         return false;
