@@ -133,16 +133,19 @@ static bool create_render_target(IDirect3DDevice9* dev, D3DMULTISAMPLE_TYPE msaa
 
 void VRInterface::init_surfaces(IDirect3DDevice9* dev, RenderContext& ctx, uint32_t res_x_2d, uint32_t res_y_2d)
 {
-    if (!create_render_target(dev, ctx.msaa, ctx, LeftEye, D3DFMT_X8B8G8R8, ctx.width[LeftEye], ctx.height[LeftEye]))
-        throw std::runtime_error("Could not create texture for left eye");
-    if (!create_render_target(dev, ctx.msaa, ctx, RightEye, D3DFMT_X8B8G8R8, ctx.width[RightEye], ctx.height[RightEye]))
-        throw std::runtime_error("Could not create texture for right eye");
+    const auto create_vr_render_target = [&](RenderTarget tgt) {
+        if (!create_render_target(dev, ctx.msaa, ctx, tgt, D3DFMT_X8B8G8R8, ctx.width[tgt], ctx.height[tgt])) {
+            throw std::runtime_error(std::format("Could not create VR render target for view: {}", static_cast<int>(tgt)));
+        }
+    };
+
+    create_vr_render_target(LeftEye);
+    create_vr_render_target(RightEye);
     if (g::cfg.quad_view_rendering) {
-        if (!create_render_target(dev, ctx.msaa, ctx, FocusLeft, D3DFMT_X8B8G8R8, ctx.width[FocusLeft], ctx.height[FocusLeft]))
-            throw std::runtime_error("Could not create texture for left eye");
-        if (!create_render_target(dev, ctx.msaa, ctx, FocusRight, D3DFMT_X8B8G8R8, ctx.width[FocusRight], ctx.height[FocusRight]))
-            throw std::runtime_error("Could not create texture for right eye");
+        create_vr_render_target(FocusLeft);
+        create_vr_render_target(FocusRight);
     }
+
     if (!create_render_target(dev, D3DMULTISAMPLE_NONE, ctx, GameMenu, D3DFMT_X8B8G8R8, res_x_2d, res_y_2d))
         throw std::runtime_error("Could not create texture for menus");
     if (!create_render_target(dev, D3DMULTISAMPLE_NONE, ctx, Overlay, D3DFMT_A8B8G8R8, res_x_2d, res_y_2d))
