@@ -434,38 +434,6 @@ void OpenXR::init(IDirect3DDevice9* dev, IDirect3DVR9** vrdev, uint32_t companio
     eye_pos[FocusRight] = glm::identity<glm::mat4x4>();
 }
 
-const char* OpenXR::get_device_extensions()
-{
-    if (device_extensions.empty()) {
-        uint32_t extension_list_len;
-        auto xrGetVulkanDeviceExtensionsKHR = get_extension<PFN_xrGetVulkanDeviceExtensionsKHR>(instance, "xrGetVulkanDeviceExtensionsKHR");
-        if (auto err = xrGetVulkanDeviceExtensionsKHR(instance, system_id, 0, &extension_list_len, nullptr); err != XR_SUCCESS) {
-            throw std::runtime_error(std::format("OpenXR init failed: xrGetVulkanDeviceExtensionsKHR: {}", XrResultToString(instance, err)));
-        }
-        device_extensions.resize(extension_list_len, 0);
-        if (auto err = xrGetVulkanDeviceExtensionsKHR(instance, system_id, device_extensions.size(), &extension_list_len, device_extensions.data()); err != XR_SUCCESS) {
-            throw std::runtime_error(std::format("OpenXR init failed: xrGetVulkanDeviceExtensionsKHR: {}", XrResultToString(instance, err)));
-        }
-    }
-    return device_extensions.data();
-}
-
-const char* OpenXR::get_instance_extensions()
-{
-    if (instance_extensions.empty()) {
-        uint32_t extension_list_len;
-        auto xrGetVulkanInstanceExtensionsKHR = get_extension<PFN_xrGetVulkanInstanceExtensionsKHR>(instance, "xrGetVulkanInstanceExtensionsKHR");
-        if (auto err = xrGetVulkanInstanceExtensionsKHR(instance, system_id, 0, &extension_list_len, nullptr); err != XR_SUCCESS) {
-            throw std::runtime_error(std::format("OpenXR init failed: xrGetVulkanInstanceExtensionsKHR: {}", XrResultToString(instance, err)));
-        }
-        instance_extensions.resize(extension_list_len, 0);
-        if (auto err = xrGetVulkanInstanceExtensionsKHR(instance, system_id, instance_extensions.size(), &extension_list_len, instance_extensions.data()); err != XR_SUCCESS) {
-            throw std::runtime_error(std::format("OpenXR init failed: xrGetVulkanInstanceExtensionsKHR: {}", XrResultToString(instance, err)));
-        }
-    }
-    return instance_extensions.data();
-}
-
 XrSwapchainImageD3D11KHR& OpenXR::acquire_swapchain_image(RenderTarget tgt)
 {
     XrSwapchainImageAcquireInfo acquire_info = {
