@@ -125,7 +125,11 @@ namespace dx {
                 const auto& [frw, frh] = g::vr->get_render_resolution(FocusRight);
                 g::game->WriteText(0, 18 * ++i, std::format("                         {}x{} (focus left), {}x{} (focus right)", flw, flh, frw, frh).c_str());
             }
-            g::game->WriteText(0, 18 * ++i, std::format("Anti-aliasing: {}x", static_cast<int>(g::vr->get_current_render_context()->msaa)).c_str());
+            if (g::cfg.quad_view_rendering) {
+                g::game->WriteText(0, 18 * ++i, std::format("Anti-aliasing: {}x, peripheral: {}x", static_cast<int>(g::vr->get_current_render_context()->msaa), static_cast<int>(g::cfg.peripheral_msaa)).c_str());
+            } else {
+                g::game->WriteText(0, 18 * ++i, std::format("Anti-aliasing: {}x", static_cast<int>(g::vr->get_current_render_context()->msaa)).c_str());
+            }
             g::game->WriteText(0, 18 * ++i, std::format("Anisotropic filtering: {}x", g::cfg.anisotropy).c_str());
             g::game->WriteText(0, 18 * ++i, std::format("Current stage ID: {}", rbr::get_current_stage_id()).c_str());
         } else {
@@ -432,10 +436,8 @@ namespace dx {
         }
 
         *ppReturnedDeviceInterface = dev;
-        if (g::cfg.gfx["default"].msaa != D3DMULTISAMPLE_NONE) {
-            dev->SetRenderState(D3DRS_MULTISAMPLEANTIALIAS, 1);
-        }
 
+        dev->SetRenderState(D3DRS_MULTISAMPLEANTIALIAS, 1);
         for (auto i = D3DVERTEXTEXTURESAMPLER0; i <= D3DVERTEXTEXTURESAMPLER3; ++i) {
             dev->SetSamplerState(i, D3DSAMP_MAXANISOTROPY, g::cfg.anisotropy);
         }

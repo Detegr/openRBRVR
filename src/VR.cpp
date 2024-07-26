@@ -23,7 +23,6 @@ namespace g {
 void VRInterface::set_render_context(const std::string& name)
 {
     current_render_context = &render_contexts[name];
-    g::d3d_dev->SetRenderState(D3DRS_MULTISAMPLEANTIALIAS, (current_render_context->msaa != D3DMULTISAMPLE_NONE));
 }
 
 static bool create_menu_screen_companion_window_buffer(IDirect3DDevice9* dev)

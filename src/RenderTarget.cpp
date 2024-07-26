@@ -3,11 +3,14 @@
 
 constexpr static bool is_aa_enabled_for_render_target(D3DMULTISAMPLE_TYPE msaa, RenderTarget t)
 {
-    if (g::cfg.quad_view_rendering && t < 2) {
-        // Only apply MSAA to focus views if using quad view rendering
-        return false;
+    if (g::cfg.quad_view_rendering) {
+        if (t < 2)
+            return g::cfg.peripheral_msaa > 0;
+        else
+            return t < 4 && msaa > 0;
+    } else {
+        return msaa > 0 && t < 2;
     }
-    return msaa > 0 && t < 4;
 }
 
 bool is_using_texture_to_render(D3DMULTISAMPLE_TYPE msaa, RenderTarget t)
@@ -15,9 +18,23 @@ bool is_using_texture_to_render(D3DMULTISAMPLE_TYPE msaa, RenderTarget t)
     return !is_aa_enabled_for_render_target(msaa, t);
 }
 
+static D3DMULTISAMPLE_TYPE get_msaa_for_render_target(RenderTarget t, D3DMULTISAMPLE_TYPE msaa)
+{
+    // Peripheral MSAA for peripheral VR views if quad view rendering is used
+    if (g::cfg.quad_view_rendering && t < 2) {
+        return g::cfg.peripheral_msaa;
+    }
+
+    // Render context's MSAA for VR views
+    if (t < 4)
+        return msaa;
+
+    return D3DMULTISAMPLE_NONE;
+}
+
 bool create_render_target(
     IDirect3DDevice9* dev,
-    D3DMULTISAMPLE_TYPE msaa,
+    D3DMULTISAMPLE_TYPE msaa_in,
     IDirect3DSurface9** msaa_surface,
     IDirect3DSurface9** depth_stencil_surface,
     IDirect3DTexture9** target_texture,
@@ -28,6 +45,8 @@ bool create_render_target(
     uint32_t h)
 {
     HRESULT ret = 0;
+
+    const auto msaa = get_msaa_for_render_target(tgt, msaa_in);
 
     // If anti-aliasing is enabled, we need to first render into an anti-aliased render target.
     // If not, we can render directly to a texture that has D3DUSAGE_RENDERTARGET set.
@@ -65,7 +84,7 @@ bool create_render_target(
         }
     }
 
-    ret |= dev->CreateDepthStencilSurface(w, h, depth_stencil_format, is_aa_enabled_for_render_target(msaa, tgt) ? msaa : D3DMULTISAMPLE_NONE, 0, TRUE, depth_stencil_surface, nullptr);
+    ret |= dev->CreateDepthStencilSurface(w, h, depth_stencil_format, msaa, 0, TRUE, depth_stencil_surface, nullptr);
     if (FAILED(ret)) {
         dbg("D3D initialization failed: CreateRenderTarget");
         return false;
