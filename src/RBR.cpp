@@ -268,34 +268,43 @@ namespace rbr {
             update_horizon_lock_matrix();
         }
 
+        // Cache the initial value of quad view rendering
+        static bool quad_view_rendering_in_use = g::cfg.quad_view_rendering;
+
+        if (g::vr && quad_view_rendering_in_use && g::vr->get_runtime_type() == OPENXR) {
+            bool restart_session = false;
+
+            if (!g::previously_on_btb_stage && is_on_btb_stage() && g::game_mode == PreStage) {
+                // BTB rendering does not play along well with quad view rendering so revert back to stereo rendering for BTB stages
+                g::previously_on_btb_stage = true;
+                g::cfg.quad_view_rendering = false;
+                restart_session = true;
+            } else if (g::previously_on_btb_stage && !is_on_btb_stage()) {
+                // Turn quad view rendering back on if we were using it previously
+                g::previously_on_btb_stage = false;
+                g::cfg.quad_view_rendering = true;
+                restart_session = true;
+            }
+
+            if (restart_session) {
+                dbg("Restarting OpenXR session");
+
+                const auto w = static_cast<uint32_t>(g::vr->companion_window_width);
+                const auto h = static_cast<uint32_t>(g::vr->companion_window_height);
+
+                const auto old_pose = reinterpret_cast<OpenXR*>(g::vr)->get_view_pose();
+
+                delete g::vr;
+                g::vr = new OpenXR();
+                reinterpret_cast<OpenXR*>(g::vr)->init(g::d3d_dev, &g::d3d_vr, w, h, old_pose);
+            }
+        }
+
         if (g::game_mode == GameMode::MainMenu && !g::car_textures.empty()) [[unlikely]] {
             // Clear saved car textures if we're in the menu
             // Not sure if this is needed, but better be safe than sorry,
             // the car textures will be reloaded when loading the stage.
             g::car_textures.clear();
-            g::previously_on_btb_stage = false;
-        }
-
-        if (is_on_btb_stage() && !g::previously_on_btb_stage) {
-            static bool was_using_quad_view_rendering;
-            // BTB stage started, restart OpenXR session if quad view rendering was in use
-            // BTB rendering does not play along well with quad view rendering so revert back to stereo rendering for BTB stages
-            g::previously_on_btb_stage = true;
-
-            if (g::vr && g::vr->get_runtime_type() == OPENXR) {
-                if (g::cfg.quad_view_rendering || was_using_quad_view_rendering) {
-                    dbg("Restarting OpenXR session");
-                    was_using_quad_view_rendering = g::cfg.quad_view_rendering;
-                    g::cfg.quad_view_rendering = !g::cfg.quad_view_rendering;
-
-                    const auto w = static_cast<uint32_t>(g::vr->companion_window_width);
-                    const auto h = static_cast<uint32_t>(g::vr->companion_window_height);
-
-                    delete g::vr;
-                    g::vr = new OpenXR();
-                    reinterpret_cast<OpenXR*>(g::vr)->init(g::d3d_dev, &g::d3d_vr, w, h);
-                }
-            }
         }
 
         if (!g::camera_type_ptr) [[unlikely]] {
