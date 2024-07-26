@@ -118,7 +118,7 @@ OpenXR::OpenXR()
     }
 }
 
-void OpenXR::init(IDirect3DDevice9* dev, IDirect3DVR9** vrdev, uint32_t companion_window_width, uint32_t companion_window_height)
+void OpenXR::init(IDirect3DDevice9* dev, IDirect3DVR9** vrdev, uint32_t companion_window_width, uint32_t companion_window_height, std::optional<XrPosef> old_view_pose)
 {
     Direct3DCreateVR(g::d3d_dev, vrdev);
 
@@ -363,7 +363,7 @@ void OpenXR::init(IDirect3DDevice9* dev, IDirect3DVR9** vrdev, uint32_t companio
 
     set_render_context("default");
 
-    view_pose = { { 0, 0, 0, 1 }, { 0, 0, 0 } };
+    view_pose = old_view_pose.value_or(XrPosef { { 0, 0, 0, 1 }, { 0, 0, 0 } });
 
     XrReferenceSpaceCreateInfo view_space_create_info = {
         .type = XR_TYPE_REFERENCE_SPACE_CREATE_INFO,

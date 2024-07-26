@@ -76,7 +76,7 @@ public:
     OpenXR& operator=(const OpenXR&) = delete;
     OpenXR& operator=(const OpenXR&&) = delete;
 
-    void init(IDirect3DDevice9* dev, IDirect3DVR9** vrdev, uint32_t companionWindowWidth, uint32_t companionWindowHeight);
+    void init(IDirect3DDevice9* dev, IDirect3DVR9** vrdev, uint32_t companionWindowWidth, uint32_t companionWindowHeight, std::optional<XrPosef> old_view_pose = std::nullopt);
     virtual ~OpenXR()
     {
         shutdown_vr();
@@ -92,8 +92,7 @@ public:
 
     constexpr XrInstance get_instance() const { return instance; }
     constexpr XrSystemId get_system_id() const { return system_id; }
-    const char* get_device_extensions();
-    const char* get_instance_extensions();
+    XrPosef get_view_pose() const { return view_pose; }
 
     template <typename T>
     static T get_extension(XrInstance instance, const std::string& fnName)
