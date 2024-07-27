@@ -1,16 +1,22 @@
-## 0.8.3
+## 0.9.0
 
-- Use more recommended way for intializing OpenXR. The old initialization code
-  is supported by setting `useLegacyOpenXRInit = true` in openRBRVR.toml. The
-  old initialization code is also used automatically if `OpenXR (Reverb)` mode
-  is in use, which is a workaround for WMR devices. Hopefully WMR devices can
-  now change to use normal `OpenXR` mode, but due to some inconsistent findings
-  by beta testers the old way is still supported.
-- Changing the initialization has enabled full (SteamVR + OpenXR) support for
+- Change the OpenXR backend to use D3D11 mode. This mode is more compatible
+  with third party OpenXR layers.
+- Implement support for XR_VARJO_quad_views. This in conjunction of
+  [Quad-Views-Foveated](https://github.com/mbucchia/Quad-Views-Foveated) OpenXR
+  layer enables foveated rendering for openRBRVR, resulting in a lot of
+  performance improvement on original format stages. Sadly, BTB stage rendering
+  is CPU bound and the performance there is worse with quad view rendering so
+  openRBRVR automatically disables the feature for BTB stages if it's in use.
+- The change of the OpenXR backend also enables support for
   [OpenKneeboard](https://openkneeboard.com/). The version that will work with
   openRBRVR is not yet released, the support should land in OpenKneeboard
-  1.8.4. OpenKneeboard can then be used to bring desktop windows into the VR
+  1.9.0. OpenKneeboard can then be used to bring desktop windows into the VR
   environment, like SimHub overlays.
+- Implement support for [OpenXR motion compensation
+  layer](https://github.com/BuzzteeBear/OpenXR-MotionCompensation) (OXRMC),
+  contributed by MatteKarla. The support for openRBRVR is already out in OXRMC
+  version 0.3.6 onwards.
 
 ## 0.8.2
 
