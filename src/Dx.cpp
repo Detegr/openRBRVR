@@ -217,18 +217,19 @@ namespace dx {
         auto ret = 0;
         if (g::vr && !g::vr_error) {
             auto game_mode = rbr::get_game_mode();
+            const auto companion_eye = static_cast<RenderTarget>(g::cfg.companion_eye + (g::cfg.quad_view_rendering ? 2 : 0));
             if (g::cfg.companion_mode == CompanionMode::Static) {
                 if (game_mode == GameMode::Driving || game_mode == GameMode::Pause) {
                     // Render the overlay over the 3D content, if we're running the static view on desktop window
                     // Otherwise, the help texts, pause menu, pacenote plugin UI etc. won't be visible
                     render_companion_window_from_render_target(g::d3d_dev, g::vr, Overlay);
                 } else if (game_mode == GameMode::PreStage) {
-                    render_companion_window_from_render_target(g::d3d_dev, g::vr, g::cfg.render_prestage_3d ? g::cfg.companion_eye : GameMenu);
+                    render_companion_window_from_render_target(g::d3d_dev, g::vr, g::cfg.render_prestage_3d ? companion_eye : GameMenu);
                 } else if (game_mode != GameMode::Driving) {
-                    render_companion_window_from_render_target(g::d3d_dev, g::vr, rbr::is_rendering_3d() ? g::cfg.companion_eye : GameMenu);
+                    render_companion_window_from_render_target(g::d3d_dev, g::vr, rbr::is_rendering_3d() ? companion_eye : GameMenu);
                 }
             } else if (g::cfg.companion_mode == CompanionMode::VREye || game_mode != GameMode::Driving) {
-                render_companion_window_from_render_target(g::d3d_dev, g::vr, rbr::is_rendering_3d() ? g::cfg.companion_eye : GameMenu);
+                render_companion_window_from_render_target(g::d3d_dev, g::vr, rbr::is_rendering_3d() ? companion_eye : GameMenu);
             }
             g::vr->prepare_frames_for_hmd(g::d3d_dev);
         }

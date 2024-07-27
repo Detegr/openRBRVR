@@ -47,7 +47,7 @@ bool VRInterface::create_companion_window_buffer(IDirect3DDevice9* dev)
     const auto size = g::cfg.companion_size / 100.0f;
     const auto x = g::cfg.companion_offset.x / 100.0f;
     const auto y = g::cfg.companion_offset.y / 100.0f;
-    const auto aspect = static_cast<float>(aspect_ratio);
+    const auto aspect = static_cast<float>(companion_window_aspect_ratio);
 
     // clang-format off
     Vertex quad[] = {
@@ -157,7 +157,7 @@ void VRInterface::init_surfaces(IDirect3DDevice9* dev, RenderContext& ctx, uint3
     auto aspect_ratio = static_cast<float>(static_cast<double>(res_x_2d) / static_cast<double>(res_y_2d));
     static bool quads_created = false;
     if (!quads_created) {
-        this->aspect_ratio = aspect_ratio;
+        this->companion_window_aspect_ratio = aspect_ratio;
 
         // Create and fill a vertex buffers for the 2D planes
         // We can reuse all of these in every rendering context

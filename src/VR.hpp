@@ -125,7 +125,7 @@ public:
 
     double companion_window_width;
     double companion_window_height;
-    double aspect_ratio; // Desktop window aspect ratio
+    double companion_window_aspect_ratio;
 
     virtual void shutdown_vr() = 0;
     virtual bool update_vr_poses() = 0;

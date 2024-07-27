@@ -297,6 +297,7 @@ static class Menu overlay_menu = { "openRBRVR overlay settings", {
 }};
 
 static const auto window_step = 1;
+static const auto left_eye = g::cfg.quad_view_rendering ? FocusLeft : LeftEye; // Cache the left eye as cfg.quad_view_rendering is modified during gameplay
 static class Menu companion_menu = { "openRBRVR desktop window settings", {
   { .text = [] { return std::format("Desktop window mode: {}", companion_mode_str_pretty(g::cfg.companion_mode)); },
     .long_text = { "Choose what is visible on the desktop monitor while driving.", "Off: Don't draw anything", "VR view: Draw what is seen in the VR headset", "Bonnet camera: Use normal 2D bonnet camera (WITH SIGNIFICANT PERFORMANCE COST)"},
@@ -305,23 +306,27 @@ static class Menu companion_menu = { "openRBRVR desktop window settings", {
     .left_action = [] { ChangeCompanionMode(false); },
     .right_action = [] { ChangeCompanionMode(true); },
   },
-  {.text = [] { return std::format("Desktop window rendering area size: {} ({:.0f}x{:.0f} pixels)", g::cfg.companion_size, std::round(std::get<0>(g::vr->get_render_resolution(LeftEye)) * (g::cfg.companion_size / 100.0)), std::round(std::get<1>(g::vr->get_render_resolution(LeftEye)) * (g::cfg.companion_size / 100.0 / g::vr->aspect_ratio))); },
+  {.text = [] { return std::format("Desktop window rendering area size: {} ({:.0f}x{:.0f} pixels)", g::cfg.companion_size,
+      std::round(std::get<0>(g::vr->get_render_resolution(left_eye)) * (g::cfg.companion_size / 100.0)),
+      std::round(std::get<1>(g::vr->get_render_resolution(left_eye)) * (g::cfg.companion_size / 100.0 / g::vr->companion_window_aspect_ratio)));
+    },
     .long_text = { "Adjust rendering area size. The value is percentage of the width.", "For example, setting this to 50 will render half width of the full resolution", "resolution VR texture." },
     .color = [] { return (g::cfg.companion_mode == CompanionMode::VREye) ? std::make_tuple(1.0f, 1.0f, 1.0f, 1.0f) : std::make_tuple(0.5f, 0.5f, 0.5f, 1.0f); },
     .left_action = [] {
         g::cfg.companion_size = std::clamp(g::cfg.companion_size - window_step, 10, 100);
         g::cfg.companion_offset.x = std::min(g::cfg.companion_offset.x, 100 - g::cfg.companion_size);
-        g::cfg.companion_offset.y = std::min(g::cfg.companion_offset.y, 100 - static_cast<int>(std::round(g::cfg.companion_size / g::vr->aspect_ratio)));
+        g::cfg.companion_offset.y = std::min(g::cfg.companion_offset.y, 100 - static_cast<int>(std::round(g::cfg.companion_size / g::vr->companion_window_aspect_ratio)));
         g::vr->create_companion_window_buffer(g::d3d_dev);
     },
     .right_action = [] {
         g::cfg.companion_size = std::clamp(g::cfg.companion_size + window_step, 10, 100);
         g::cfg.companion_offset.x = std::min(g::cfg.companion_offset.x, 100 - g::cfg.companion_size);
-        g::cfg.companion_offset.y = std::min(g::cfg.companion_offset.y, 100 - static_cast<int>(std::round(g::cfg.companion_size / g::vr->aspect_ratio)));
+        g::cfg.companion_offset.y = std::min(g::cfg.companion_offset.y, 100 - static_cast<int>(std::round(g::cfg.companion_size / g::vr->companion_window_aspect_ratio)));
         g::vr->create_companion_window_buffer(g::d3d_dev);
     },
   },
-  {.text = [] { return std::format("X offset: {} ({:.0f} pixels)", g::cfg.companion_offset.x, std::floor(std::get<0>(g::vr->get_render_resolution(LeftEye)) * g::cfg.companion_offset.x / 100.0f)); },
+  {.text = [] { return std::format("X offset: {} ({:.0f} pixels)",g::cfg.companion_offset.x,
+      std::floor(std::get<0>(g::vr->get_render_resolution(left_eye)) * g::cfg.companion_offset.x / 100.0f)); },
     .long_text = { "X offset in percents from the left side of the screen." },
     .color = [] { return (g::cfg.companion_mode == CompanionMode::VREye) ? std::make_tuple(1.0f, 1.0f, 1.0f, 1.0f) : std::make_tuple(0.5f, 0.5f, 0.5f, 1.0f); },
     .left_action = [] {
@@ -333,15 +338,16 @@ static class Menu companion_menu = { "openRBRVR desktop window settings", {
         g::vr->create_companion_window_buffer(g::d3d_dev);
     },
   },
-  { .text = [] { return std::format("Y offset: {} ({:.0f} pixels)", g::cfg.companion_offset.y, std::floor(std::get<1>(g::vr->get_render_resolution(LeftEye)) * g::cfg.companion_offset.y / 100.0f)); },
+  { .text = [] { return std::format("Y offset: {} ({:.0f} pixels)", g::cfg.companion_offset.y,
+      std::floor(std::get<1>(g::vr->get_render_resolution(left_eye)) * g::cfg.companion_offset.y / 100.0f)); },
     .long_text = { "Y offset in percents from the top of the screen." },
     .color = [] { return (g::cfg.companion_mode == CompanionMode::VREye) ? std::make_tuple(1.0f, 1.0f, 1.0f, 1.0f) : std::make_tuple(0.5f, 0.5f, 0.5f, 1.0f); },
     .left_action = [] {
-        g::cfg.companion_offset.y = std::clamp(g::cfg.companion_offset.y - window_step, 0, 100 - static_cast<int>(std::round(g::cfg.companion_size / g::vr->aspect_ratio)));
+        g::cfg.companion_offset.y = std::clamp(g::cfg.companion_offset.y - window_step, 0, 100 - static_cast<int>(std::round(g::cfg.companion_size / g::vr->companion_window_aspect_ratio)));
 		g::vr->create_companion_window_buffer(g::d3d_dev);
     },
     .right_action = [] {
-        g::cfg.companion_offset.y = std::clamp(g::cfg.companion_offset.y + window_step, 0, 100 - static_cast<int>(std::round(g::cfg.companion_size / g::vr->aspect_ratio)));
+        g::cfg.companion_offset.y = std::clamp(g::cfg.companion_offset.y + window_step, 0, 100 - static_cast<int>(std::round(g::cfg.companion_size / g::vr->companion_window_aspect_ratio)));
         g::vr->create_companion_window_buffer(g::d3d_dev);
     },
   },
