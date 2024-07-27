@@ -32,16 +32,22 @@ jobs:
         $env:PATH += ";C:\Program Files\CMake\bin"
 
     - name: Configure CMake
-      run: cmake -S . -B build -A Win32 -DCMAKE_BUILD_TYPE=Release
+      run: cmake -S . -B build -A Win32 -DCMAKE_BUILD_TYPE=RelWithDebInfo
 
     - name: Build
-      run: cmake --build build --config Release
+      run: cmake --build build --config RelWithDebInfo
 
     - name: Upload openRBRVR.dll
       uses: actions/upload-artifact@v2
       with:
         name: openRBRVR.dll
-        path: build\Release\openRBRVR.dll
+        path: build\RelWithDebInfo\openRBRVR.dll
+
+    - name: Upload openRBRVR.pdb
+      uses: actions/upload-artifact@v2
+      with:
+        name: openRBRVR.pdb
+        path: build\RelWithDebInfo\openRBRVR.pdb
 
   release:
     runs-on: ubuntu-latest
