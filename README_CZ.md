@@ -44,11 +44,6 @@ myši pro zobrazení menu). U mého headsetu dobře fungují hodnoty 2.3 až 2.6
 
 - Naleznete v [FAQ](https://github.com/Detegr/openRBRVR/blob/master/FAQ_CZ.md).
 
-## Známé chyby a omezení
-
-- Polohu sedadla nelze změnit pomocí klávesnice, ale musíte použít PaceNote
-  plugin dvojklikem pravým tlačítkem myši v okně hry
-
 ## Pokyny pro sestavení
 
 Projekt používá CMake a je vyvíjen ve Visual Studiu 2022 community edition,

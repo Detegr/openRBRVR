@@ -23,11 +23,6 @@ If this does not help, try the following steps:
   and choose "Update Existing Installation" (make sure the RBRVR and openRBRVR
   are ticked in the list of components).
 
-## OpenComposite error: unsupported apptype
-
-openRBRVR does not work with OpenComposite. It has a real OpenXR
-implementation. Please disable OpenComposite when using openRBRVR.
-
 ### Game just crashes to desktop right away
 
 - Make sure Light plugin is not enabled. This plugin is not compatible with it.
@@ -43,14 +38,22 @@ Please refer to the following table to check if your device is supported:
 | Pimax        | [Pimax-OpenXR](https://github.com/mbucchia/Pimax-OpenXR)                   | ✅          |                                                                             |
 | Oculus       | Oculus OpenXR or [VDXR](https://github.com/mbucchia/VirtualDesktop-OpenXR) | ✅          |                                                                             |
 | Pico         | [VDXR](https://github.com/mbucchia/VirtualDesktop-OpenXR)                  | ✅          |                                                                             |
-| Reverb       | WMR with [OpenXR-Vk-D3D12](https://github.com/mbucchia/OpenXR-Vk-D3D12)    | ✅*         | Needs a synchronization workaround that has a potential performance impact  |
+| Reverb       | WMR                                                                        | ✅          |                                                                             |
 | Valve        | SteamVR OpenXR                                                             | ⛔          | No 32-bit runtime available                                                 |
 | Varjo        | Varjo OpenXR                                                               | ⛔          | No 32-bit runtime available                                                 |
 
 Enable OpenXR runtime from `Options -> Plugins -> openRBRVR -> VR runtime` or
-edit `openRBRVR.toml` to contain `runtime = 'openxr'`. For Reverb headsets, select
-`OpenXR (Reverb compatibility mode)` from the game or put `runtime =
-'openxr-wmr'` in the toml.
+edit `openRBRVR.toml` to contain `runtime = 'openxr'`.
+
+## OpenComposite error: unsupported apptype
+
+openRBRVR has a native OpenXR implementation, so OpenComposite is not required.
+If you wish to run openRBRVR in OpenXR mode, try setting
+`RichardBurnsRally_SSE.exe` to `SteamVR` mode in OpenComposite runtime
+switcher, effectively disabling OpenComposite for RBR.
+
+Alternatively, remove OpenComposite's global installation if you don't have use
+for it.
 
 ## My FPS is worse than what it is in RBRVR
 
@@ -91,7 +94,8 @@ changed by modifying `dxvk.conf` by hand:
 
 ## The game is always shown on a "screen" within the VR environment
 
-- This is normal for menus. If this happens also when driving, install SteamVR.
+- This is normal for menus. If this happens also when driving and you're using
+  SteamVR mode, install SteamVR.
 
 ## What graphics settings should I use?
 
@@ -108,4 +112,34 @@ changed by modifying `dxvk.conf` by hand:
 
 ## How do I use per-stage anti-aliasing?
 
-- Per-stage anti-aliasing is best used in a way that the base anti-aliasing is set to 2x SRS or 4x SRS in the RSF launcher, and the `[gfx]` sections reduce the default multisampling for example disabling for BTB stages it by setting it 0. See openRBRVR.toml.sample for example.
+- Per-stage anti-aliasing is best used in a way that the base anti-aliasing is
+  set to 2x SRS or 4x SRS in the RSF launcher, and the `[gfx]` sections reduce
+  the default multisampling for example disabling for BTB stages it by setting
+  it 0. See openRBRVR.toml.sample for example.
+
+## Does openRBRVR support foveated rendering?
+
+- Yes, in OpenXR mode for headsets that have [support for 32-bit
+  OpenXR](https://github.com/Detegr/openRBRVR/blob/master/FAQ.md#can-i-use-openxr-instead-of-openvrsteamvr).
+  You'll need to enable quad view rendering from `Options -> Plugins ->
+  openRBRVR -> OpenXR settings -> Use quad-view rendering` and install my
+  unofficial build of
+  [Quad-Views-Foveated](https://github.com/mbucchia/Quad-Views-Foveated) OpenXR
+  layer:
+  https://github.com/Detegr/Quad-Views-Foveated/releases/tag/1.1.4-unsigned-win32
+
+- To install the layer, use either
+  [OpenXR-API-Layers-GUI](https://github.com/fredemmott/OpenXR-API-Layers-GUI/releases/tag/v2024.07.18)
+  or the supplied PowerShell script.
+    - Open the GUI, navigate to `Win32-HKLM` tab, click `Add layers`, select to
+      `quad-views-foveated-32/openxr-api-layer-32.json`.
+    - If done correctly, the GUI should look like the following:
+    - ![Quad-Views-Foveated API layer installed](img/quad-views-foveated.png)
+
+- After installing and launching the game, if you take a look at the debug view
+  of openRBRVR (`Options -> Plugins -> openRBRVR -> Debug settings -> Debug
+  information`) it should show two different resolutions, for peripheral and
+  focus views.
+- For additional configuration and fine tuning, refer to the
+  [Quad-Views-Foveated layer
+  documentation](https://github.com/mbucchia/Quad-Views-Foveated/wiki/Advanced-Configuration)

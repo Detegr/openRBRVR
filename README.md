@@ -44,11 +44,6 @@ Values between 2.3-2.6 work fine for my wide FoV headset.
 
 - See the [FAQ](https://github.com/Detegr/openRBRVR/blob/master/FAQ.md).
 
-## Known bugs and limitations
-
-- The seat position cannot be changed via keyboard. PaceNote plugin can and
-  should be used instead. The UI works as expected.
-
 ## Build instructions (for developers only)
 
 The project uses CMake. I've been developing it with Visual Studio 2022

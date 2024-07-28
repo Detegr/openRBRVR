@@ -30,11 +30,6 @@ Avec le FoV du bureau, les objets peuvent disparaitre de votre vision périphér
 
 - Voir [FAQ](https://github.com/Detegr/openRBRVR/blob/master/FAQ_FR.md).
 
-## Les bugs connus et les limites
-
-- La position du siège ne peut pas être modifié via le clavier. Le plugin PaceNote doit être utilisé à la place. L’UI fonctionne correctement.
-- Les spéciales BTB peuvent avoir de très mauvaises performances si l'environnement cubique est activé. Il est recommandé de le désactiver si openRBRVR est utilisé.
-
 ## Instructions du build (pour les développeurs uniquement)
 
 Le projet utilise CMake. Je l’ai développé avec Visual Studio 2022 community edition qui possède le support du module CMake.
