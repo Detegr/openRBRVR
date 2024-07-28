@@ -742,11 +742,19 @@ void OpenXR::prepare_frames_for_hmd(IDirect3DDevice9* dev)
     // Copy shared textures to OpenXR textures
     g::d3d11_ctx->CopyResource(left.texture, xr_context()->shared_textures[LeftEye]);
     g::d3d11_ctx->CopyResource(right.texture, xr_context()->shared_textures[RightEye]);
+
     if (g::cfg.quad_view_rendering) {
         g::d3d11_ctx->CopyResource(focus_left.texture, xr_context()->shared_textures[FocusLeft]);
         g::d3d11_ctx->CopyResource(focus_right.texture, xr_context()->shared_textures[FocusRight]);
+
+        // Make sure D3D11 side of work is done before displaying the textures to the HMD
+        g::d3d11_ctx->Flush();
+
         xrReleaseSwapchainImage(xr_context()->swapchains[FocusLeft], &release_info);
         xrReleaseSwapchainImage(xr_context()->swapchains[FocusRight], &release_info);
+    } else {
+        // Make sure D3D11 side of work is done before displaying the textures to the HMD
+        g::d3d11_ctx->Flush();
     }
 
     xrReleaseSwapchainImage(xr_context()->swapchains[LeftEye], &release_info);
