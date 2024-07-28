@@ -83,10 +83,38 @@ OpenXR::OpenXR()
 
     auto extensions = std::vector { "XR_KHR_D3D11_enable" };
 
+    uint32_t api_layer_count;
+    if (auto err = xrEnumerateApiLayerProperties(0, &api_layer_count, nullptr); err != XR_SUCCESS) {
+        throw std::runtime_error(std::format("OpenXR: Failed to enumerate API layers, error: {}", static_cast<int>(err)));
+    }
+
+    std::vector<XrApiLayerProperties> available_api_layers(api_layer_count, { .type = XR_TYPE_API_LAYER_PROPERTIES });
+    if (auto err = xrEnumerateApiLayerProperties(api_layer_count, &api_layer_count, available_api_layers.data()); err != XR_SUCCESS) {
+        throw std::runtime_error(std::format("OpenXR: Failed to enumerate API layers, error: {}", static_cast<int>(err)));
+    }
+
     // TODO: query available extensions and check if XR_VARJO extensions are available before trying to use them
     if (g::cfg.quad_view_rendering) {
-        extensions.push_back("XR_VARJO_quad_views");
-        extensions.push_back("XR_VARJO_foveated_rendering");
+        auto quad_views_layer = std::ranges::find_if(available_api_layers, [](const XrApiLayerProperties& p) {
+            return std::string(p.layerName) == "XR_APILAYER_MBUCCHIA_quad_views_foveated";
+        });
+        if (quad_views_layer == available_api_layers.cend()) {
+            MessageBoxA(nullptr, "Tried to enable quad view rendering without Quad-Views-Foveated API layer installed.\n\nPlease install the layer according to the instructions here:\nhttps://github.com/Detegr/openRBRVR/blob/master/FAQ.md#does-openrbrvr-support-foveated-rendering", "OpenXR layer init error", MB_OK);
+            g::cfg.quad_view_rendering = false;
+        } else {
+            extensions.push_back("XR_VARJO_quad_views");
+            extensions.push_back("XR_VARJO_foveated_rendering");
+        }
+    }
+
+    if (g::cfg.openxr_motion_compensation) {
+        auto motion_compensation_layer = std::ranges::find_if(available_api_layers, [](const XrApiLayerProperties& p) {
+            return std::string(p.layerName) == "XR_APILAYER_NOVENDOR_motion_compensation";
+        });
+        if (motion_compensation_layer == available_api_layers.cend()) {
+            MessageBoxA(nullptr, "Tried to enable motion compensation without OpenXR Motion Compensation API layer installed.\n\nPlease install the layer from:\nhttps://github.com/BuzzteeBear/OpenXR-MotionCompensation", "OpenXR layer init error", MB_OK);
+            g::cfg.openxr_motion_compensation = false;
+        }
     }
 
     XrInstanceCreateInfo instanceInfo = {
@@ -102,7 +130,7 @@ OpenXR::OpenXR()
 
     if (auto err = xrCreateInstance(&instanceInfo, &instance); err != XR_SUCCESS) {
         if (err == XR_ERROR_EXTENSION_NOT_PRESENT) {
-            throw std::runtime_error("xrCreateInstance failed. If you're running a WMR headset like Reverb, make sure https://github.com/mbucchia/OpenXR-Vk-D3D12 is installed.");
+            throw std::runtime_error("xrCreateInstance failed. A requested extension is missing.");
         } else if (err == XR_ERROR_FILE_ACCESS_ERROR) {
             throw std::runtime_error("xrCreateInstance failed. Make sure Visual C++ redistributables (https://aka.ms/vs/17/release/vc_redist.x64.exe) are installed. Please try uninstalling Reshade if it is installed.");
         }

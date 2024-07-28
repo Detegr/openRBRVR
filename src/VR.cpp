@@ -22,7 +22,7 @@ namespace g {
 
 bool VRInterface::is_using_quad_view_rendering() const
 {
-	return get_runtime_type() == OPENXR && g::cfg.quad_view_rendering;
+    return get_runtime_type() == OPENXR && g::cfg.quad_view_rendering;
 }
 
 void VRInterface::set_render_context(const std::string& name)

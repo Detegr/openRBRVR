@@ -17,6 +17,7 @@
   layer](https://github.com/BuzzteeBear/OpenXR-MotionCompensation) (OXRMC),
   contributed by MatteKarla. The support for openRBRVR is already out in OXRMC
   version 0.3.6 onwards.
+- Improve OpenXR layer detection and error handling at startup.
 
 ## 0.8.2
 
