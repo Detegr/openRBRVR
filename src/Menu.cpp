@@ -139,23 +139,22 @@ static class Menu main_menu = { "openRBRVR", {
     .visible = [] { return g::vr != nullptr; }
   },
   { .text = id("Debug settings"), .long_text = {"Not intended to be changed unless there is a problem that needs more information."}, .select_action = [] { select_menu(2); } },
-  { .text = [] { return std::format("VR runtime: {}", g::cfg.runtime == OPENVR ? "OpenVR (SteamVR)" : (g::cfg.wmr_workaround ? "OpenXR (Reverb compatibility mode)" : "OpenXR")); },
+  { .text = [] { return std::format("VR runtime: {}", g::cfg.runtime == OPENVR ? "OpenVR (SteamVR)" : "OpenXR"); },
     .long_text {
         "Selects VR runtime. Requires game restart.",
         "",
-        "SteamVR support is more mature and supports more devices.",
+        "SteamVR supports more devices.",
         "OpenXR is an open-source, royalty-free standard.",
         "It has less overhead and may result in better performance.",
-        "OpenXR device compatibility is more limited for old 32-bit games like RBR.",
-        "The performance of Reverb compatibility mode is worse than normal OpenXR.",
-        "Use it only if there's problems with the normal mode."},
+	"It also supports various third party layers like foveated rendering.",
+        "OpenXR device compatibility is more limited for old 32-bit games like RBR."},
     .left_action = [] {
-        if (g::cfg.runtime == OPENXR) { if(g::cfg.wmr_workaround) Toggle(g::cfg.wmr_workaround); else g::cfg.runtime = OPENVR; }
-        else { g::cfg.runtime = OPENXR; g::cfg.wmr_workaround = true; }
+        if (g::cfg.runtime == OPENXR) { g::cfg.runtime = OPENVR; }
+        else { g::cfg.runtime = OPENXR; }
     },
     .right_action = [] {
-        if (g::cfg.runtime == OPENXR) { if(g::cfg.wmr_workaround) g::cfg.runtime = OPENVR; else g::cfg.wmr_workaround = true; }
-        else { g::cfg.runtime = OPENXR; g::cfg.wmr_workaround = false; }
+        if (g::cfg.runtime == OPENXR) { g::cfg.runtime = OPENVR; }
+        else { g::cfg.runtime = OPENXR; }
     },
     .select_action = [] {},
   },

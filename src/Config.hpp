@@ -97,7 +97,6 @@ struct Config {
     bool render_prestage_3d = false;
     bool render_replays_3d = false;
     int anisotropy = 0;
-    bool wmr_workaround = false;
     VRRuntime runtime = VRRuntime::OPENVR;
     std::unordered_map<std::string, RenderContextConfig> gfx = { { "default", RenderContextConfig {} } };
     glm::ivec2 companion_offset;
@@ -124,7 +123,6 @@ struct Config {
         render_pausemenu_3d = rhs.render_pausemenu_3d;
         render_prestage_3d = rhs.render_prestage_3d;
         render_replays_3d = rhs.render_replays_3d;
-        wmr_workaround = rhs.wmr_workaround;
         runtime = rhs.runtime;
         anisotropy = rhs.anisotropy;
         gfx = rhs.gfx;
@@ -157,7 +155,6 @@ struct Config {
             && render_pausemenu_3d == rhs.render_pausemenu_3d
             && render_prestage_3d == rhs.render_prestage_3d
             && render_replays_3d == rhs.render_replays_3d
-            && wmr_workaround == rhs.wmr_workaround
             && runtime == rhs.runtime
             && companion_offset == rhs.companion_offset
             && companion_size == rhs.companion_size
@@ -193,7 +190,7 @@ struct Config {
             { "renderPauseMenu3d", render_pausemenu_3d },
             { "renderPreStage3d", render_prestage_3d },
             { "renderReplays3d", render_replays_3d },
-            { "runtime", runtime == OPENVR ? "steamvr" : (wmr_workaround ? "openxr-wmr" : "openxr") },
+            { "runtime", runtime == OPENVR ? "steamvr" : "openxr" },
             { "desktopWindowOffsetX", companion_offset.x },
             { "desktopWindowOffsetY", companion_offset.y },
             { "desktopWindowSize", companion_size },
