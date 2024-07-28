@@ -227,6 +227,23 @@ namespace rbr {
         return false;
     }
 
+    static void update_render_context()
+    {
+		// Use per-stage render context
+		bool found = false;
+		for (const auto& v : g::cfg.gfx) {
+			const std::vector<int>& stages = v.second.stage_ids;
+			if (std::find(stages.cbegin(), stages.cend(), g::current_stage_id) != stages.cend()) {
+				g::vr->set_render_context(v.first);
+				found = true;
+				break;
+			}
+		}
+		if (!found) {
+			g::vr->set_render_context("default");
+		}
+    }
+
     static bool init_or_update_game_data(uintptr_t ptr)
     {
         if (!g::hooks::render_car.call || !g::hooks::load_texture.call) [[unlikely]] {
@@ -297,6 +314,9 @@ namespace rbr {
                 delete g::vr;
                 g::vr = new OpenXR();
                 reinterpret_cast<OpenXR*>(g::vr)->init(g::d3d_dev, &g::d3d_vr, w, h, old_pose);
+
+                // Reload render context in case it was not the default
+                update_render_context();
             }
         }
 
@@ -320,22 +340,8 @@ namespace rbr {
         } else if (g::vr && g::current_stage_id != *g::stage_id_ptr) {
             // Stage has changed
             g::current_stage_id = *g::stage_id_ptr;
-
-            // Use per-stage render context
-            bool found = false;
-            for (const auto& v : g::cfg.gfx) {
-                const std::vector<int>& stages = v.second.stage_ids;
-                if (std::find(stages.cbegin(), stages.cend(), g::current_stage_id) != stages.cend()) {
-                    g::vr->set_render_context(v.first);
-                    found = true;
-                    break;
-                }
-            }
-            if (!found) {
-                g::vr->set_render_context("default");
-            }
-
             g::seat_position_loaded = false;
+            update_render_context();
         }
 
         if (g::game_mode == GameMode::Driving) [[likely]] {
