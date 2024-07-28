@@ -3,7 +3,7 @@
 
 constexpr static bool is_aa_enabled_for_render_target(D3DMULTISAMPLE_TYPE msaa, RenderTarget t)
 {
-    if (g::cfg.quad_view_rendering) {
+    if (g::vr && g::vr->is_using_quad_view_rendering()) {
         if (t < 2)
             return g::cfg.peripheral_msaa > 0;
         else
@@ -21,7 +21,7 @@ bool is_using_texture_to_render(D3DMULTISAMPLE_TYPE msaa, RenderTarget t)
 static D3DMULTISAMPLE_TYPE get_msaa_for_render_target(RenderTarget t, D3DMULTISAMPLE_TYPE msaa)
 {
     // Peripheral MSAA for peripheral VR views if quad view rendering is used
-    if (g::cfg.quad_view_rendering && t < 2) {
+    if (g::vr && g::vr->is_using_quad_view_rendering() && t < 2) {
         return g::cfg.peripheral_msaa;
     }
 

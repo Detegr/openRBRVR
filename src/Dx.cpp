@@ -120,12 +120,12 @@ namespace dx {
             const auto& [lw, lh] = g::vr->get_render_resolution(LeftEye);
             const auto& [rw, rh] = g::vr->get_render_resolution(RightEye);
             g::game->WriteText(0, 18 * ++i, std::format("Render resolution: {}x{} (left), {}x{} (right)", lw, lh, rw, rh).c_str());
-            if (g::cfg.quad_view_rendering) {
+            if (g::vr->is_using_quad_view_rendering()) {
                 const auto& [flw, flh] = g::vr->get_render_resolution(FocusLeft);
                 const auto& [frw, frh] = g::vr->get_render_resolution(FocusRight);
                 g::game->WriteText(0, 18 * ++i, std::format("                         {}x{} (focus left), {}x{} (focus right)", flw, flh, frw, frh).c_str());
             }
-            if (g::cfg.quad_view_rendering) {
+            if (g::vr->is_using_quad_view_rendering()) {
                 g::game->WriteText(0, 18 * ++i, std::format("Anti-aliasing: {}x, peripheral: {}x", static_cast<int>(g::vr->get_current_render_context()->msaa), static_cast<int>(g::cfg.peripheral_msaa)).c_str());
             } else {
                 g::game->WriteText(0, 18 * ++i, std::format("Anti-aliasing: {}x", static_cast<int>(g::vr->get_current_render_context()->msaa)).c_str());
@@ -178,7 +178,7 @@ namespace dx {
             dbg("Failed to render left eye overlay");
         }
 
-        if (g::cfg.quad_view_rendering) {
+        if (g::vr->is_using_quad_view_rendering()) {
             if (g::vr->prepare_vr_rendering(g::d3d_dev, FocusLeft, clear)) {
                 render_menu_quad(g::d3d_dev, g::vr, texture, FocusLeft, render_target_2d, projection_type, size, translation, horizon_lock);
                 g::vr->finish_vr_rendering(g::d3d_dev, FocusLeft);
@@ -217,7 +217,7 @@ namespace dx {
         auto ret = 0;
         if (g::vr && !g::vr_error) {
             auto game_mode = rbr::get_game_mode();
-            const auto companion_eye = static_cast<RenderTarget>(g::cfg.companion_eye + (g::cfg.quad_view_rendering ? 2 : 0));
+            const auto companion_eye = static_cast<RenderTarget>(g::cfg.companion_eye + (g::vr->is_using_quad_view_rendering() ? 2 : 0));
             if (g::cfg.companion_mode == CompanionMode::Static) {
                 if (game_mode == GameMode::Driving || game_mode == GameMode::Pause) {
                     // Render the overlay over the 3D content, if we're running the static view on desktop window

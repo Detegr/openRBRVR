@@ -20,6 +20,11 @@ namespace g {
     static IDirect3DVertexBuffer9* overlay_border_quad;
 }
 
+bool VRInterface::is_using_quad_view_rendering() const
+{
+	return get_runtime_type() == OPENXR && g::cfg.quad_view_rendering;
+}
+
 void VRInterface::set_render_context(const std::string& name)
 {
     current_render_context = &render_contexts[name];
@@ -140,7 +145,7 @@ void VRInterface::init_surfaces(IDirect3DDevice9* dev, RenderContext& ctx, uint3
 
     create_vr_render_target(LeftEye);
     create_vr_render_target(RightEye);
-    if (g::cfg.quad_view_rendering) {
+    if (is_using_quad_view_rendering()) {
         create_vr_render_target(FocusLeft);
         create_vr_render_target(FocusRight);
     }

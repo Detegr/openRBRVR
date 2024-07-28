@@ -1,6 +1,5 @@
 #pragma once
 
-// #include "Globals.hpp"
 #include "RenderTarget.hpp"
 #include "Util.hpp"
 
@@ -133,6 +132,7 @@ public:
     virtual void finish_vr_rendering(IDirect3DDevice9* dev, RenderTarget tgt);
     virtual void prepare_frames_for_hmd(IDirect3DDevice9* dev) = 0;
     virtual void submit_frames_to_hmd(IDirect3DDevice9* dev) = 0;
+    bool is_using_quad_view_rendering() const;
     std::tuple<uint32_t, uint32_t> get_render_resolution(RenderTarget tgt) const
     {
         return std::make_tuple(current_render_context->width[tgt], current_render_context->height[tgt]);

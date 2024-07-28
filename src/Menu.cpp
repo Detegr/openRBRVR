@@ -296,7 +296,7 @@ static class Menu overlay_menu = { "openRBRVR overlay settings", {
 }};
 
 static const auto window_step = 1;
-static const auto left_eye = g::cfg.quad_view_rendering ? FocusLeft : LeftEye; // Cache the left eye as cfg.quad_view_rendering is modified during gameplay
+static const auto left_eye = g::vr && g::vr->is_using_quad_view_rendering() ? FocusLeft : LeftEye; // Cache the left eye as cfg.quad_view_rendering is modified during gameplay
 static class Menu companion_menu = { "openRBRVR desktop window settings", {
   { .text = [] { return std::format("Desktop window mode: {}", companion_mode_str_pretty(g::cfg.companion_mode)); },
     .long_text = { "Choose what is visible on the desktop monitor while driving.", "Off: Don't draw anything", "VR view: Draw what is seen in the VR headset", "Bonnet camera: Use normal 2D bonnet camera (WITH SIGNIFICANT PERFORMANCE COST)"},

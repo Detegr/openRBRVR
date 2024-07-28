@@ -286,9 +286,9 @@ namespace rbr {
         }
 
         // Cache the initial value of quad view rendering
-        static bool quad_view_rendering_in_use = g::cfg.quad_view_rendering;
+        static bool quad_view_rendering_in_use = g::vr && g::vr->is_using_quad_view_rendering();
 
-        if (g::vr && quad_view_rendering_in_use && g::vr->get_runtime_type() == OPENXR) {
+        if (quad_view_rendering_in_use) {
             bool restart_session = false;
 
             if (!g::previously_on_btb_stage && is_on_btb_stage() && g::game_mode == PreStage) {
@@ -425,7 +425,7 @@ namespace rbr {
                 dx::render_vr_eye(p, LeftEye);
                 dx::render_vr_eye(p, RightEye);
 
-                if (g::cfg.quad_view_rendering) {
+                if (g::vr->is_using_quad_view_rendering()) {
                     dx::render_vr_eye(p, FocusLeft);
                     dx::render_vr_eye(p, FocusRight);
                 }
