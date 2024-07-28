@@ -14,16 +14,11 @@ Pro vyřešení problému zkuste následující postup:
 - Ukončete RBR
 - Změňte nastavení VR pluginu na RBRVR a pak zpět na openRBRVR (pokud máte oba nainstalovaný).
 
-Pokud to nepomůže, zkuste:
+Pokud to nepomůže, zkuste následující kroky:
 
 - Ukončete RBR
 - Vypněte VR mód v RSF launcheru a ujistěte se, že 2D fullscreen mód je nastaven na "Normal" a NE na "Vulkan".
 - Zavřete RSF launcher a spusťte RSF instalátor a vyberte "Update Existing Installation" (nezapomeňte zaškrtnout RBRVR i openRBRVR plugin v seznamu).
-
-## OpenComposite error: unsupported apptype
-
-openRBRVR nefunguje s OpenComposite, protože má reálnou implementaci OpenXR.
-Vypněte prosím OpenComposite pokud chcete používat openRBRVR.
 
 ### Hra hned spadne na plochu (desktop)
 
@@ -38,16 +33,22 @@ V následující tabulce se můžete podívat jestli ho váš headset podporuje:
 | Výrobce      | Runtime                                                                    | Podpora     | Komentář                                                                    |
 | ------------ | -------------------------------------------------------------------------- | ----------- | --------------------------------------------------------------------------- |
 | Pimax        | [Pimax-OpenXR](https://github.com/mbucchia/Pimax-OpenXR)                   | ✅          |                                                                             |
-| Oculus       | Oculus OpenXR / [VDXR](https://github.com/mbucchia/VirtualDesktop-OpenXR)  | ✅          |                                                                             |
+| Oculus       | Oculus OpenXR or [VDXR](https://github.com/mbucchia/VirtualDesktop-OpenXR) | ✅          |                                                                             |
 | Pico         | [VDXR](https://github.com/mbucchia/VirtualDesktop-OpenXR)                  | ✅          |                                                                             |
-| Reverb       | WMR with [OpenXR-Vk-D3D12](https://github.com/mbucchia/OpenXR-Vk-D3D12)    | ✅*         | Potřebuje řešení synchronizace, které ale může mít dopad na výkon           |
-| Valve        | SteamVR OpenXR                                                             | ⛔          | Nemá 32-bit runtime                                                         |
-| Varjo        | Varjo OpenXR                                                               | ⛔          | Nemá 32-bit runtime                                                         |
+| Reverb       | WMR                                                                        | ✅          |                                                                             |
+| Valve        | SteamVR OpenXR                                                             | ⛔          | Nemá podporu 32-bit runtime                                                 |
+| Varjo        | Varjo OpenXR                                                               | ⛔          | Nemá podporu 32-bit runtime                                                 |
 
 OpenXR runtime zapnete v `Options (Nastavení) -> Plugins -> openRBRVR -> VR runtime` nebo editací `openRBRVR.toml`
 a upravením řádku `runtime = 'openxr'`.
-Pokud máte Reverb headset, vyberte `OpenXR (Reverb compatibility mode)` ve hře a nebo upravte řádek v toml na
-`runtime = 'openxr-wmr'`.
+
+## OpenComposite chyba: unsupported apptype
+
+openRBRVR má nativní podporu OpenXR implementace. OpenComposite proto není vyžadován.
+Pokud chcete spustit openRBRVR v OpenXR modu, zkuste toto nastavení:
+V nastavení OpenComposite switcheru zakažte `RichardBurnsRally_SSE.exe` v `SteamVR` modu.
+
+Případně kompletně odstraňte OpenComposite instalaci ze systému.
 
 ## Moje FPS jsou horší než v RBRVR pluginu
 
@@ -104,4 +105,30 @@ s tímto nastavením v RSF launcheru:
 
 ## Jak nastavím anti-aliasing pro jednotlivé tratě?
 
-- Nejlepší je nastavit základní vyhlazování v RSF launcheru na 2x SRS nebo 4x SRS a potom v sekci `[gfx]` snížit tuto hodnotu (například u BTB tratí) nastavením na 0. Příklad neleznete v souboru `openRBRVR.toml.sample`.
+- Nejlepší je nastavit základní vyhlazování v RSF launcheru na 2x SRS nebo 4x SRS
+a potom v sekci `[gfx]` snížit tuto hodnotu (například u BTB tratí) nastavením na 0.
+Příklad neleznete v souboru `openRBRVR.toml.sample`.
+
+## Podporuje openRBRVR foveated rendering?
+
+- Ano. U všech headsetů [podporujících 32-bit OpenXR](https://github.com/Detegr/openRBRVR/blob/master/FAQ.md#can-i-use-openxr-instead-of-openvrsteamvr).
+  Musíte povolit quad view rendering z `Options (Nastavení) -> Plugins ->
+  openRBRVR -> OpenXR settings -> Use quad-view rendering` a nainstalovat můj neoficiální build
+  [Quad-Views-Foveated](https://github.com/mbucchia/Quad-Views-Foveated) OpenXR
+  layer:
+  https://github.com/Detegr/Quad-Views-Foveated/releases/tag/1.1.4-unsigned-win32
+
+- Pro nainstalování layeru použijte
+  [OpenXR-API-Layers-GUI](https://github.com/fredemmott/OpenXR-API-Layers-GUI/releases/tag/v2024.07.18)
+  nebo PowerShell script.
+    - Otevřete GUI, přejděte do záložky `Win32-HKLM`, klikněte na `Add layers` a vyberte
+      `quad-views-foveated-32/openxr-api-layer-32.json`.
+    - Pokud vše uděláte správně, uvidíte v GUI tohle:
+    - ![Quad-Views-Foveated API layer installed](img/quad-views-foveated.png)
+
+- Po nainstalování a spuštění hry se můžete podívat na Debug informace
+  (`Options (Nastavení) -> Plugins -> openRBRVR -> Debug settings -> Debug
+  information`) jestli zobrazují dvě rozdílná rozlišení pro peripheral a focus pohledy.
+- Další informace o nastavení naleznete tady:
+  [Quad-Views-Foveated layer
+  documentation](https://github.com/mbucchia/Quad-Views-Foveated/wiki/Advanced-Configuration)

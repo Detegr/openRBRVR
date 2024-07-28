@@ -16,6 +16,7 @@ Open source VR plugin pro Richard Burns Rally.
   od TheIronWolf, který přidává podporu D3D9 VR.
 - PaceNote plugin UI funguje správně.
 - Gaugerplugin taky funguje (má ale dopad na výkon).
+- Podporuje jak OpenXR, tak OpenVR.
 
 ## Návod na instalaci
 
@@ -23,10 +24,10 @@ Plugin nainstalujte pomocí oficiálního [RSF](https://rallysimfans.hu)
 instalátoru.
 
 Chcete-li nainstalovat novější verzi, než která je k dispozici v instalátoru
-RSF, stáhněte si nejnovější verzi a překopírujte soubory z adresáře
-openRBRVR-x.x.x do hlavního adresáře hry RBR a přepište stávající soubory.
-Ujistěte se, že v RSF Launcheru máte povolenou Virtuální Realitu a openRBRVR,
-když děláte ruční instalaci.
+RSF, stáhněte si nejnovější verzi a překopírujte soubory do hlavního adresáře 
+hry RBR a přepište stávající soubory. Ujistěte se, že v RSF Launcheru máte 
+povolenou Virtuální Realitu a openRBRVR, když děláte ruční instalaci nové
+verze pluginu.
 
 ## Nastavení
 
