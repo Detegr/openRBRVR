@@ -309,11 +309,9 @@ namespace rbr {
                 const auto w = static_cast<uint32_t>(g::vr->companion_window_width);
                 const auto h = static_cast<uint32_t>(g::vr->companion_window_height);
 
-                const auto old_pose = reinterpret_cast<OpenXR*>(g::vr)->get_view_pose();
-
                 delete g::vr;
                 g::vr = new OpenXR();
-                reinterpret_cast<OpenXR*>(g::vr)->init(g::d3d_dev, &g::d3d_vr, w, h, old_pose);
+                reinterpret_cast<OpenXR*>(g::vr)->init(g::d3d_dev, &g::d3d_vr, w, h);
 
                 // Reload render context in case it was not the default
                 update_render_context();
