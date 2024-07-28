@@ -86,6 +86,7 @@ void OpenVR::init(IDirect3DDevice9* dev, IDirect3DVR9** vrdev, uint32_t companio
                 .width = { wss, wss },
                 .height = { hss, hss },
                 .msaa = gfx.second.msaa.value_or(g::cfg.gfx["default"].msaa.value()),
+                .quad_view_rendering = false,
             };
             init_surfaces(dev, ctx, companionWindowWidth, companionWindowHeight);
             render_contexts[gfx.first] = ctx;

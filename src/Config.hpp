@@ -78,6 +78,7 @@ struct RenderContextConfig {
     float supersampling = 1.0;
     std::optional<D3DMULTISAMPLE_TYPE> msaa = std::nullopt;
     std::vector<int> stage_ids = {};
+    bool quad_view_rendering = false;
 };
 
 struct Config {
@@ -297,7 +298,8 @@ struct Config {
                         stages.push_back(static_cast<int>(*v));
                     });
                 }
-                cfg.gfx[k] = RenderContextConfig { ss, msaa, stages };
+                bool quad_view_stage_rendering = val["quadViewRendering"].value_or(true);
+                cfg.gfx[k] = RenderContextConfig { ss, msaa, stages, quad_view_stage_rendering };
             });
         }
 

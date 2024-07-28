@@ -303,6 +303,12 @@ namespace rbr {
                 restart_session = true;
             }
 
+            if (g::vr) {
+                bool wanted_quad_view_mode = g::vr->get_current_render_context()->quad_view_rendering;
+                restart_session = g::cfg.quad_view_rendering != wanted_quad_view_mode;
+                g::cfg.quad_view_rendering = wanted_quad_view_mode;
+            }
+
             if (restart_session) {
                 dbg("Restarting OpenXR session");
 

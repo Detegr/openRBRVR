@@ -96,6 +96,8 @@ struct RenderContext {
     IDirect3DTexture9* overlay_border;
     D3DMULTISAMPLE_TYPE msaa;
 
+    bool quad_view_rendering;
+
     void* ext;
 };
 
