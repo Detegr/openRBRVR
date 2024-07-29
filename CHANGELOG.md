@@ -1,3 +1,8 @@
+## 0.9.1
+
+- Fix a bug where a BTB stage was not detected correctly for disabling quad
+  view rendering.
+
 ## 0.9.0
 
 - Change the OpenXR backend to use D3D11 mode. This mode is more compatible

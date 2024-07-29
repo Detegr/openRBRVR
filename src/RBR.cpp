@@ -301,9 +301,7 @@ namespace rbr {
                 g::previously_on_btb_stage = false;
                 g::cfg.quad_view_rendering = true;
                 restart_session = true;
-            }
-
-            if (g::vr) {
+            } else if (!g::previously_on_btb_stage && !is_on_btb_stage()) {
                 bool wanted_quad_view_mode = g::vr->get_current_render_context()->quad_view_rendering;
                 restart_session = g::cfg.quad_view_rendering != wanted_quad_view_mode;
                 g::cfg.quad_view_rendering = wanted_quad_view_mode;
