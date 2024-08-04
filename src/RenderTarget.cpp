@@ -15,6 +15,13 @@ constexpr static bool is_aa_enabled_for_render_target(D3DMULTISAMPLE_TYPE msaa, 
 
 bool is_using_texture_to_render(D3DMULTISAMPLE_TYPE msaa, RenderTarget t)
 {
+    if (g::vr && g::vr->is_using_quad_view_rendering() && (t == LeftEye || t == RightEye)) {
+        // Rendering directly to the texture causes flashing in Quad-View-Foveated layer
+        // if the FPS drops from the target FPS. It might be that we've messed up the Vulkan/D3D11
+        // synchronization or then it's a bug in Quad-View-Foveated.
+        // Doing it this way is slightly more expensive but gets around the issue.
+        return false;
+    }
     return !is_aa_enabled_for_render_target(msaa, t);
 }
 

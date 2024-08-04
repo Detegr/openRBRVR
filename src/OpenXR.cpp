@@ -684,10 +684,11 @@ void OpenXR::prepare_frames_for_hmd(IDirect3DDevice9* dev)
     const auto msaa_enabled = current_render_context->msaa != D3DMULTISAMPLE_NONE;
     const auto peripheral_msaa_enabled = g::cfg.quad_view_rendering && g::cfg.peripheral_msaa != D3DMULTISAMPLE_NONE;
     if (g::cfg.quad_view_rendering) {
-        if (peripheral_msaa_enabled) {
-            resolve_msaa(dev, current_render_context, LeftEye);
-            resolve_msaa(dev, current_render_context, RightEye);
-        }
+        // We're going to call this for peripheral views in any case
+        // because we're not rendering directly to a texture.
+        // Reasoning in a comment in `is_using_texture_to_render`.
+        resolve_msaa(dev, current_render_context, LeftEye);
+        resolve_msaa(dev, current_render_context, RightEye);
         if (msaa_enabled) {
             resolve_msaa(dev, current_render_context, FocusLeft);
             resolve_msaa(dev, current_render_context, FocusRight);
