@@ -306,7 +306,7 @@ struct Config {
         auto oxrnode = parsed["OpenXR"];
         if (oxrnode.is_table()) {
             cfg.world_scale = std::clamp(oxrnode["worldScale"].value_or(1000), 500, 1500);
-            cfg.quad_view_rendering = oxrnode["quadViewRendering"].value_or(true);
+            cfg.quad_view_rendering = oxrnode["quadViewRendering"].value_or(false);
             cfg.peripheral_msaa = static_cast<D3DMULTISAMPLE_TYPE>(oxrnode["peripheralAntiAliasing"].value_or(0));
             cfg.openxr_motion_compensation = oxrnode["motionCompensation"].value_or(false);
         }
