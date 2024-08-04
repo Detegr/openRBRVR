@@ -105,6 +105,7 @@ struct Config {
     RenderTarget companion_eye = LeftEye;
     int world_scale = 1000;
     bool quad_view_rendering = false;
+    bool wanted_quad_view_rendering = false;
     D3DMULTISAMPLE_TYPE peripheral_msaa = D3DMULTISAMPLE_NONE;
     bool openxr_motion_compensation = false; // OpenXR-MotionCompensation support https://github.com/BuzzteeBear/OpenXR-MotionCompensation
 
@@ -134,6 +135,7 @@ struct Config {
         debug_mode = rhs.debug_mode;
         world_scale = rhs.world_scale;
         quad_view_rendering = rhs.quad_view_rendering;
+        wanted_quad_view_rendering = rhs.wanted_quad_view_rendering;
         peripheral_msaa = rhs.peripheral_msaa;
         openxr_motion_compensation = rhs.openxr_motion_compensation;
         return *this;
@@ -162,6 +164,7 @@ struct Config {
             && companion_eye == rhs.companion_eye
             && world_scale == rhs.world_scale
             && quad_view_rendering == rhs.quad_view_rendering
+            && wanted_quad_view_rendering == rhs.wanted_quad_view_rendering
             && peripheral_msaa == rhs.peripheral_msaa
             && openxr_motion_compensation == rhs.openxr_motion_compensation;
     }
@@ -221,7 +224,7 @@ struct Config {
 
         toml::table openxr;
         openxr.insert("worldScale", world_scale);
-        openxr.insert("quadViewRendering", quad_view_rendering);
+        openxr.insert("quadViewRendering", wanted_quad_view_rendering);
         openxr.insert("peripheralAntiAliasing", peripheral_msaa);
         openxr.insert("motionCompensation", openxr_motion_compensation);
         out.insert("OpenXR", openxr);
@@ -306,7 +309,7 @@ struct Config {
         auto oxrnode = parsed["OpenXR"];
         if (oxrnode.is_table()) {
             cfg.world_scale = std::clamp(oxrnode["worldScale"].value_or(1000), 500, 1500);
-            cfg.quad_view_rendering = oxrnode["quadViewRendering"].value_or(false);
+            cfg.quad_view_rendering = cfg.wanted_quad_view_rendering = oxrnode["quadViewRendering"].value_or(false);
             cfg.peripheral_msaa = static_cast<D3DMULTISAMPLE_TYPE>(oxrnode["peripheralAntiAliasing"].value_or(0));
             cfg.openxr_motion_compensation = oxrnode["motionCompensation"].value_or(false);
         }

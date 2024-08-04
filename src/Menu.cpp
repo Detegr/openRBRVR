@@ -296,7 +296,7 @@ static class Menu overlay_menu = { "openRBRVR overlay settings", {
 }};
 
 static const auto window_step = 1;
-static const auto left_eye = g::vr && g::vr->is_using_quad_view_rendering() ? FocusLeft : LeftEye; // Cache the left eye as cfg.quad_view_rendering is modified during gameplay
+static const auto left_eye = g::vr && g::vr->is_using_quad_view_rendering() ? FocusLeft : LeftEye; // Cache the left eye as cfg.wanted_quad_view_rendering is modified during gameplay
 static class Menu companion_menu = { "openRBRVR desktop window settings", {
   { .text = [] { return std::format("Desktop window mode: {}", companion_mode_str_pretty(g::cfg.companion_mode)); },
     .long_text = { "Choose what is visible on the desktop monitor while driving.", "Off: Don't draw anything", "VR view: Draw what is seen in the VR headset", "Bonnet camera: Use normal 2D bonnet camera (WITH SIGNIFICANT PERFORMANCE COST)"},
@@ -371,19 +371,19 @@ static class Menu openxr_menu = { "openRBRVR OpenXR settings", {
     .left_action = [] { g::cfg.world_scale = std::max(g::cfg.world_scale - world_scale_step, 500); },
     .right_action = [] { g::cfg.world_scale = std::min(g::cfg.world_scale + world_scale_step, 1500); },
   },
-  { .text = [] { return std::format("Use quad-view rendering: {}", g::cfg.quad_view_rendering ? "ON" : "OFF"); },
+  { .text = [] { return std::format("Use quad-view rendering: {} {}", g::cfg.wanted_quad_view_rendering ? "ON" : "OFF", g::cfg.quad_view_rendering != g::cfg.wanted_quad_view_rendering ? "(RESTART REQUIRED)" : ""); },
     .long_text = { "Enable the use of quad view rendering.", "", "Designed to be used with Quad-Views-Foveated OpenXR layer for foveated rendering.", "Requires game restart to take an effect.", "", "See openRBRVR documentation for installation and setup instructions.", },
     .menu_color = IRBRGame::EMenuColors::MENU_TEXT,
-    .left_action = [] { g::cfg.quad_view_rendering = !g::cfg.quad_view_rendering; },
-    .right_action = [] { g::cfg.quad_view_rendering = !g::cfg.quad_view_rendering; },
-    .select_action = [] { g::cfg.quad_view_rendering = !g::cfg.quad_view_rendering; },
+    .left_action = [] { g::cfg.wanted_quad_view_rendering = !g::cfg.wanted_quad_view_rendering; },
+    .right_action = [] { g::cfg.wanted_quad_view_rendering = !g::cfg.wanted_quad_view_rendering; },
+    .select_action = [] { g::cfg.wanted_quad_view_rendering = !g::cfg.wanted_quad_view_rendering; },
   },
   { .text = [] { return std::format("Peripheral view anti-aliasing: {}x", static_cast<int>(g::cfg.peripheral_msaa)); },
     .long_text = { "Set the anti-aliasing factor of the peripheral view of quad view rendering.", "Keep this at 0 unless you get untolerable jagged edges in the peripheral view." },
     .menu_color = IRBRGame::EMenuColors::MENU_TEXT,
     .left_action = [] { g::cfg.peripheral_msaa = static_cast<D3DMULTISAMPLE_TYPE>(std::clamp(g::cfg.peripheral_msaa - 2, 0, 8)); },
     .right_action = [] { g::cfg.peripheral_msaa = g::cfg.peripheral_msaa = static_cast<D3DMULTISAMPLE_TYPE>(std::clamp(g::cfg.peripheral_msaa + 2, 0, 8)); },
-    .visible = [] { return g::cfg.quad_view_rendering; }
+    .visible = [] { return g::cfg.wanted_quad_view_rendering; }
   },
   { .text = [] { return std::format("Support for OpenXR Motion Compensation: {}", g::cfg.openxr_motion_compensation ? "ON" : "OFF"); },
     .long_text = {
