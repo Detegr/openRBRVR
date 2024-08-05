@@ -68,6 +68,33 @@ static M4 xr_pose_to_m4(const XrPosef& pose)
     return translation_matrix * rotation_matrix;
 }
 
+static void set_openrbrvr_api_layer_path()
+{
+    std::filesystem::path quad_views_path = std::filesystem::current_path() / "Plugins" / "openRBRVR" / "quad-views-foveated";
+
+    constexpr auto env_buf_chars = 32767;
+    constexpr auto env_buf_bytes = env_buf_chars * sizeof(wchar_t);
+    wchar_t* env_buf = reinterpret_cast<wchar_t*>(malloc(env_buf_bytes));
+    if (!env_buf) {
+        throw std::runtime_error("Could not allocate buffer for environment variable");
+    }
+    memset(env_buf, 0, env_buf_bytes);
+
+    auto env_var_len = GetEnvironmentVariableW(L"XR_API_LAYER_PATH", env_buf, 32767);
+    bool env_var_ok = false;
+    if (env_var_len > 0) {
+        std::wstring wide_xr_api_layer_path = std::wstring(env_buf) + L";" + quad_views_path.c_str();
+        env_var_ok = SetEnvironmentVariableW(L"XR_API_LAYER_PATH", wide_xr_api_layer_path.c_str());
+    } else {
+        env_var_ok = SetEnvironmentVariableW(L"XR_API_LAYER_PATH", quad_views_path.c_str());
+    }
+    free(env_buf);
+
+    if (!env_var_ok) {
+        MessageBoxA(nullptr, "Could not alter XR_API_LAYER_PATH environment variable", "OpenXR init error", MB_OK);
+    }
+}
+
 OpenXR::OpenXR()
     : session()
     , has_projection(false)
@@ -82,6 +109,9 @@ OpenXR::OpenXR()
     };
 
     auto extensions = std::vector { "XR_KHR_D3D11_enable" };
+    std::vector<const char*> api_layers;
+
+    set_openrbrvr_api_layer_path();
 
     uint32_t api_layer_count;
     if (auto err = xrEnumerateApiLayerProperties(0, &api_layer_count, nullptr); err != XR_SUCCESS) {
@@ -93,17 +123,17 @@ OpenXR::OpenXR()
         throw std::runtime_error(std::format("OpenXR: Failed to enumerate API layers, error: {}", static_cast<int>(err)));
     }
 
-    // TODO: query available extensions and check if XR_VARJO extensions are available before trying to use them
     if (g::cfg.quad_view_rendering) {
         auto quad_views_layer = std::ranges::find_if(available_api_layers, [](const XrApiLayerProperties& p) {
             return std::string(p.layerName) == "XR_APILAYER_MBUCCHIA_quad_views_foveated";
         });
         if (quad_views_layer == available_api_layers.cend()) {
-            MessageBoxA(nullptr, "Tried to enable quad view rendering without Quad-Views-Foveated API layer installed.\n\nPlease install the layer according to the instructions here:\nhttps://github.com/Detegr/openRBRVR/blob/master/FAQ.md#does-openrbrvr-support-foveated-rendering", "OpenXR layer init error", MB_OK);
+            MessageBoxA(nullptr, "Tried to enable quad view rendering but Quad-Views-Foveated API layer was not found.\nPlease make sure all files are installed.", "OpenXR layer init error", MB_OK);
             g::cfg.quad_view_rendering = false;
         } else {
             extensions.push_back("XR_VARJO_quad_views");
             extensions.push_back("XR_VARJO_foveated_rendering");
+            api_layers.push_back("XR_APILAYER_MBUCCHIA_quad_views_foveated");
         }
     }
 
@@ -122,8 +152,8 @@ OpenXR::OpenXR()
         .next = nullptr,
         .createFlags = 0,
         .applicationInfo = appInfo,
-        .enabledApiLayerCount = 0,
-        .enabledApiLayerNames = nullptr,
+        .enabledApiLayerCount = api_layers.size(),
+        .enabledApiLayerNames = api_layers.data(),
         .enabledExtensionCount = extensions.size(),
         .enabledExtensionNames = extensions.data(),
     };
@@ -1109,7 +1139,6 @@ void OpenXR::shutdown_vr()
         for (size_t i = 0; i < xr_ctx->swapchains.size(); ++i) {
             xrDestroySwapchain(xr_ctx->swapchains[i]);
             xr_ctx->shared_textures[i]->Release();
-            ;
         }
     }
 
