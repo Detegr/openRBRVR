@@ -13,14 +13,6 @@
 #include <d3d11_1.h>
 #include <ranges>
 
-static std::string XrVersionToString(const XrVersion version)
-{
-    return std::format("{}.{}.{}",
-        version >> 48,
-        (version >> 32) & 0xFFFF,
-        version & 0xFFFFFFFF);
-}
-
 template <typename T>
 T get_extension(XrInstance instance, const std::string& fnName)
 {
