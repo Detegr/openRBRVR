@@ -81,6 +81,7 @@ jobs:
       run: |
         mkdir -p openRBRVR-${{ github.ref_name }}/Plugins/openRBRVR
         cp thirdparty/dll/* openRBRVR-${{ github.ref_name }}
+        cp -r thirdparty/quad-views-foveated openRBRVR-${{ github.ref_name }}/Plugins/openRBRVR
         cp openRBRVR.dll openRBRVR.toml.sample openRBRVR-${{ github.ref_name }}/Plugins
         cp LICENSE openRBRVR-${{ github.ref_name }}/Plugins/openRBRVR
         cp README.md openRBRVR-${{ github.ref_name }}/Plugins/openRBRVR/README.openrbrvr.txt
