@@ -115,7 +115,7 @@ protected:
     void init_surfaces(IDirect3DDevice9* dev, RenderContext& ctx, uint32_t res_x_2d, uint32_t res_y_2d);
 
     static constexpr float zFar = 10000.0f;
-    static constexpr float zNearStage = 0.35f;
+    static constexpr float zNearStage = 0.15f;
     static constexpr float zNearCockpit = 0.01f;
     static constexpr float zNearMainMenu = 0.1f;
 

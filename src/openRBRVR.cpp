@@ -43,8 +43,15 @@ openRBRVR::openRBRVR(IRBRGame* g)
     try {
         g::hooks::create = Hook(d3dcreate, dx::Direct3DCreate9);
         g::hooks::render = Hook(*reinterpret_cast<decltype(rbr::render)*>(rbr::get_render_function_addr()), rbr::render);
-        g::hooks::render_particles = Hook(*reinterpret_cast<decltype(rbr::render_particles)*>(rbr::get_render_particles_function_addr()), rbr::render_particles);
+
+        const auto addrs = rbr::get_render_particles_function_addrs();
+        g::hooks::render_particles = Hook(*reinterpret_cast<decltype(rbr::render_particles)*>(addrs[0]), rbr::render_particles);
+        g::hooks::render_particles_2 = Hook(*reinterpret_cast<decltype(rbr::render_particles_2)*>(addrs[1]), rbr::render_particles_2);
+        g::hooks::render_particles_3 = Hook(*reinterpret_cast<decltype(rbr::render_particles_3)*>(addrs[2]), rbr::render_particles_3);
+        g::hooks::render_particles_4 = Hook(*reinterpret_cast<decltype(rbr::render_particles_4)*>(addrs[3]), rbr::render_particles_4);
+
         g::hooks::set_camera_target = Hook(*reinterpret_cast<decltype(rbr::set_camera_target)*>(0x4663f0), rbr::set_camera_target);
+        g::hooks::render_windscreen_effects = Hook(*reinterpret_cast<decltype(rbr::render_windscreen_effects)*>(rbr::get_address(0x452020)), rbr::render_windscreen_effects);
     } catch (const std::runtime_error& e) {
         dbg(e.what());
         MessageBoxA(nullptr, e.what(), "Hooking failed", MB_OK);

@@ -42,7 +42,6 @@ struct Hook {
         src = rhs.src;
         rhs.call = nullptr;
         rhs.src = nullptr;
-        return *this;
     }
     Hook& operator=(const Hook&) = delete;
     Hook& operator=(Hook&& rhs) noexcept

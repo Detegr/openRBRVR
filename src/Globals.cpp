@@ -42,6 +42,10 @@ namespace g {
         Hook<decltype(&rbr::render)> render;
         Hook<decltype(&rbr::render_car)> render_car;
         Hook<decltype(&rbr::render_particles)> render_particles;
+        Hook<decltype(&rbr::render_particles_2)> render_particles_2;
+        Hook<decltype(&rbr::render_particles_3)> render_particles_3;
+        Hook<decltype(&rbr::render_particles_4)> render_particles_4;
+        Hook<decltype(&rbr::render_windscreen_effects)> render_windscreen_effects;
         Hook<decltype(&rbr::set_camera_target)> set_camera_target;
     }
 }

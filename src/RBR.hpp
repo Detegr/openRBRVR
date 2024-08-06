@@ -20,8 +20,9 @@ namespace rbr {
         Starting = 12,
     };
 
+    uintptr_t get_address(uintptr_t target);
     uintptr_t get_render_function_addr();
-    uintptr_t get_render_particles_function_addr();
+    std::array<uintptr_t, 4> get_render_particles_function_addrs();
     GameMode get_game_mode();
     uint32_t get_current_stage_id();
 
@@ -32,6 +33,7 @@ namespace rbr {
     bool is_car_texture(IDirect3DBaseTexture9* tex);
     bool is_rendering_car();
     bool is_rendering_particles();
+    bool is_rendering_wet_windscreen();
 
     void change_camera(void* p, uint32_t cameraType);
     const M4& get_horizon_lock_matrix();
@@ -41,6 +43,10 @@ namespace rbr {
     uint32_t __stdcall load_texture(void* p, const char* texName, uint32_t a, uint32_t b, uint32_t c, uint32_t d, uint32_t e, uint32_t f, uint32_t g, uint32_t h, uint32_t i, uint32_t j, uint32_t k, IDirect3DTexture9** ppTexture);
     void __stdcall render_car(void* a, void* b);
     void __fastcall render_particles(void* This);
+    void __fastcall render_particles_2(void* This);
+    void __fastcall render_particles_3(void* This);
+    void __fastcall render_particles_4(void* This);
+    void __fastcall render_windscreen_effects(void* a);
     void* set_camera_target(void* a, float* cam_pos, float* cam_target);
 }
 

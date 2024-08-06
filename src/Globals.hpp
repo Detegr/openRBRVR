@@ -117,6 +117,10 @@ namespace g {
         extern Hook<decltype(&rbr::render)> render;
         extern Hook<decltype(&rbr::render_car)> render_car;
         extern Hook<decltype(&rbr::render_particles)> render_particles;
+        extern Hook<decltype(&rbr::render_particles_2)> render_particles_2;
+        extern Hook<decltype(&rbr::render_particles_3)> render_particles_3;
+        extern Hook<decltype(&rbr::render_particles_4)> render_particles_4;
+        extern Hook<decltype(&rbr::render_windscreen_effects)> render_windscreen_effects;
         extern Hook<decltype(&rbr::set_camera_target)> set_camera_target;
     }
 }

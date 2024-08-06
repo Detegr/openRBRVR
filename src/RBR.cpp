@@ -25,6 +25,7 @@ namespace g {
     static bool is_rendering_3d;
     static bool is_rendering_car;
     static bool is_rendering_particles;
+    static bool is_rendering_wet_windscreen;
 }
 
 namespace rbr {
@@ -39,14 +40,17 @@ namespace rbr {
         return addr;
     }
 
-    static uintptr_t get_address(uintptr_t target)
+    uintptr_t get_address(uintptr_t target)
     {
         constexpr uintptr_t RBR_ABSOLUTE_LOAD_ADDR = 0x400000;
         return get_base_address() + target - RBR_ABSOLUTE_LOAD_ADDR;
     }
 
     static uintptr_t RENDER_FUNCTION_ADDR = get_address(0x47E1E0);
-    static uintptr_t RENDER_PARTICLES_FUNCTION_ADDR = get_address(0x5eff60); // Other possible hooking points are at 0x5efed0, 0x5effd0 and 0x5f0040
+    static uintptr_t RENDER_PARTICLES_FUNCTION_ADDR = get_address(0x5eff60);
+    static uintptr_t RENDER_PARTICLES_FUNCTION_ADDR_2 = get_address(0x5efed0);
+    static uintptr_t RENDER_PARTICLES_FUNCTION_ADDR_3 = get_address(0x5effd0);
+    static uintptr_t RENDER_PARTICLES_FUNCTION_ADDR_4 = get_address(0x5eca60);
     static uintptr_t CAR_INFO_ADDR = get_address(0x165FC68);
     static uintptr_t* GAME_MODE_EXT_2_PTR = reinterpret_cast<uintptr_t*>(get_address(0x7EA678));
     static auto CAR_ROTATION_OFFSET = 0x16C;
@@ -63,9 +67,9 @@ namespace rbr {
         return RENDER_FUNCTION_ADDR;
     }
 
-    uintptr_t get_render_particles_function_addr()
+    std::array<uintptr_t, 4> get_render_particles_function_addrs()
     {
-        return RENDER_PARTICLES_FUNCTION_ADDR;
+        return { RENDER_PARTICLES_FUNCTION_ADDR, RENDER_PARTICLES_FUNCTION_ADDR_2, RENDER_PARTICLES_FUNCTION_ADDR_3, RENDER_PARTICLES_FUNCTION_ADDR_4 };
     }
 
     GameMode get_game_mode()
@@ -129,6 +133,11 @@ namespace rbr {
     bool is_rendering_particles()
     {
         return g::is_rendering_particles;
+    }
+
+    bool is_rendering_wet_windscreen()
+    {
+        return g::is_rendering_wet_windscreen;
     }
 
     void change_camera(void* p, uint32_t camera_type)
@@ -506,9 +515,45 @@ namespace rbr {
 
     void __fastcall render_particles(void* This)
     {
-        g::is_rendering_particles = true;
-        g::hooks::render_particles.call(This);
-        g::is_rendering_particles = false;
+        if (g::cfg.render_particles) {
+            g::is_rendering_particles = true;
+            g::hooks::render_particles.call(This);
+            g::is_rendering_particles = false;
+        }
+    }
+
+    void __fastcall render_particles_2(void* This)
+    {
+        if (g::cfg.render_particles) {
+            g::is_rendering_particles = true;
+            g::hooks::render_particles_2.call(This);
+            g::is_rendering_particles = false;
+        }
+    }
+
+    void __fastcall render_particles_3(void* This)
+    {
+        if (g::cfg.render_particles) {
+            g::is_rendering_particles = true;
+            g::hooks::render_particles_3.call(This);
+            g::is_rendering_particles = false;
+        }
+    }
+
+    void __fastcall render_particles_4(void* This)
+    {
+        if (g::cfg.render_particles) {
+            g::is_rendering_particles = true;
+            g::hooks::render_particles_4.call(This);
+            g::is_rendering_particles = false;
+        }
+    }
+
+    void __fastcall render_windscreen_effects(void* a)
+    {
+        g::is_rendering_wet_windscreen = true;
+        g::hooks::render_windscreen_effects.call(a);
+        g::is_rendering_wet_windscreen = false;
     }
 }
 

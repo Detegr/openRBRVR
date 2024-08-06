@@ -203,6 +203,12 @@ static class Menu graphics_menu = { "openRBRVR rendering settings", {
     .right_action = [] { Toggle(g::cfg.render_replays_3d); },
     .select_action = [] { Toggle(g::cfg.render_replays_3d); },
   },
+  { .text = [] { return std::format("Render particles: {}", g::cfg.render_particles ? "ON" : "OFF"); },
+    .long_text = { "Enable to render all particles.", "Disable this option and enable particles from RSF launcher", "if you want to have windscreen effects only (water and snow).", "", "This option has no effect if particles are disabled from RSF launcher or elsewhere." },
+    .left_action = [] { Toggle(g::cfg.render_particles); },
+    .right_action = [] { Toggle(g::cfg.render_particles); },
+    .select_action = [] { Toggle(g::cfg.render_particles); },
+  },
   { .text = id("Back to previous menu"),
 	.select_action = [] { select_menu(0); }
   },

@@ -288,7 +288,8 @@ namespace dx {
                 return ret;
             }
 
-            auto is_rendering_cockpit = rbr::is_using_cockpit_camera() && (rbr::is_rendering_car() || rbr::is_car_texture(texture) || rbr::is_rendering_particles());
+            auto is_rendering_cockpit = rbr::is_using_cockpit_camera() && (rbr::is_rendering_car() || rbr::is_car_texture(texture) || rbr::is_rendering_particles() || rbr::is_rendering_wet_windscreen());
+
             if (texture) {
                 texture->Release();
             }
@@ -406,6 +407,33 @@ namespace dx {
                 shader->Release();
             if (texture)
                 texture->Release();
+            if (g::vr_render_target && rbr::is_rendering_wet_windscreen()) {
+                const bool is_windscreen = BaseVertexIndex == 0 && NumVertices == 4;
+                if (is_windscreen) {
+                    // TODO: This method of detecting the windscreen is quite bad.
+                    //
+                    // It would be better to detect it from the texture I think.
+                    // However, the texture is such that it is not loaded in the hooked
+                    // load_texture function. This will do unless some rendering bugs are found.
+                    //
+                    // We can't render the windscreen for two reasons:
+                    // - The windscreen needs to be rendered with cockpit projection to not clip it too early,
+                    //   but doing so makes its Z-values be wrong compared to the stage. Maybe another projection
+                    //   for it would work, but here comes the second point:
+                    // - It looks pretty bad anyway, and it is just a 2D plane floating somewhere in front of the
+                    //   opening for a windscreen. In VR where your FoV is large the effect does not really work
+                    //   that well.
+                    return 0;
+                }
+
+                // For the water droplets we use the cockpit projection
+                const auto projection = fixedfunction::current_projection_matrix;
+                const auto cockpit_projection = d3d_from_m4(g::vr->get_projection(g::vr_render_target.value(), Projection::Cockpit));
+                g::hooks::set_transform.call(This, D3DTS_PROJECTION, &cockpit_projection);
+                auto ret = g::hooks::draw_indexed_primitive.call(g::d3d_dev, PrimitiveType, BaseVertexIndex, MinVertexIndex, NumVertices, startIndex, primCount);
+                g::hooks::set_transform.call(This, D3DTS_PROJECTION, &fixedfunction::current_projection_matrix);
+                return ret;
+            }
             return g::hooks::draw_indexed_primitive.call(g::d3d_dev, PrimitiveType, BaseVertexIndex, MinVertexIndex, NumVertices, startIndex, primCount);
         }
     }

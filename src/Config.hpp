@@ -108,6 +108,7 @@ struct Config {
     bool wanted_quad_view_rendering = false;
     D3DMULTISAMPLE_TYPE peripheral_msaa = D3DMULTISAMPLE_NONE;
     bool openxr_motion_compensation = false; // OpenXR-MotionCompensation support https://github.com/BuzzteeBear/OpenXR-MotionCompensation
+    bool render_particles = true;
 
     Config& operator=(const Config& rhs)
     {
@@ -138,6 +139,7 @@ struct Config {
         wanted_quad_view_rendering = rhs.wanted_quad_view_rendering;
         peripheral_msaa = rhs.peripheral_msaa;
         openxr_motion_compensation = rhs.openxr_motion_compensation;
+        render_particles = rhs.render_particles;
         return *this;
     }
 
@@ -166,7 +168,8 @@ struct Config {
             && quad_view_rendering == rhs.quad_view_rendering
             && wanted_quad_view_rendering == rhs.wanted_quad_view_rendering
             && peripheral_msaa == rhs.peripheral_msaa
-            && openxr_motion_compensation == rhs.openxr_motion_compensation;
+            && openxr_motion_compensation == rhs.openxr_motion_compensation
+            && render_particles == rhs.render_particles;
     }
 
     bool write(const std::filesystem::path& path) const
@@ -199,6 +202,7 @@ struct Config {
             { "desktopWindowOffsetY", companion_offset.y },
             { "desktopWindowSize", companion_size },
             { "desktopEye", static_cast<int>(companion_eye) },
+            { "renderParticles", static_cast<int>(render_particles) },
         };
 
         toml::table gfxTbl;
@@ -275,6 +279,7 @@ struct Config {
         cfg.companion_offset = { parsed["desktopWindowOffsetX"].value_or(0), parsed["desktopWindowOffsetY"].value_or(0) };
         cfg.companion_size = parsed["desktopWindowSize"].value_or(100);
         cfg.companion_eye = static_cast<RenderTarget>(std::clamp(parsed["desktopEye"].value_or(0), 0, 1));
+        cfg.render_particles = parsed["renderParticles"].value_or(true);
 
         const std::string& runtime = parsed["runtime"].value_or("steamvr");
         if (runtime == "openxr" || runtime == "openxr-wmr") {
