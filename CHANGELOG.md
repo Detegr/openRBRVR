@@ -1,3 +1,17 @@
+## 0.9.2
+
+- Fix a rendering issue with foveated rendering where the peripheral view had
+  white flashes if the frame rate dropped
+- Fix a bug where quad view rendering was enabled by default
+- Ship a build of Quad-Views-Foveated with the plugin and load it explicitly at
+  startup if needed. Manual installation of the OpenXR layer is no longer
+  needed to use foveated rendering.
+- Tweak stage Z-near value to fix the stage clipping in tight places
+- Fix rendering of windscreen effects (water/snow). By enabling particles but
+  disabling particle rendering in openRBRVR settings, it is possible to have
+  the water/snow effects on the windscreen but not have other particles visible
+  for better performance.
+
 ## 0.9.1
 
 - Fix a bug where a BTB stage was not detected correctly for disabling quad
