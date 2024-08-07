@@ -122,24 +122,12 @@ changed by modifying `dxvk.conf` by hand:
 - Yes, in OpenXR mode for headsets that have [support for 32-bit
   OpenXR](https://github.com/Detegr/openRBRVR/blob/master/FAQ.md#can-i-use-openxr-instead-of-openvrsteamvr).
   You'll need to enable quad view rendering from `Options -> Plugins ->
-  openRBRVR -> OpenXR settings -> Use quad-view rendering` and install my
-  unofficial build of
-  [Quad-Views-Foveated](https://github.com/mbucchia/Quad-Views-Foveated) OpenXR
-  layer:
-  https://github.com/Detegr/Quad-Views-Foveated/releases/tag/1.1.4-unsigned-win32
-
-- To install the layer, use either
-  [OpenXR-API-Layers-GUI](https://github.com/fredemmott/OpenXR-API-Layers-GUI/releases/tag/v2024.07.18)
-  or the supplied PowerShell script.
-    - Open the GUI, navigate to `Win32-HKLM` tab, click `Add layers`, select to
-      `quad-views-foveated-32/openxr-api-layer-32.json`.
-    - If done correctly, the GUI should look like the following:
-    - ![Quad-Views-Foveated API layer installed](img/quad-views-foveated.png)
-
-- After installing and launching the game, if you take a look at the debug view
+  openRBRVR -> OpenXR settings -> Use quad-view rendering`
+- After launching the game, if you take a look at the debug view
   of openRBRVR (`Options -> Plugins -> openRBRVR -> Debug settings -> Debug
   information`) it should show two different resolutions, for peripheral and
   focus views.
-- For additional configuration and fine tuning, refer to the
+- The foveated rendering uses an open source OpenXR layer to do the heavy
+  lifting. For additional configuration and fine tuning, refer to the
   [Quad-Views-Foveated layer
   documentation](https://github.com/mbucchia/Quad-Views-Foveated/wiki/Advanced-Configuration)
