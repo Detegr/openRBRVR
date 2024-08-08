@@ -113,22 +113,11 @@ Příklad neleznete v souboru `openRBRVR.toml.sample`.
 
 - Ano. U všech headsetů [podporujících 32-bit OpenXR](https://github.com/Detegr/openRBRVR/blob/master/FAQ.md#can-i-use-openxr-instead-of-openvrsteamvr).
   Musíte povolit quad view rendering z `Options (Nastavení) -> Plugins ->
-  openRBRVR -> OpenXR settings -> Use quad-view rendering` a nainstalovat můj neoficiální build
-  [Quad-Views-Foveated](https://github.com/mbucchia/Quad-Views-Foveated) OpenXR
-  layer:
-  https://github.com/Detegr/Quad-Views-Foveated/releases/tag/1.1.4-unsigned-win32
-
-- Pro nainstalování layeru použijte
-  [OpenXR-API-Layers-GUI](https://github.com/fredemmott/OpenXR-API-Layers-GUI/releases/tag/v2024.07.18)
-  nebo PowerShell script.
-    - Otevřete GUI, přejděte do záložky `Win32-HKLM`, klikněte na `Add layers` a vyberte
-      `quad-views-foveated-32/openxr-api-layer-32.json`.
-    - Pokud vše uděláte správně, uvidíte v GUI tohle:
-    - ![Quad-Views-Foveated API layer installed](img/quad-views-foveated.png)
-
+  openRBRVR -> OpenXR settings -> Use quad-view rendering`
 - Po nainstalování a spuštění hry se můžete podívat na Debug informace
   (`Options (Nastavení) -> Plugins -> openRBRVR -> Debug settings -> Debug
   information`) jestli zobrazují dvě rozdílná rozlišení pro peripheral a focus pohledy.
-- Další informace o nastavení naleznete tady:
+- Foveated rendering používá open source OpenXR layer, který se stará o všechnu těžkou práci.
+  Informace o dalším nastavení a jemném doladění naleznete na 
   [Quad-Views-Foveated layer
   documentation](https://github.com/mbucchia/Quad-Views-Foveated/wiki/Advanced-Configuration)
