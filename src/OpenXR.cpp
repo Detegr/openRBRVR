@@ -13,6 +13,10 @@
 #include <d3d11_1.h>
 #include <ranges>
 
+namespace g {
+    bool api_layer_search_path_fixed;
+}
+
 template <typename T>
 T get_extension(XrInstance instance, const std::string& fnName)
 {
@@ -109,7 +113,10 @@ OpenXR::OpenXR()
     auto extensions = std::vector { "XR_KHR_D3D11_enable" };
     std::vector<const char*> api_layers;
 
-    set_openrbrvr_api_layer_path();
+    if (!g::api_layer_search_path_fixed) {
+        set_openrbrvr_api_layer_path();
+        g::api_layer_search_path_fixed = true;
+    }
 
     uint32_t api_layer_count;
     if (auto err = xrEnumerateApiLayerProperties(0, &api_layer_count, nullptr); err != XR_SUCCESS) {
