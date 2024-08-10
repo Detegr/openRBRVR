@@ -1,3 +1,10 @@
+## 1.0.0
+
+- Use reversed Z-buffer in driving mode and replays. This eliminates all
+  Z-fighting issues (flickering signs etc.) from the game.
+- Re-enable quad-views later on after a stage that it was disabled on to avoid
+  doing work at a point of time where crashes have been occurring.
+
 ## 0.9.2
 
 - Fix a rendering issue with foveated rendering where the peripheral view had

@@ -310,7 +310,7 @@ namespace rbr {
                 g::previously_on_btb_stage = true;
                 g::cfg.quad_view_rendering = false;
                 restart_session = true;
-            } else if (g::previously_on_btb_stage && !is_on_btb_stage()) {
+            } else if (g::previously_on_btb_stage && !is_on_btb_stage() && g::game_mode == MainMenu) {
                 // Turn quad view rendering back on if we were using it previously
                 g::previously_on_btb_stage = false;
                 g::cfg.quad_view_rendering = true;
