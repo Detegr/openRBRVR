@@ -4,6 +4,8 @@
   Z-fighting issues (flickering signs etc.) from the game.
 - Re-enable quad-views later on after a stage that it was disabled on to avoid
   doing work at a point of time where crashes have been occurring.
+- Fix a crash caused by reloading the OpenXR session when toggling quad view
+  rendering on and off
 
 ## 0.9.2
 
