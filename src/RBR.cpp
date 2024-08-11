@@ -158,7 +158,7 @@ namespace rbr {
 
     bool should_use_reverse_z_buffer()
     {
-        return g::game_mode == GameMode::Driving || g::game_mode == GameMode::Replay;
+        return g::is_rendering_3d;
     }
 
     void update_horizon_lock_matrix()
