@@ -24,7 +24,6 @@ namespace g {
     static bool is_driving;
     static bool is_rendering_3d;
     static bool is_rendering_car;
-    static bool is_rendering_particles;
     static bool is_rendering_wet_windscreen;
 }
 
@@ -46,11 +45,33 @@ namespace rbr {
         return get_base_address() + target - RBR_ABSOLUTE_LOAD_ADDR;
     }
 
+    static uintptr_t get_hedgehog_base_address()
+    {
+        // If ASLR is enabled, the base address is randomized
+        static uintptr_t addr;
+        if (addr) {
+            return addr;
+        }
+
+        addr = reinterpret_cast<uintptr_t>(GetModuleHandle("HedgeHog3D.dll"));
+        if (!addr) {
+            dbg("Could not retrieve Hedgehog base address, this may be bad.");
+        }
+        return addr;
+    }
+
+    uintptr_t get_hedgehog_address(uintptr_t target)
+    {
+        constexpr uintptr_t HEDGEHOG_ABSOLUTE_LOAD_ADDR = 0x10000000;
+        return get_hedgehog_base_address() + target - HEDGEHOG_ABSOLUTE_LOAD_ADDR;
+    }
+
     static uintptr_t RENDER_FUNCTION_ADDR = get_address(0x47E1E0);
     static uintptr_t RENDER_PARTICLES_FUNCTION_ADDR = get_address(0x5eff60);
     static uintptr_t RENDER_PARTICLES_FUNCTION_ADDR_2 = get_address(0x5efed0);
     static uintptr_t RENDER_PARTICLES_FUNCTION_ADDR_3 = get_address(0x5effd0);
     static uintptr_t RENDER_PARTICLES_FUNCTION_ADDR_4 = get_address(0x5eca60);
+    static uintptr_t PARTICLE_HANDLING_CHECK_ADDR = 0x10076672; // From hedgehog3d.dll. We can't resolve the real address here.
     static uintptr_t CAR_INFO_ADDR = get_address(0x165FC68);
     static uintptr_t* GAME_MODE_EXT_2_PTR = reinterpret_cast<uintptr_t*>(get_address(0x7EA678));
     static auto CAR_ROTATION_OFFSET = 0x16C;
@@ -128,11 +149,6 @@ namespace rbr {
     bool is_rendering_car()
     {
         return g::is_rendering_car;
-    }
-
-    bool is_rendering_particles()
-    {
-        return g::is_rendering_particles;
     }
 
     bool is_rendering_wet_windscreen()
@@ -272,6 +288,17 @@ namespace rbr {
                     g::hooks::render_car = Hook(*reinterpret_cast<decltype(render_car)*>(handle + 0x7BC60), render_car);
                 }
             }
+        }
+
+        // Swap JZ to JNZ as we want to skip the code if we're not interested
+        // in rendering particles. The skipped code is very expensive on stages like Mlynky R.
+        // If render_particles has been changed and we already patched the code, revert the change.
+        const auto addr = get_hedgehog_address(PARTICLE_HANDLING_CHECK_ADDR);
+        const auto current = g::cfg.render_particles ? 0x75 : 0x74;
+        const auto wanted = g::cfg.render_particles ? 0x74 : 0x75;
+        const volatile uint8_t* p = reinterpret_cast<volatile uint8_t*>(addr);
+        if (*p == current) {
+            write_byte(addr, wanted);
         }
 
         auto game_mode = *reinterpret_cast<GameMode*>(ptr + 0x728);
@@ -521,36 +548,28 @@ namespace rbr {
     void __fastcall render_particles(void* This)
     {
         if (g::cfg.render_particles) {
-            g::is_rendering_particles = true;
             g::hooks::render_particles.call(This);
-            g::is_rendering_particles = false;
         }
     }
 
     void __fastcall render_particles_2(void* This)
     {
         if (g::cfg.render_particles) {
-            g::is_rendering_particles = true;
             g::hooks::render_particles_2.call(This);
-            g::is_rendering_particles = false;
         }
     }
 
     void __fastcall render_particles_3(void* This)
     {
         if (g::cfg.render_particles) {
-            g::is_rendering_particles = true;
             g::hooks::render_particles_3.call(This);
-            g::is_rendering_particles = false;
         }
     }
 
     void __fastcall render_particles_4(void* This)
     {
         if (g::cfg.render_particles) {
-            g::is_rendering_particles = true;
             g::hooks::render_particles_4.call(This);
-            g::is_rendering_particles = false;
         }
     }
 

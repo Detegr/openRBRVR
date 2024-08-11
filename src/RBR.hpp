@@ -21,6 +21,7 @@ namespace rbr {
     };
 
     uintptr_t get_address(uintptr_t target);
+    uintptr_t get_hedgehog_address(uintptr_t target);
     uintptr_t get_render_function_addr();
     std::array<uintptr_t, 4> get_render_particles_function_addrs();
     GameMode get_game_mode();
@@ -32,7 +33,6 @@ namespace rbr {
     bool is_using_cockpit_camera();
     bool is_car_texture(IDirect3DBaseTexture9* tex);
     bool is_rendering_car();
-    bool is_rendering_particles();
     bool is_rendering_wet_windscreen();
 
     void change_camera(void* p, uint32_t cameraType);

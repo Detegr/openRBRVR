@@ -17,6 +17,7 @@ set(SOURCES
     "src/Vertex.cpp"
     "src/openRBRVR.cpp"
     "src/openRBRVR.cpp"
+    "src/Util.cpp"
 )
 
 set(HEADERS
