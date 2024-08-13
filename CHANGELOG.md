@@ -1,11 +1,10 @@
 ## 1.0.0
 
-- Use reversed Z-buffer in driving mode and replays. This eliminates all
-  Z-fighting issues (flickering signs etc.) from the game.
-- Re-enable quad-views later on after a stage that it was disabled on to avoid
-  doing work at a point of time where crashes have been occurring.
+- Use reversed Z-buffer in driving mode and replays. This eliminates all track
+  side object Z-fighting issues (flickering signs etc.) from the game
 - Fix a crash caused by reloading the OpenXR session when toggling quad view
   rendering on and off
+- Improve performance of windscreen particle effects only mode
 
 ## 0.9.2
 
