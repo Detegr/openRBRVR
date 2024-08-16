@@ -113,6 +113,8 @@ namespace g {
         extern Hook<decltype(IDirect3DDevice9Vtbl::DrawPrimitive)> draw_primitive;
         extern Hook<decltype(IDirect3DDevice9Vtbl::SetRenderState)> set_render_state;
         extern Hook<decltype(IDirect3DDevice9Vtbl::Clear)> clear;
+        extern Hook<decltype(IDirect3DDevice9Vtbl::EndStateBlock)> end_state_block;
+        extern Hook<decltype(IDirect3DStateBlock9Vtbl::Apply)> apply_state_block;
 
         // RBR functions
         extern Hook<decltype(&rbr::load_texture)> load_texture;

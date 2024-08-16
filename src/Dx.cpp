@@ -15,6 +15,7 @@ namespace g {
     static int fps;
     static int target_fps;
     static int current_frames;
+    static bool applying_state_block;
 }
 
 namespace dx {
@@ -415,11 +416,32 @@ namespace dx {
         return g::hooks::draw_indexed_primitive.call(g::d3d_dev, PrimitiveType, BaseVertexIndex, MinVertexIndex, NumVertices, startIndex, primCount);
     }
 
+    HRESULT __stdcall EndStateBlock(IDirect3DDevice9* This, IDirect3DStateBlock9** ppSB)
+    {
+        const auto ret = g::hooks::end_state_block.call(This, ppSB);
+
+        auto vtbl = get_vtable<IDirect3DStateBlock9Vtbl>(*ppSB);
+        g::hooks::apply_state_block = Hook(vtbl->Apply, ApplyStateBlock);
+
+        // Remove the hook as IDirect3DStateBlock9::Apply is hooked
+        g::hooks::end_state_block.~Hook();
+
+        return ret;
+    }
+
+    HRESULT __stdcall ApplyStateBlock(IDirect3DStateBlock9* This)
+    {
+        g::applying_state_block = true;
+        const auto ret = g::hooks::apply_state_block.call(This);
+        g::applying_state_block = false;
+        return ret;
+    }
+
     HRESULT __stdcall SetRenderState(IDirect3DDevice9* This, D3DRENDERSTATETYPE State, DWORD Value)
     {
         DWORD val = Value;
 
-        if (rbr::should_use_reverse_z_buffer()) [[likely]] {
+        if (rbr::should_use_reverse_z_buffer() && !g::applying_state_block) [[likely]] {
             if (State == D3DRS_ZFUNC) {
                 // Invert the function if reverse Z buffer is in use
                 switch (Value) {
@@ -501,6 +523,7 @@ namespace dx {
             g::hooks::draw_primitive = Hook(devvtbl->DrawPrimitive, DrawPrimitive);
             g::hooks::set_render_state = Hook(devvtbl->SetRenderState, SetRenderState);
             g::hooks::clear = Hook(devvtbl->Clear, Clear);
+            g::hooks::end_state_block = Hook(devvtbl->EndStateBlock, EndStateBlock);
         } catch (const std::runtime_error& e) {
             dbg(e.what());
             MessageBoxA(hFocusWindow, e.what(), "Hooking failed", MB_OK);

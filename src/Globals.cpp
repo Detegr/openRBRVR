@@ -38,6 +38,8 @@ namespace g {
         Hook<decltype(IDirect3DDevice9Vtbl::DrawPrimitive)> draw_primitive;
         Hook<decltype(IDirect3DDevice9Vtbl::SetRenderState)> set_render_state;
         Hook<decltype(IDirect3DDevice9Vtbl::Clear)> clear;
+        Hook<decltype(IDirect3DDevice9Vtbl::EndStateBlock)> end_state_block;
+        Hook<decltype(IDirect3DStateBlock9Vtbl::Apply)> apply_state_block;
 
         // RBR functions
         Hook<decltype(&rbr::load_texture)> load_texture;

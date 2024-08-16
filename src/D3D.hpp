@@ -177,4 +177,16 @@ typedef struct IDirect3DDevice9Vtbl
 	HRESULT (WINAPI *CreateQuery)(IDirect3DDevice9 *This, D3DQUERYTYPE Type, IDirect3DQuery9 **ppQuery);
 } IDirect3DDevice9Vtbl;
 
+typedef struct IDirect3DStateBlock9Vtbl
+{
+	/* IUnknown */
+	HRESULT (WINAPI *QueryInterface)(IDirect3DStateBlock9 *This, REFIID riid, void **ppvObject);
+	ULONG (WINAPI *AddRef)(IDirect3DStateBlock9 *This);
+	ULONG (WINAPI *Release)(IDirect3DStateBlock9 *This);
+	/* IDirect3DStateBlock9 */
+	HRESULT (WINAPI *GetDevice)(IDirect3DStateBlock9 *This, IDirect3DDevice9 **ppDevice);
+	HRESULT (WINAPI *Capture)(IDirect3DStateBlock9 *This);
+	HRESULT (WINAPI *Apply)(IDirect3DStateBlock9 *This);
+} IDirect3DStateBlock9Vtbl;
+
 // clang-format on
