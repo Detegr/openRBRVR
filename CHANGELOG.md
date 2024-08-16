@@ -1,3 +1,9 @@
+## 1.0.1
+
+- Fix DirectX state block usage with reverse-z buffer to fix a bug where the
+  car was invisible on some BTB stages
+- Improve error messages in OpenXR initialization
+
 ## 1.0.0
 
 - Use reversed Z-buffer in driving mode and replays. This eliminates all track
