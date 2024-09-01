@@ -402,6 +402,18 @@ static class Menu openxr_menu = { "openRBRVR OpenXR settings", {
     .left_action = [] { Toggle(g::cfg.openxr_motion_compensation); },
     .right_action = [] { Toggle(g::cfg.openxr_motion_compensation); },
   },
+  { .text = [] { return std::format("Prediction dampening: {}", g::cfg.prediction_dampening); },
+    .long_text = {
+        "Dampen the head movement prediction resulting in a smoother image.",
+        "",
+        "Useful in streaming for example to provide a smoother image",
+        "in the desktop window view.",
+        "",
+        "NOTE: does not work with motion reprojection!"
+    },
+    .left_action = [] { g::cfg.prediction_dampening = std::clamp(g::cfg.prediction_dampening - 1, 0LL, 100LL); },
+    .right_action = [] { g::cfg.prediction_dampening = std::clamp(g::cfg.prediction_dampening + 1, 0LL, 100LL); },
+  },
   { .text = id("Back to previous menu"),
     .menu_color = IRBRGame::EMenuColors::MENU_TEXT,
     .select_action = [] { select_menu(0); },

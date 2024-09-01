@@ -1,5 +1,3 @@
-#define XR_USE_GRAPHICS_API_D3D11
-
 #include "OpenXR.hpp"
 #include "Config.hpp"
 #include "Globals.hpp"
@@ -251,6 +249,28 @@ OpenXR::OpenXR()
         throw std::runtime_error(std::format("OpenXR: Failed to enumerate API layers, error: {}", static_cast<int>(err)));
     }
 
+    uint32_t extension_count;
+    if (auto err = xrEnumerateInstanceExtensionProperties(nullptr, 0, &extension_count, nullptr); err != XR_SUCCESS) {
+        throw std::runtime_error(std::format("OpenXR: Failed to enumerate extension properties, error: {}", static_cast<int>(err)));
+    }
+
+    std::vector<XrExtensionProperties> available_extensions(extension_count, { .type = XR_TYPE_EXTENSION_PROPERTIES });
+    if (auto err = xrEnumerateInstanceExtensionProperties(nullptr, extension_count, &extension_count, available_extensions.data()); err != XR_SUCCESS) {
+        throw std::runtime_error(std::format("OpenXR: Failed to enumerate extension properties, error: {}", static_cast<int>(err)));
+    }
+
+    if (auto ext = std::ranges::find_if(available_extensions, [](const XrExtensionProperties& p) {
+            return std::string(p.extensionName) == "XR_KHR_win32_convert_performance_counter_time";
+        });
+        ext != available_extensions.cend()) {
+        extensions.push_back(ext->extensionName);
+    } else {
+        // Prediction dampening requires "XR_KHR_win32_convert_performance_counter_time" extension
+        // If it does not exist, revert dampening setting
+        dbg("Prediction dampening not in use as XR_KHR_win32_convert_performance_counter_time extension is not present");
+        g::cfg.prediction_dampening = 0;
+    }
+
     if (g::cfg.quad_view_rendering) {
         auto quad_views_layer = std::ranges::find_if(available_api_layers, [](const XrApiLayerProperties& p) {
             return std::string(p.layerName) == "XR_APILAYER_MBUCCHIA_quad_views_foveated";
@@ -302,6 +322,13 @@ OpenXR::OpenXR()
     };
     if (auto err = xrGetSystem(instance, &system_get_info, &system_id); err != XR_SUCCESS) {
         throw std::runtime_error(std::format("Failed to initialize OpenXR: xrGetSystem {}", XrResultToString(instance, err)));
+    }
+
+    try {
+        xr_convert_win32_performance_counter_to_time = get_extension<PFN_xrConvertWin32PerformanceCounterToTimeKHR>(instance, "xrConvertWin32PerformanceCounterToTimeKHR");
+    } catch (const std::runtime_error& e) {
+        dbg("Not using prediction dampening as xrConvertWin32PerformanceCounterToTimeKHR function was not found");
+        xr_convert_win32_performance_counter_to_time = nullptr;
     }
 }
 
@@ -1061,6 +1088,25 @@ bool OpenXR::update_vr_poses()
     if (auto res = xrWaitFrame(session, nullptr, &frame_state); res != XR_SUCCESS) {
         dbg(std::format("xrWaitFrame: {}", XrResultToString(instance, res)));
         return false;
+    }
+
+    if (g::cfg.prediction_dampening > 0 && xr_convert_win32_performance_counter_to_time) {
+        // Ported from:
+        // https://github.com/mbucchia/OpenXR-Toolkit/blob/main/XR_APILAYER_MBUCCHIA_toolkit/layer.cpp#L2175-L2191
+        // MIT License
+        // Copyright (c) 2021-2022 Matthieu Bucchianeri
+        // Copyright (c) 2021-2022 Jean-Luc Dupiot - Reality XP
+
+        LARGE_INTEGER pc_now;
+        QueryPerformanceCounter(&pc_now);
+
+        XrTime xr_now;
+        xr_convert_win32_performance_counter_to_time(instance, &pc_now, &xr_now);
+
+        XrTime prediction_amount = frame_state.predictedDisplayTime - xr_now;
+        if (prediction_amount > 0) {
+            frame_state.predictedDisplayTime = xr_now + ((100 - g::cfg.prediction_dampening) * prediction_amount) / 100;
+        }
     }
 
     if (frame_state.shouldRender == XR_FALSE) {

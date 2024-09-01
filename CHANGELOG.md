@@ -1,3 +1,7 @@
+## 1.0.2
+
+- Implement prediction dampening for OpenXR
+
 ## 1.0.1
 
 - Fix DirectX state block usage with reverse-z buffer to fix a bug where the

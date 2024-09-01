@@ -1,16 +1,18 @@
 #pragma once
 
-#include "Config.hpp"
-#include "VR.hpp"
-#include <array>
 #include <d3d11.h>
 #include <d3d11_4.h>
-#include <d3d9.h>
 
 #define XR_USE_GRAPHICS_API_D3D11
+#define XR_USE_PLATFORM_WIN32
 #include <openxr_platform.h>
 #include <openxr_reflection.h>
 #include <optional>
+
+#include "Config.hpp"
+#include "VR.hpp"
+#include <array>
+#include <d3d9.h>
 
 struct OpenXRRenderContext {
     std::vector<XrSwapchain> swapchains;
@@ -56,6 +58,8 @@ private:
     InputState input_state; // For sending poses to OpenXR-MotionCompensation https://github.com/BuzzteeBear/OpenXR-MotionCompensation
     bool reset_view_requested;
     bool has_views;
+
+    PFN_xrConvertWin32PerformanceCounterToTimeKHR xr_convert_win32_performance_counter_to_time;
 
     struct {
         uint64_t value;

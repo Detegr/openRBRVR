@@ -109,6 +109,7 @@ struct Config {
     D3DMULTISAMPLE_TYPE peripheral_msaa = D3DMULTISAMPLE_NONE;
     bool openxr_motion_compensation = false; // OpenXR-MotionCompensation support https://github.com/BuzzteeBear/OpenXR-MotionCompensation
     bool render_particles = true;
+    int64_t prediction_dampening = 0;
 
     Config& operator=(const Config& rhs)
     {
@@ -140,6 +141,7 @@ struct Config {
         peripheral_msaa = rhs.peripheral_msaa;
         openxr_motion_compensation = rhs.openxr_motion_compensation;
         render_particles = rhs.render_particles;
+        prediction_dampening = rhs.prediction_dampening;
         return *this;
     }
 
@@ -169,7 +171,8 @@ struct Config {
             && wanted_quad_view_rendering == rhs.wanted_quad_view_rendering
             && peripheral_msaa == rhs.peripheral_msaa
             && openxr_motion_compensation == rhs.openxr_motion_compensation
-            && render_particles == rhs.render_particles;
+            && render_particles == rhs.render_particles
+            && prediction_dampening == rhs.prediction_dampening;
     }
 
     bool write(const std::filesystem::path& path) const
@@ -231,6 +234,7 @@ struct Config {
         openxr.insert("quadViewRendering", wanted_quad_view_rendering);
         openxr.insert("peripheralAntiAliasing", peripheral_msaa);
         openxr.insert("motionCompensation", openxr_motion_compensation);
+        openxr.insert("predictionDampening", prediction_dampening);
         out.insert("OpenXR", openxr);
 
         f << out;
@@ -317,6 +321,8 @@ struct Config {
             cfg.quad_view_rendering = cfg.wanted_quad_view_rendering = oxrnode["quadViewRendering"].value_or(false);
             cfg.peripheral_msaa = static_cast<D3DMULTISAMPLE_TYPE>(oxrnode["peripheralAntiAliasing"].value_or(0));
             cfg.openxr_motion_compensation = oxrnode["motionCompensation"].value_or(false);
+            cfg.prediction_dampening = oxrnode["predicitonDampening"].value_or(0);
+            cfg.prediction_dampening = std::clamp(cfg.prediction_dampening, 0LL, 100LL);
         }
 
         return cfg;
