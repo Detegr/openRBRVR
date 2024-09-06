@@ -474,21 +474,33 @@ namespace rbr {
                 }
 
                 if (g::cfg.companion_mode == CompanionMode::Static && g::game_mode != PreStage && g::game_mode != Replay) {
+                    g::is_rendering_3d = false;
+
                     auto orig_camera = *g::camera_type_ptr;
                     // 13 is the CFH camera. We don't want to change the camera while it is active.
                     if (orig_camera != 13) {
                         rbr::change_camera(p, 4);
                     }
+
                     if (g::d3d_dev->SetRenderTarget(0, g::original_render_target) != D3D_OK) {
                         dbg("Failed to reset render target to original");
                     }
                     if (g::d3d_dev->SetDepthStencilSurface(g::original_depth_stencil_target) != D3D_OK) {
                         dbg("Failed to reset depth stencil surface to original");
                     }
+
+                    // We need to clear the target here to use the correct logic in the hooked call
+                    if (g::d3d_dev->Clear(0, nullptr, D3DCLEAR_STENCIL | D3DCLEAR_TARGET | D3DCLEAR_ZBUFFER, 0, 1.0, 0) != D3D_OK) {
+                        dbg("Failed to clear co-driver render target");
+                    }
+
                     g::hooks::render.call(p);
+
                     if (orig_camera != 13) {
                         rbr::change_camera(p, orig_camera);
                     }
+
+                    g::is_rendering_3d = true;
                 }
 
                 if (g::vr->prepare_vr_rendering(g::d3d_dev, Overlay)) {
