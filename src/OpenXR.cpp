@@ -878,7 +878,7 @@ void OpenXR::prepare_frames_for_hmd(IDirect3DDevice9* dev)
             resolve_msaa(dev, current_render_context, FocusLeft);
             resolve_msaa(dev, current_render_context, FocusRight);
         }
-    } else if (msaa_enabled) {
+    } else {
         resolve_msaa(dev, current_render_context, LeftEye);
         resolve_msaa(dev, current_render_context, RightEye);
     }
