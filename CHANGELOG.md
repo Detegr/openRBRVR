@@ -1,3 +1,10 @@
+## 1.0.3
+
+- Fix white flashes that happened sporadically in OpenXR mode if anti-aliasing
+  was not enabled
+- Fix a rendering bug in co-driver mode
+- Fix Rally School mode not loading the saved seat position correctly
+
 ## 1.0.2
 
 - Implement prediction dampening for OpenXR
