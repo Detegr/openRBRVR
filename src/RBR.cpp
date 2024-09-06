@@ -307,7 +307,7 @@ namespace rbr {
             g::game_mode = game_mode;
         }
 
-        if (g::previous_game_mode != g::game_mode && g::game_mode == GameMode::PreStage) {
+        if (g::previous_game_mode != g::game_mode && (g::game_mode == GameMode::PreStage || g::game_mode == GameMode::Pause)) {
             // Make sure we reload the seat position whenever the stage is restarted
             g::seat_position_loaded = false;
         }
