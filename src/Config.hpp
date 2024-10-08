@@ -321,7 +321,7 @@ struct Config {
             cfg.quad_view_rendering = cfg.wanted_quad_view_rendering = oxrnode["quadViewRendering"].value_or(false);
             cfg.peripheral_msaa = static_cast<D3DMULTISAMPLE_TYPE>(oxrnode["peripheralAntiAliasing"].value_or(0));
             cfg.openxr_motion_compensation = oxrnode["motionCompensation"].value_or(false);
-            cfg.prediction_dampening = oxrnode["predicitonDampening"].value_or(0);
+            cfg.prediction_dampening = oxrnode["predictionDampening"].value_or(0);
             cfg.prediction_dampening = std::clamp(cfg.prediction_dampening, 0LL, 100LL);
         }
 

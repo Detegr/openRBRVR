@@ -1,3 +1,7 @@
+## 1.0.4
+
+- Fix a typo in predictionDampening setting
+
 ## 1.0.3
 
 - Fix white flashes that happened sporadically in OpenXR mode if anti-aliasing
