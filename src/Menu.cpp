@@ -36,10 +36,7 @@ void LicenseMenu::select()
 
 void recenter_vr()
 {
-    auto chaperone = vr::VRChaperone();
-    if (chaperone) {
-        chaperone->ResetZeroPose(vr::ETrackingUniverseOrigin::TrackingUniverseSeated);
-    }
+    g::vr->reset_view();
 }
 
 static std::string get_horizon_lock_str()
