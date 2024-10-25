@@ -99,6 +99,8 @@ public:
     OpenXR& operator=(const OpenXR&) = delete;
     OpenXR& operator=(const OpenXR&&) = delete;
 
+    bool native_quad_views;
+
     void init(IDirect3DDevice9* dev, IDirect3DVR9** vrdev, uint32_t companionWindowWidth, uint32_t companionWindowHeight, std::optional<XrPosef> old_view_pose = std::nullopt);
     virtual ~OpenXR()
     {

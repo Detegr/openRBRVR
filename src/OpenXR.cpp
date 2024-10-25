@@ -284,16 +284,33 @@ OpenXR::OpenXR()
     }
 
     if (g::cfg.quad_view_rendering) {
-        auto quad_views_layer = std::ranges::find_if(available_api_layers, [](const XrApiLayerProperties& p) {
-            return std::string(p.layerName) == "XR_APILAYER_MBUCCHIA_quad_views_foveated";
+        auto quad_views_extension = std::ranges::find_if(available_extensions, [](const XrExtensionProperties& p) {
+            return std::string(p.extensionName) == "XR_VARJO_quad_views";
         });
-        if (quad_views_layer == available_api_layers.cend()) {
-            MessageBoxA(nullptr, "Tried to enable quad view rendering but Quad-Views-Foveated API layer was not found.\nPlease make sure all files are installed.", "OpenXR layer init error", MB_OK);
-            g::cfg.quad_view_rendering = false;
+        auto foveated_rendering_extension = std::ranges::find_if(available_extensions, [](const XrExtensionProperties& p) {
+            return std::string(p.extensionName) == "XR_VARJO_foveated_rendering";
+        });
+
+        if (quad_views_extension == available_extensions.cend()) {
+            // No native quad view support, use Quad-Views-Foveated
+            auto quad_views_layer = std::ranges::find_if(available_api_layers, [](const XrApiLayerProperties& p) {
+                return std::string(p.layerName) == "XR_APILAYER_MBUCCHIA_quad_views_foveated";
+            });
+            if (quad_views_layer == available_api_layers.cend()) {
+                MessageBoxA(nullptr, "Tried to enable quad view rendering but Quad-Views-Foveated API layer was not found.\nPlease make sure all files are installed and that you're not running the application as an admin.", "OpenXR layer init error", MB_OK);
+                g::cfg.quad_view_rendering = false;
+            } else {
+                native_quad_views = false;
+                extensions.push_back("XR_VARJO_quad_views");
+                extensions.push_back("XR_VARJO_foveated_rendering");
+                api_layers.push_back("XR_APILAYER_MBUCCHIA_quad_views_foveated");
+            }
         } else {
+            native_quad_views = true;
             extensions.push_back("XR_VARJO_quad_views");
-            extensions.push_back("XR_VARJO_foveated_rendering");
-            api_layers.push_back("XR_APILAYER_MBUCCHIA_quad_views_foveated");
+            if (foveated_rendering_extension != available_extensions.cend()) {
+                extensions.push_back("XR_VARJO_foveated_rendering");
+            }
         }
     }
 

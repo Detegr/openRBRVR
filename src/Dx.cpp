@@ -125,6 +125,8 @@ namespace dx {
                 const auto& [flw, flh] = g::vr->get_render_resolution(FocusLeft);
                 const auto& [frw, frh] = g::vr->get_render_resolution(FocusRight);
                 g::game->WriteText(0, 18 * ++i, std::format("                         {}x{} (focus left), {}x{} (focus right)", flw, flh, frw, frh).c_str());
+                const auto qv = reinterpret_cast<OpenXR*>(g::vr)->native_quad_views;
+                g::game->WriteText(0, 18 * ++i, std::format("{}oveated rendering {}", qv ? "Native F" : "F", qv ? "" : "via Quad-Views-Foveated OpenXR layer").c_str());
             }
             if (g::vr->is_using_quad_view_rendering()) {
                 g::game->WriteText(0, 18 * ++i, std::format("Anti-aliasing: {}x, peripheral: {}x", static_cast<int>(g::vr->get_current_render_context()->msaa), static_cast<int>(g::cfg.peripheral_msaa)).c_str());

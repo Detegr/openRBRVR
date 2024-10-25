@@ -1,9 +1,13 @@
 ## 1.1.0
 
 - Update DXVK version to 2.4.1
-- Add OpenXR runtime validation in initialization
+- Use Pimax's native quad view rendering over Quad-Views-Foveated if it's
+  enabled
+- Add 32-bit OpenXR runtime validation in initialization
 - Improve OpenXR initialization error messages
 - Fix invalid openRBRVR version number shown inside the game
+- Fix "Could not create VR render target for view 0" by changing the way
+  available depth surface formats are tested
 
 ## 1.0.4
 
