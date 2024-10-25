@@ -67,34 +67,32 @@ bool create_render_target(
     }
     static D3DFORMAT depth_stencil_format;
     if (depth_stencil_format == D3DFMT_UNKNOWN) {
+        // CheckDepthStencilMatch started OK for format that did not actually work when creating the surface
+        // I have no clue why, but for now we'll just iterate through the formats one by one and use the best one
+        // that we were able to make the surface out of.
+
         D3DFORMAT wantedFormats[] = {
             D3DFMT_D32F_LOCKABLE,
             D3DFMT_D24S8,
             D3DFMT_D24X8,
             D3DFMT_D16,
         };
-        IDirect3D9* d3d;
-        if (dev->GetDirect3D(&d3d) != D3D_OK) {
-            dbg("Could not get Direct3D adapter");
-            depth_stencil_format = D3DFMT_D16;
-        } else {
-            for (const auto& format : wantedFormats) {
-                if (d3d->CheckDepthStencilMatch(D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL, fmt, fmt, format) == D3D_OK) {
-                    depth_stencil_format = format;
-                    dbg(std::format("Using {} as depthstencil format", (int)format));
-                    break;
-                }
-            }
-            if (depth_stencil_format == D3DFMT_UNKNOWN) {
-                dbg("No depth stencil format found?? Using D3DFMT_D16");
+
+        int i;
+        for (i = 0; i < 4; i++) {
+            auto create_depth_result = dev->CreateDepthStencilSurface(w, h, wantedFormats[i], msaa, 0, TRUE, depth_stencil_surface, nullptr);
+            if (SUCCEEDED(create_depth_result)) {
+                break;
             }
         }
-    }
-
-    ret |= dev->CreateDepthStencilSurface(w, h, depth_stencil_format, msaa, 0, TRUE, depth_stencil_surface, nullptr);
-    if (FAILED(ret)) {
-        dbg("D3D initialization failed: CreateRenderTarget");
-        return false;
+        depth_stencil_format = wantedFormats[i];
+        dbg(std::format("Using {} as depthstencil format", (int)depth_stencil_format));
+    } else {
+        ret |= dev->CreateDepthStencilSurface(w, h, depth_stencil_format, msaa, 0, TRUE, depth_stencil_surface, nullptr);
+        if (FAILED(ret)) {
+            dbg("D3D initialization failed: CreateRenderTarget");
+            return false;
+        }
     }
     return true;
 }
