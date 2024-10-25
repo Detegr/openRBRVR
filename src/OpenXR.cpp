@@ -239,24 +239,36 @@ OpenXR::OpenXR()
         g::api_layer_search_path_fixed = true;
     }
 
+    DWORD runtime_path_len = 0;
+    auto reg_err = RegGetValue(HKEY_LOCAL_MACHINE, "SOFTWARE\\WOW6432Node\\Khronos\\OpenXR\\1", "ActiveRuntime", RRF_RT_REG_SZ, nullptr, nullptr, &runtime_path_len);
+    if (reg_err != ERROR_SUCCESS) {
+        if (reg_err == ERROR_FILE_NOT_FOUND) {
+            MessageBoxA(nullptr, "No 32-bit OpenXR runtime active.\nOpenXR initialization will likely fail.\nCheck the openRBRVR FAQ for runtime and device support.", "Error", MB_OK);
+        } else {
+            MessageBoxA(nullptr, std::format("Could not check the registry for runtime (error {}). OpenXR initialization may not succeed.", reg_err).c_str(), "Error", MB_OK);
+        }
+    } else if (runtime_path_len == 0) {
+        MessageBoxA(nullptr, "No 32-bit OpenXR runtime active.\nOpenXR initialization will likely fail.\nCheck the openRBRVR FAQ for runtime and device support.", "Error", MB_OK);
+    }
+
     uint32_t api_layer_count;
     if (auto err = xrEnumerateApiLayerProperties(0, &api_layer_count, nullptr); err != XR_SUCCESS) {
-        throw std::runtime_error(std::format("OpenXR: Failed to enumerate API layers, error: {}", static_cast<int>(err)));
+        throw std::runtime_error(std::format("OpenXR: Failed to enumerate API layers, error: {}", xr_result_to_str(err)));
     }
 
     std::vector<XrApiLayerProperties> available_api_layers(api_layer_count, { .type = XR_TYPE_API_LAYER_PROPERTIES });
     if (auto err = xrEnumerateApiLayerProperties(api_layer_count, &api_layer_count, available_api_layers.data()); err != XR_SUCCESS) {
-        throw std::runtime_error(std::format("OpenXR: Failed to enumerate API layers, error: {}", static_cast<int>(err)));
+        throw std::runtime_error(std::format("OpenXR: Failed to enumerate API layers, error: {}", xr_result_to_str(err)));
     }
 
     uint32_t extension_count;
     if (auto err = xrEnumerateInstanceExtensionProperties(nullptr, 0, &extension_count, nullptr); err != XR_SUCCESS) {
-        throw std::runtime_error(std::format("OpenXR: Failed to enumerate extension properties, error: {}", static_cast<int>(err)));
+        throw std::runtime_error(std::format("OpenXR: Failed to enumerate extension properties, error: {}", xr_result_to_str(err)));
     }
 
     std::vector<XrExtensionProperties> available_extensions(extension_count, { .type = XR_TYPE_EXTENSION_PROPERTIES });
     if (auto err = xrEnumerateInstanceExtensionProperties(nullptr, extension_count, &extension_count, available_extensions.data()); err != XR_SUCCESS) {
-        throw std::runtime_error(std::format("OpenXR: Failed to enumerate extension properties, error: {}", static_cast<int>(err)));
+        throw std::runtime_error(std::format("OpenXR: Failed to enumerate extension properties, error: {}", xr_result_to_str(err)));
     }
 
     if (auto ext = std::ranges::find_if(available_extensions, [](const XrExtensionProperties& p) {
@@ -420,9 +432,8 @@ void OpenXR::init(IDirect3DDevice9* dev, IDirect3DVR9** vrdev, uint32_t companio
         throw std::runtime_error(std::format("Failed to initialize OpenXR: xrCreateSession {}", XrResultToString(instance, err)));
     }
 
-    XrViewConfigurationType view_config_types[] = { XR_VIEW_CONFIGURATION_TYPE_PRIMARY_STEREO, XR_VIEW_CONFIGURATION_TYPE_PRIMARY_QUAD_VARJO };
     uint32_t view_config_count;
-    if (auto err = xrEnumerateViewConfigurations(instance, system_id, 0, &view_config_count, view_config_types); err != XR_SUCCESS) {
+    if (auto err = xrEnumerateViewConfigurations(instance, system_id, 0, &view_config_count, nullptr); err != XR_SUCCESS) {
         throw std::runtime_error("Failed to enumerate view configurations");
     }
     std::vector<XrViewConfigurationType> view_configs(view_config_count);

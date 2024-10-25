@@ -1,3 +1,9 @@
+## 1.0.5
+
+- Add OpenXR runtime validation in initialization
+- Improve OpenXR initialization error messages
+- Fix invalid openRBRVR version number shown inside the game
+
 ## 1.0.4
 
 - Fix a typo in predictionDampening setting
