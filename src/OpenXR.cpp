@@ -338,7 +338,7 @@ OpenXR::OpenXR()
 
     try {
         xr_convert_win32_performance_counter_to_time = get_extension<PFN_xrConvertWin32PerformanceCounterToTimeKHR>(instance, "xrConvertWin32PerformanceCounterToTimeKHR");
-    } catch (const std::runtime_error& e) {
+    } catch (const std::runtime_error&) {
         dbg("Not using prediction dampening as xrConvertWin32PerformanceCounterToTimeKHR function was not found");
         xr_convert_win32_performance_counter_to_time = nullptr;
     }
