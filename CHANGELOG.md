@@ -1,5 +1,6 @@
-## 1.0.5
+## 1.1.0
 
+- Update DXVK version to 2.4.1
 - Add OpenXR runtime validation in initialization
 - Improve OpenXR initialization error messages
 - Fix invalid openRBRVR version number shown inside the game
