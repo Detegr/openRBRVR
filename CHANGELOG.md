@@ -1,3 +1,7 @@
+## 1.1.1
+
+- Comment out per-stage settings in openRBRVR.toml
+
 ## 1.1.0
 
 - Update DXVK version to 2.4.1
