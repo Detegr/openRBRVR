@@ -48,14 +48,44 @@ namespace dx {
         g::vr_render_target = std::nullopt;
     }
 
+    std::optional<std::vector<char>> read_file_as_chars(const std::string& filename)
+    {
+        std::ifstream f(filename, std::ios::binary | std::ios::ate);
+        if (!f.is_open()) {
+            return std::nullopt;
+        }
+
+        auto len = f.tellg();
+        f.seekg(0, std::ios::beg);
+
+        std::vector<char> ret;
+        ret.resize(len);
+        f.read(ret.data(), len / sizeof(char));
+
+        return ret;
+    }
+
     HRESULT __stdcall CreateVertexShader(IDirect3DDevice9* This, const DWORD* pFunction, IDirect3DVertexShader9** ppShader)
     {
+        if (g::d3d_vr == nullptr) {
+            // TODO
+            Direct3DCreateVR(This, &g::d3d_vr);
+        }
+
         static int i = 0;
         auto ret = g::hooks::create_vertex_shader.call(g::d3d_dev, pFunction, ppShader);
         if (i < 40) {
             // These are the base game shaders for RBR that need
             // to be patched with the VR projection.
             g::base_game_shaders.push_back(*ppShader);
+
+            // Use a multiview-patched shader if available
+            char shaderkey[64] = { 0 };
+            g::d3d_vr->GetShaderHash(*ppShader, (char**)&shaderkey);
+
+            if (auto data = read_file_as_chars(std::format("Plugins/openRBRVR/shaders/{}.spv", shaderkey)); data.has_value()) {
+                g::d3d_vr->PatchSPIRVToVertexShader(*ppShader, reinterpret_cast<uint32_t*>(data->data()), data->size() / sizeof(uint32_t));
+            }
         }
         i++;
         return ret;
