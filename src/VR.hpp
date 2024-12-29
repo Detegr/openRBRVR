@@ -11,6 +11,13 @@
 #include <optional>
 #include <unordered_map>
 
+// We pass multiview view/projection matrices in D3DTS_WORLDMATRIX indices in
+// the openRBRVR modified DXVK version, see dxvk-openRBRVR d3d9_device.cpp
+constexpr auto D3DTS_VIEW_LEFT = D3DTS_VIEW;
+constexpr auto D3DTS_VIEW_RIGHT = D3DTS_WORLDMATRIX(10);
+constexpr auto D3DTS_PROJECTION_LEFT = D3DTS_PROJECTION;
+constexpr auto D3DTS_PROJECTION_RIGHT = D3DTS_WORLDMATRIX(11);
+
 enum HorizonLock : uint8_t {
     LOCK_NONE = 0x0,
     LOCK_ROLL = 0x1,

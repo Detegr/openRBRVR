@@ -67,8 +67,6 @@ constexpr static M4 m4_from_steamvr_matrix(const vr::HmdMatrix34_t& m)
 
 void OpenVR::init(IDirect3DDevice9* dev, IDirect3DVR9** vrdev, uint32_t companionWindowWidth, uint32_t companionWindowHeight)
 {
-    Direct3DCreateVR(dev, vrdev);
-
     // WaitGetPoses might access the Vulkan queue so we need to lock it
     g::d3d_vr->LockSubmissionQueue();
     if (auto e = compositor->WaitGetPoses(poses, vr::k_unMaxTrackedDeviceCount, nullptr, 0); e != vr::VRCompositorError_None) {
@@ -170,10 +168,9 @@ void OpenVR::set_render_context(const std::string& name)
 
 void OpenVR::prepare_frames_for_hmd(IDirect3DDevice9* dev)
 {
-    if (current_render_context->msaa != D3DMULTISAMPLE_NONE) {
-        // Resolve multisampling
+    const auto msaa = current_render_context->msaa != D3DMULTISAMPLE_NONE;
+    if (g::cfg.multiview || msaa) {
         IDirect3DSurface9 *left_eye, *right_eye;
-
         if (current_render_context->dx_texture[LeftEye]->GetSurfaceLevel(0, &left_eye) != D3D_OK) {
             dbg("Failed to get left eye surface");
             return;
@@ -183,12 +180,14 @@ void OpenVR::prepare_frames_for_hmd(IDirect3DDevice9* dev)
             left_eye->Release();
             return;
         }
-
-        dev->StretchRect(current_render_context->dx_surface[LeftEye], nullptr, left_eye, nullptr, D3DTEXF_NONE);
-        dev->StretchRect(current_render_context->dx_surface[RightEye], nullptr, right_eye, nullptr, D3DTEXF_NONE);
-
-        left_eye->Release();
-        right_eye->Release();
+        if (g::cfg.multiview) {
+            IDirect3DSurface9* eyes[2] = { left_eye, right_eye };
+            g::d3d_vr->CopySurfaceLayers(current_render_context->dx_surface[LeftEye], eyes, 2);
+        } else {
+            // Resolve multisampling
+            dev->StretchRect(current_render_context->dx_surface[LeftEye], nullptr, left_eye, nullptr, D3DTEXF_NONE);
+            dev->StretchRect(current_render_context->dx_surface[RightEye], nullptr, right_eye, nullptr, D3DTEXF_NONE);
+        }
     }
 }
 

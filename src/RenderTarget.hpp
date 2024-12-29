@@ -11,6 +11,16 @@ enum RenderTarget : size_t {
     Overlay = 5,
 };
 
+constexpr RenderTarget render_target_counterpart(RenderTarget t)
+{
+    if (t == LeftEye)
+        return RightEye;
+    if (t == FocusLeft)
+        return FocusRight;
+
+    throw std::runtime_error("invalid use of render_target_counterpart");
+}
+
 bool create_render_target(
     IDirect3DDevice9* dev,
     D3DMULTISAMPLE_TYPE msaa,

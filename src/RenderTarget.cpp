@@ -15,6 +15,11 @@ constexpr static bool is_aa_enabled_for_render_target(D3DMULTISAMPLE_TYPE msaa, 
 
 bool is_using_texture_to_render(D3DMULTISAMPLE_TYPE msaa, RenderTarget t)
 {
+    if (g::cfg.multiview && (t == LeftEye || t == RightEye || t == FocusLeft || t == FocusRight)) {
+        // We don't use texture to render as we need to render into a layered image
+        // and copy out the result anyway.
+        return false;
+    }
     if (g::vr && (g::vr->get_runtime_type() == OPENXR) && (t == LeftEye || t == RightEye)) {
         // Rendering directly to the texture causes flashing when using OpenXR in D3D11 mode.
         // It is likely that there's something wrong in the Vulkan/D3D11 synchronization, but
@@ -58,9 +63,13 @@ bool create_render_target(
     // If anti-aliasing is enabled, we need to first render into an anti-aliased render target.
     // If not, we can render directly to a texture that has D3DUSAGE_RENDERTARGET set.
     if (!is_using_texture_to_render(msaa, tgt)) {
-        ret |= dev->CreateRenderTarget(w, h, fmt, msaa, 0, false, msaa_surface, nullptr);
+        if (g::cfg.multiview) {
+            ret |= g::d3d_vr->CreateMultiViewRenderTarget(w, h, fmt, msaa, 0, false, msaa_surface, nullptr, 2);
+        } else {
+            g::d3d_dev->CreateRenderTarget(w, h, fmt, msaa, 0, false, msaa_surface, nullptr);
+        }
     }
-    ret |= dev->CreateTexture(w, h, 1, D3DUSAGE_RENDERTARGET, fmt, D3DPOOL_DEFAULT, target_texture, *shared_handle == nullptr ? nullptr : shared_handle);
+    ret |= g::d3d_dev->CreateTexture(w, h, 1, D3DUSAGE_RENDERTARGET, fmt, D3DPOOL_DEFAULT, target_texture, *shared_handle == nullptr ? nullptr : shared_handle);
     if (ret != D3D_OK || *shared_handle == INVALID_HANDLE_VALUE) {
         dbg("D3D initialization failed: CreateRenderTarget");
         return false;
@@ -80,7 +89,12 @@ bool create_render_target(
 
         int i;
         for (i = 0; i < 4; i++) {
-            auto create_depth_result = dev->CreateDepthStencilSurface(w, h, wantedFormats[i], msaa, 0, TRUE, depth_stencil_surface, nullptr);
+            HRESULT create_depth_result = -1;
+            if (g::cfg.multiview) {
+                create_depth_result = g::d3d_vr->CreateMultiViewDepthStencilSurface(w, h, wantedFormats[i], msaa, 0, true, depth_stencil_surface, nullptr, 2);
+            } else {
+                create_depth_result = g::d3d_dev->CreateDepthStencilSurface(w, h, wantedFormats[i], msaa, 0, true, depth_stencil_surface, nullptr);
+            }
             if (SUCCEEDED(create_depth_result)) {
                 break;
             }
@@ -88,7 +102,11 @@ bool create_render_target(
         depth_stencil_format = wantedFormats[i];
         dbg(std::format("Using {} as depthstencil format", (int)depth_stencil_format));
     } else {
-        ret |= dev->CreateDepthStencilSurface(w, h, depth_stencil_format, msaa, 0, TRUE, depth_stencil_surface, nullptr);
+        if (g::cfg.multiview) {
+            ret |= g::d3d_vr->CreateMultiViewDepthStencilSurface(w, h, depth_stencil_format, msaa, 0, true, depth_stencil_surface, nullptr, 2);
+        } else {
+            ret |= g::d3d_dev->CreateDepthStencilSurface(w, h, depth_stencil_format, msaa, 0, true, depth_stencil_surface, nullptr);
+        }
         if (FAILED(ret)) {
             dbg("D3D initialization failed: CreateRenderTarget");
             return false;

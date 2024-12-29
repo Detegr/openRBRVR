@@ -39,6 +39,7 @@ extern "C" __declspec(dllexport) int64_t openRBRVR_Exec(ApiOperation ops, uint64
         g::vr->reset_view();
     }
     if (ops & TOGGLE_DEBUG_INFO) {
+        // TODO: Update debug mode
         g::cfg.debug = !g::cfg.debug;
         g::draw_overlay_border = (g::cfg.debug && g::cfg.debug_mode == 0);
     }
