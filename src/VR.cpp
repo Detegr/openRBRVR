@@ -204,6 +204,7 @@ void VRInterface::init_surfaces(IDirect3DDevice9* dev, RenderContext& ctx, uint3
 static void render_texture(
     IDirect3DDevice9* dev,
     const D3DMATRIX* proj,
+    const D3DMATRIX* proj_multiview,
     const D3DMATRIX* view,
     const D3DMATRIX* world,
     IDirect3DTexture9* tex,
@@ -211,7 +212,7 @@ static void render_texture(
 {
     IDirect3DVertexShader9* vs;
     IDirect3DPixelShader9* ps;
-    D3DMATRIX origProj, origView, origWorld;
+    D3DMATRIX origProj, origProj2, origView, origView2, origWorld;
 
     dev->GetVertexShader(&vs);
     dev->GetPixelShader(&ps);
@@ -219,12 +220,18 @@ static void render_texture(
     dev->SetVertexShader(nullptr);
     dev->SetPixelShader(nullptr);
 
-    dev->GetTransform(D3DTS_PROJECTION, &origProj);
-    dev->GetTransform(D3DTS_VIEW, &origView);
+    dev->GetTransform(D3DTS_PROJECTION_LEFT, &origProj);
+    dev->GetTransform(D3DTS_VIEW_LEFT, &origView);
     dev->GetTransform(D3DTS_WORLD, &origWorld);
 
-    dev->SetTransform(D3DTS_PROJECTION, proj);
-    dev->SetTransform(D3DTS_VIEW, view);
+    dev->SetTransform(D3DTS_PROJECTION_LEFT, proj);
+    dev->SetTransform(D3DTS_VIEW_LEFT, view);
+    if (g::cfg.multiview) {
+        dev->GetTransform(D3DTS_PROJECTION_RIGHT, &origProj2);
+        dev->GetTransform(D3DTS_VIEW_RIGHT, &origView2);
+        dev->SetTransform(D3DTS_PROJECTION_RIGHT, proj_multiview);
+        dev->SetTransform(D3DTS_VIEW_RIGHT, view);
+    }
     dev->SetTransform(D3DTS_WORLD, world);
 
     dev->BeginScene();
@@ -256,27 +263,42 @@ static void render_texture(
     dev->SetTexture(0, origTex);
     dev->SetVertexShader(vs);
     dev->SetPixelShader(ps);
-    dev->SetTransform(D3DTS_PROJECTION, &origProj);
-    dev->SetTransform(D3DTS_VIEW, &origView);
+    dev->SetTransform(D3DTS_PROJECTION_LEFT, &origProj);
+    dev->SetTransform(D3DTS_VIEW_LEFT, &origView);
+    if (g::cfg.multiview) {
+        dev->SetTransform(D3DTS_PROJECTION_RIGHT, &origProj2);
+        dev->SetTransform(D3DTS_VIEW_RIGHT, &origView2);
+    }
     dev->SetTransform(D3DTS_WORLD, &origWorld);
 }
 
 void render_overlay_border(IDirect3DDevice9* dev, IDirect3DTexture9* tex)
 {
-    render_texture(dev, &g::identity_matrix, &g::identity_matrix, &g::identity_matrix, tex, g::overlay_border_quad);
+    render_texture(dev, &g::identity_matrix, &g::identity_matrix, &g::identity_matrix, &g::identity_matrix, tex, g::overlay_border_quad);
 }
 
 void render_menu_quad(IDirect3DDevice9* dev, VRInterface* vr, IDirect3DTexture9* texture, RenderTarget render_target_3d, RenderTarget render_target_2d, float size, glm::vec3 translation, const std::optional<M4>& horizon_lock)
 {
-    const auto& projection = vr->get_projection(render_target_3d);
-    const auto& eyepos = vr->get_eye_pos(render_target_3d);
-    const auto& pose = vr->get_pose(render_target_3d);
+    const auto left = render_target_3d;
 
-    const D3DMATRIX mvp = d3d_from_m4(projection * glm::translate(glm::scale(eyepos * pose * g::flip_z_matrix * horizon_lock.value_or(glm::identity<M4>()), { size, size, 1.0f }), translation));
-    render_texture(dev, &mvp, &g::identity_matrix, &g::identity_matrix, texture, g::quad_vertex_buf[render_target_2d == GameMenu ? 0 : 1]);
+    const auto& projectionl = vr->get_projection(left);
+    const auto& eyeposl = vr->get_eye_pos(left);
+    const auto& posel = vr->get_pose(left);
+
+    D3DMATRIX mvpr = { 0 };
+    if (g::cfg.multiview) {
+        const auto right = render_target_counterpart(left);
+        const auto& projectionr = vr->get_projection(right);
+        const auto& eyeposr = vr->get_eye_pos(right);
+        const auto& poser = vr->get_pose(right);
+        mvpr = d3d_from_m4(projectionr * glm::translate(glm::scale(eyeposr * poser * g::flip_z_matrix * horizon_lock.value_or(glm::identity<M4>()), { size, size, 1.0f }), translation));
+    }
+
+    const D3DMATRIX mvpl = d3d_from_m4(projectionl * glm::translate(glm::scale(eyeposl * posel * g::flip_z_matrix * horizon_lock.value_or(glm::identity<M4>()), { size, size, 1.0f }), translation));
+    render_texture(dev, &mvpl, &mvpr, &g::identity_matrix, &g::identity_matrix, texture, g::quad_vertex_buf[render_target_2d == GameMenu ? 0 : 1]);
 }
 
 void render_companion_window_from_render_target(IDirect3DDevice9* dev, VRInterface* vr, RenderTarget tgt)
 {
-    render_texture(dev, &g::identity_matrix, &g::identity_matrix, &g::identity_matrix, vr->get_texture(tgt), (tgt == GameMenu || tgt == Overlay) ? g::companion_window_vertex_buf_menu : g::companion_window_vertex_buf_3d);
+    render_texture(dev, &g::identity_matrix, &g::identity_matrix, &g::identity_matrix, &g::identity_matrix, vr->get_texture(tgt), (tgt == GameMenu || tgt == Overlay) ? g::companion_window_vertex_buf_menu : g::companion_window_vertex_buf_3d);
 }

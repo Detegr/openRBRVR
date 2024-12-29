@@ -59,3 +59,5 @@ inline void write_byte(uintptr_t address, uint8_t value)
 {
     write_data(address, &value, 1);
 }
+
+void dump_dxstate(IDirect3DDevice9* dev);

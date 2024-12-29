@@ -60,6 +60,9 @@ namespace g {
     // Vector of pointers to RBR base game vertex shaders
     extern std::vector<IDirect3DVertexShader9*> base_game_shaders;
 
+    // The register after which we can supply extra data to the vertex shaders
+    extern uint32_t base_shader_data_end_register;
+
     // Mapping from car name to car textures
     extern std::unordered_map<std::string, IDirect3DTexture9*> car_textures;
 
@@ -108,6 +111,7 @@ namespace g {
         extern Hook<decltype(IDirect3DDevice9Vtbl::SetTransform)> set_transform;
         extern Hook<decltype(IDirect3DDevice9Vtbl::Present)> present;
         extern Hook<decltype(IDirect3DDevice9Vtbl::CreateVertexShader)> create_vertex_shader;
+        extern Hook<decltype(IDirect3DDevice9Vtbl::SetVertexShader)> set_vertex_shader;
         extern Hook<decltype(IDirect3DDevice9Vtbl::SetRenderTarget)> btb_set_render_target;
         extern Hook<decltype(IDirect3DDevice9Vtbl::DrawIndexedPrimitive)> draw_indexed_primitive;
         extern Hook<decltype(IDirect3DDevice9Vtbl::DrawPrimitive)> draw_primitive;

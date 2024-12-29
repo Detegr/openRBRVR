@@ -13,7 +13,6 @@ namespace g {
     static uint32_t* camera_type_ptr;
     static uint32_t* car_id_ptr;
     static uint32_t* stage_id_ptr;
-    static M3* car_rotation_ptr;
 
     static rbr::GameMode game_mode;
     static rbr::GameMode previous_game_mode;
@@ -25,6 +24,7 @@ namespace g {
     static bool is_rendering_3d;
     static bool is_rendering_car;
     static bool is_rendering_wet_windscreen;
+    static M3* car_rotation_ptr;
 }
 
 namespace rbr {
@@ -331,8 +331,9 @@ namespace rbr {
 
         if (quad_view_rendering_in_use) {
             bool restart_session = false;
+            const auto on_btb_without_multiview = (!g::cfg.multiview) && is_on_btb_stage();
 
-            if (!g::previously_on_btb_stage && is_on_btb_stage() && g::game_mode == PreStage) {
+            if (!g::previously_on_btb_stage && on_btb_without_multiview && g::game_mode == PreStage) {
                 // BTB rendering does not play along well with quad view rendering so revert back to stereo rendering for BTB stages
                 g::previously_on_btb_stage = true;
                 g::cfg.quad_view_rendering = false;
@@ -342,7 +343,7 @@ namespace rbr {
                 g::previously_on_btb_stage = false;
                 g::cfg.quad_view_rendering = true;
                 restart_session = true;
-            } else if (!g::previously_on_btb_stage && !is_on_btb_stage()) {
+            } else if (!g::previously_on_btb_stage && !on_btb_without_multiview) {
                 bool wanted_quad_view_mode = g::vr->get_current_render_context()->quad_view_rendering;
                 restart_session = g::cfg.quad_view_rendering != wanted_quad_view_mode;
                 g::cfg.quad_view_rendering = wanted_quad_view_mode;
@@ -466,11 +467,15 @@ namespace rbr {
 
             if (g::is_rendering_3d) {
                 dx::render_vr_eye(p, LeftEye);
-                dx::render_vr_eye(p, RightEye);
+                if (!g::cfg.multiview) {
+                    dx::render_vr_eye(p, RightEye);
+                }
 
                 if (g::vr->is_using_quad_view_rendering()) {
                     dx::render_vr_eye(p, FocusLeft);
-                    dx::render_vr_eye(p, FocusRight);
+                    if (!g::cfg.multiview) {
+                        dx::render_vr_eye(p, FocusRight);
+                    }
                 }
 
                 if (g::cfg.companion_mode == CompanionMode::Static && g::game_mode != PreStage && g::game_mode != Replay) {

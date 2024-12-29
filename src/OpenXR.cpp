@@ -350,6 +350,9 @@ OpenXR::OpenXR()
         .formFactor = XR_FORM_FACTOR_HEAD_MOUNTED_DISPLAY,
     };
     if (auto err = xrGetSystem(instance, &system_get_info, &system_id); err != XR_SUCCESS) {
+        if (err == XR_ERROR_FORM_FACTOR_UNAVAILABLE) {
+            throw std::runtime_error(std::format("The OpenXR runtime did not detect the VR headset. Make sure it is plugged in and powered on."));
+        }
         throw std::runtime_error(std::format("Failed to initialize OpenXR: xrGetSystem {}", XrResultToString(instance, err)));
     }
 
@@ -363,8 +366,6 @@ OpenXR::OpenXR()
 
 void OpenXR::init(IDirect3DDevice9* dev, IDirect3DVR9** vrdev, uint32_t companion_window_width, uint32_t companion_window_height, std::optional<XrPosef> old_view_pose)
 {
-    Direct3DCreateVR(g::d3d_dev, vrdev);
-
     if (dev->CreateQuery(D3DQUERYTYPE_TIMESTAMP, &gpu_start_query) != D3D_OK) {
         throw std::runtime_error("VR initialization failed: CreateQuery");
     }
@@ -896,19 +897,46 @@ void OpenXR::prepare_frames_for_hmd(IDirect3DDevice9* dev)
 {
     const auto msaa_enabled = current_render_context->msaa != D3DMULTISAMPLE_NONE;
     const auto peripheral_msaa_enabled = g::cfg.quad_view_rendering && g::cfg.peripheral_msaa != D3DMULTISAMPLE_NONE;
-    if (g::cfg.quad_view_rendering) {
-        // We're going to call this for peripheral views in any case
-        // because we're not rendering directly to a texture.
-        // Reasoning in a comment in `is_using_texture_to_render`.
-        resolve_msaa(dev, current_render_context, LeftEye);
-        resolve_msaa(dev, current_render_context, RightEye);
-        if (msaa_enabled) {
-            resolve_msaa(dev, current_render_context, FocusLeft);
-            resolve_msaa(dev, current_render_context, FocusRight);
+    if (g::cfg.multiview) {
+        IDirect3DSurface9 *left_eye, *right_eye;
+        if (current_render_context->dx_texture[LeftEye]->GetSurfaceLevel(0, &left_eye) != D3D_OK) {
+            dbg("Failed to get left eye surface");
+            return;
+        }
+        if (current_render_context->dx_texture[RightEye]->GetSurfaceLevel(0, &right_eye) != D3D_OK) {
+            dbg("Failed to get right eye surface");
+            left_eye->Release();
+            return;
+        }
+        IDirect3DSurface9* eyes[2] = { left_eye, right_eye };
+        g::d3d_vr->CopySurfaceLayers(current_render_context->dx_surface[LeftEye], eyes, 2);
+        left_eye->Release();
+        right_eye->Release();
+
+        if (g::cfg.quad_view_rendering) {
+            if (current_render_context->dx_texture[FocusLeft]->GetSurfaceLevel(0, &left_eye) != D3D_OK) {
+                dbg("Failed to get left eye surface");
+                return;
+            }
+            if (current_render_context->dx_texture[FocusRight]->GetSurfaceLevel(0, &right_eye) != D3D_OK) {
+                dbg("Failed to get right eye surface");
+                left_eye->Release();
+                return;
+            }
+            eyes[0] = left_eye;
+            eyes[1] = right_eye;
+
+            g::d3d_vr->CopySurfaceLayers(current_render_context->dx_surface[FocusLeft], eyes, 2);
+            left_eye->Release();
+            right_eye->Release();
         }
     } else {
         resolve_msaa(dev, current_render_context, LeftEye);
         resolve_msaa(dev, current_render_context, RightEye);
+        if (g::cfg.quad_view_rendering) {
+            resolve_msaa(dev, current_render_context, FocusLeft);
+            resolve_msaa(dev, current_render_context, FocusRight);
+        }
     }
 
     auto& left = acquire_swapchain_image(LeftEye);

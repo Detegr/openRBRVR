@@ -110,6 +110,7 @@ struct Config {
     bool openxr_motion_compensation = false; // OpenXR-MotionCompensation support https://github.com/BuzzteeBear/OpenXR-MotionCompensation
     bool render_particles = true;
     int64_t prediction_dampening = 0;
+    bool multiview = false;
 
     Config& operator=(const Config& rhs)
     {
@@ -142,6 +143,7 @@ struct Config {
         openxr_motion_compensation = rhs.openxr_motion_compensation;
         render_particles = rhs.render_particles;
         prediction_dampening = rhs.prediction_dampening;
+        multiview = rhs.multiview;
         return *this;
     }
 
@@ -172,7 +174,8 @@ struct Config {
             && peripheral_msaa == rhs.peripheral_msaa
             && openxr_motion_compensation == rhs.openxr_motion_compensation
             && render_particles == rhs.render_particles
-            && prediction_dampening == rhs.prediction_dampening;
+            && prediction_dampening == rhs.prediction_dampening
+            && multiview == rhs.multiview;
     }
 
     bool write(const std::filesystem::path& path) const
@@ -206,6 +209,7 @@ struct Config {
             { "desktopWindowSize", companion_size },
             { "desktopEye", static_cast<int>(companion_eye) },
             { "renderParticles", static_cast<int>(render_particles) },
+            { "multiViewRendering", multiview },
         };
 
         toml::table gfxTbl;
@@ -284,6 +288,7 @@ struct Config {
         cfg.companion_size = parsed["desktopWindowSize"].value_or(100);
         cfg.companion_eye = static_cast<RenderTarget>(std::clamp(parsed["desktopEye"].value_or(0), 0, 1));
         cfg.render_particles = parsed["renderParticles"].value_or(true);
+        cfg.multiview = parsed["multiViewRendering"].value_or(false);
 
         const std::string& runtime = parsed["runtime"].value_or("steamvr");
         if (runtime == "openxr" || runtime == "openxr-wmr") {
