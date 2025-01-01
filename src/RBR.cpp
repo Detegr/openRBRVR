@@ -146,11 +146,6 @@ namespace rbr {
         return false;
     }
 
-    bool is_rendering_car()
-    {
-        return g::is_rendering_car;
-    }
-
     bool is_rendering_wet_windscreen()
     {
         return g::is_rendering_wet_windscreen;
@@ -276,16 +271,13 @@ namespace rbr {
 
     static bool init_or_update_game_data(uintptr_t ptr)
     {
-        if (!g::hooks::render_car.call || !g::hooks::load_texture.call) [[unlikely]] {
+        if (!g::hooks::load_texture.call) [[unlikely]] {
             auto handle = reinterpret_cast<uintptr_t>(GetModuleHandle("HedgeHog3D.dll"));
             if (!handle) {
                 dbg("Could not get handle for HedgeHog3D");
             } else {
                 if (!g::hooks::load_texture.call) {
                     g::hooks::load_texture = Hook(*reinterpret_cast<decltype(load_texture)*>(handle + 0xAEC15), load_texture);
-                }
-                if (!g::hooks::render_car.call) {
-                    g::hooks::render_car = Hook(*reinterpret_cast<decltype(render_car)*>(handle + 0x7BC60), render_car);
                 }
             }
         }
@@ -553,13 +545,6 @@ namespace rbr {
             g::car_textures[tex] = *pp_texture;
         }
         return ret;
-    }
-
-    void __stdcall render_car(void* a, void* b)
-    {
-        g::is_rendering_car = true;
-        g::hooks::render_car.call(a, b);
-        g::is_rendering_car = false;
     }
 
     void __fastcall render_particles(void* This)
