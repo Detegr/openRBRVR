@@ -103,6 +103,7 @@ struct RenderContext {
     D3DMULTISAMPLE_TYPE msaa;
 
     bool quad_view_rendering;
+    bool multiview_rendering;
 
     void* ext;
 };

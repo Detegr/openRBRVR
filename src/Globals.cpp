@@ -13,7 +13,6 @@ namespace g {
     ID3D11Device5* d3d11_dev = nullptr;
     ID3D11DeviceContext4* d3d11_ctx = nullptr;
     IDirect3DVR9* d3d_vr;
-    std::vector<IDirect3DVertexShader9*> base_game_shaders;
     uint32_t base_shader_data_end_register;
     std::unordered_map<std::string, IDirect3DTexture9*> car_textures;
     std::optional<RenderTarget> vr_render_target;
@@ -34,6 +33,7 @@ namespace g {
         Hook<decltype(IDirect3DDevice9Vtbl::SetTransform)> set_transform;
         Hook<decltype(IDirect3DDevice9Vtbl::Present)> present;
         Hook<decltype(IDirect3DDevice9Vtbl::CreateVertexShader)> create_vertex_shader;
+        Hook<decltype(IDirect3DDevice9Vtbl::GetVertexShader)> get_vertex_shader;
         Hook<decltype(IDirect3DDevice9Vtbl::SetVertexShader)> set_vertex_shader;
         Hook<decltype(IDirect3DDevice9Vtbl::SetRenderTarget)> btb_set_render_target;
         Hook<decltype(IDirect3DDevice9Vtbl::DrawIndexedPrimitive)> draw_indexed_primitive;
