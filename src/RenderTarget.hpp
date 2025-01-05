@@ -31,6 +31,7 @@ bool create_render_target(
     RenderTarget tgt,
     D3DFORMAT fmt,
     uint32_t w,
-    uint32_t h);
+    uint32_t h,
+    bool multiview);
 
-bool is_using_texture_to_render(D3DMULTISAMPLE_TYPE msaa, RenderTarget t);
+bool is_using_texture_to_render(D3DMULTISAMPLE_TYPE msaa, RenderTarget t, bool multiview);

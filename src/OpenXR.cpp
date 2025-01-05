@@ -512,6 +512,7 @@ void OpenXR::init(IDirect3DDevice9* dev, IDirect3DVR9** vrdev, uint32_t companio
             .dx_shared_handle = { 0 },
             .msaa = gfx.second.msaa.value_or(g::cfg.gfx["default"].msaa.value()),
             .quad_view_rendering = gfx.second.quad_view_rendering,
+            .multiview_rendering = gfx.second.multiview_rendering,
             .ext = xr_ctx
         };
 

@@ -79,6 +79,7 @@ struct RenderContextConfig {
     std::optional<D3DMULTISAMPLE_TYPE> msaa = std::nullopt;
     std::vector<int> stage_ids = {};
     bool quad_view_rendering = false;
+    bool multiview_rendering = false;
 };
 
 struct Config {
@@ -332,7 +333,8 @@ struct Config {
                     });
                 }
                 bool quad_view_stage_rendering = val["quadViewRendering"].value_or(cfg.wanted_quad_view_rendering);
-                cfg.gfx[k] = RenderContextConfig { ss, msaa, stages, quad_view_stage_rendering };
+                bool multiview_stage_rendering = val["multiViewRendering"].value_or(cfg.multiview);
+                cfg.gfx[k] = RenderContextConfig { ss, msaa, stages, quad_view_stage_rendering, multiview_stage_rendering };
             });
         }
 

@@ -23,7 +23,8 @@ namespace g {
     static int target_fps;
     static int current_frames;
     static bool applying_state_block;
-    static HMODULE multiview_patcher;
+    static std::vector<IDirect3DVertexShader9*> base_game_shaders;
+    static std::vector<IDirect3DVertexShader9*> base_game_multiview_shaders;
     static MultiViewPatchFn spirv_change_multiview_access;
     static MultiViewOptimizeFn spirv_optimize_multiview;
     static std::unordered_map<IDirect3DVertexShader9*, std::vector<uint32_t>> patched_btb_shaders;
@@ -118,23 +119,40 @@ namespace dx {
 
     HRESULT __stdcall CreateVertexShader(IDirect3DDevice9* This, const DWORD* pFunction, IDirect3DVertexShader9** ppShader)
     {
-        if (g::cfg.multiview && g::multiview_patcher == nullptr) {
-            g::multiview_patcher = LoadLibrary("Plugins/openRBRVR/multiviewpatcher.dll");
-            if (g::multiview_patcher) {
-                g::spirv_change_multiview_access = reinterpret_cast<MultiViewPatchFn>(GetProcAddress(g::multiview_patcher, "ChangeSPIRVMultiViewDataAccessLocation"));
-                g::spirv_optimize_multiview = reinterpret_cast<MultiViewOptimizeFn>(GetProcAddress(g::multiview_patcher, "OptimizeSPIRV"));
+        if (!g::spirv_change_multiview_access || !g::spirv_optimize_multiview) {
+            if (auto patcher = LoadLibrary("Plugins/openRBRVR/multiviewpatcher.dll"); patcher) {
+                g::spirv_change_multiview_access = reinterpret_cast<MultiViewPatchFn>(GetProcAddress(patcher, "ChangeSPIRVMultiViewDataAccessLocation"));
+                g::spirv_optimize_multiview = reinterpret_cast<MultiViewOptimizeFn>(GetProcAddress(patcher, "OptimizeSPIRV"));
             }
         }
 
         static int i = 0;
+
+        // Determine shader bytecode length. Valid shaders end at double word with value 65535.
+        const DWORD* pp;
+        for (pp = pFunction; *pp != 65535; ++pp) { }
+
+        std::vector<DWORD> bytecode(pFunction, pp);
+
+        // Add a zero-length comment opcode in the shader code to make DXVK
+        // handle this as a new shader and not reuse the one we just created
+        bytecode.push_back(65534);
+        bytecode.push_back(65535);
+
         auto ret = g::hooks::create_vertex_shader.call(g::d3d_dev, pFunction, ppShader);
+
+        // Create the same shader again for multiview patching
+        IDirect3DVertexShader9* multiview_shader;
+        ret |= g::hooks::create_vertex_shader.call(g::d3d_dev, bytecode.data(), &multiview_shader);
+
         if (i < 40) {
             // These are the base game shaders for RBR that need
             // to be patched with the VR projection.
             g::base_game_shaders.push_back(*ppShader);
+            g::base_game_multiview_shaders.push_back(multiview_shader);
         }
         i++;
-        if (g::cfg.multiview && i == 40) {
+        if (i == 40) {
             // Base game shaders are loaded, patch them for multiview and run the SPIR-V optimizer
 
             // Maximum number of float constants that is discovered to be present in a shader.
@@ -142,7 +160,7 @@ namespace dx {
             // but BTB stage shaders aren't loaded at startup, so we're making an educated guess here.
             g::base_shader_data_end_register = 110;
 
-            for (auto s : g::base_game_shaders) {
+            for (auto s : g::base_game_multiview_shaders) {
                 // Make room for the extra data
                 g::d3d_vr->SetShaderConstantCount(s, g::base_shader_data_end_register * 2);
 
@@ -164,9 +182,32 @@ namespace dx {
         return ret;
     }
 
+    HRESULT __stdcall GetVertexShader(IDirect3DDevice9* This, IDirect3DVertexShader9** pShader)
+    {
+        IDirect3DVertexShader9* shader;
+        const auto ret = g::hooks::get_vertex_shader.call(This, &shader);
+        const auto shader_it = std::find(g::base_game_shaders.cbegin(), g::base_game_shaders.cend(), *pShader);
+        if (shader_it == g::base_game_shaders.cend()) {
+            *pShader = shader;
+        } else {
+            const auto index = std::distance(g::base_game_shaders.cbegin(), shader_it);
+            *pShader = g::base_game_multiview_shaders[index];
+        }
+        return ret;
+    }
+
     HRESULT __stdcall SetVertexShader(IDirect3DDevice9* This, IDirect3DVertexShader9* pShader)
     {
-        const auto ret = g::hooks::set_vertex_shader.call(This, pShader);
+        IDirect3DVertexShader9* shader = pShader;
+        if (g::cfg.multiview) {
+            const auto shader_it = std::find(g::base_game_shaders.cbegin(), g::base_game_shaders.cend(), pShader);
+            if (shader_it != g::base_game_shaders.cend()) {
+                const auto index = std::distance(g::base_game_shaders.cbegin(), shader_it);
+                shader = g::base_game_multiview_shaders[index];
+            }
+        }
+
+        const auto ret = g::hooks::set_vertex_shader.call(This, shader);
 
         // If the shader was a null pointer while SetVertexShaderConstantF
         // we have been collecting the data to g::deferred_shader_constants
@@ -429,7 +470,8 @@ namespace dx {
 
         auto is_base_shader = true;
         if (rbr::is_on_btb_stage()) {
-            is_base_shader = std::find(g::base_game_shaders.cbegin(), g::base_game_shaders.cend(), shader) != g::base_game_shaders.end();
+            const auto& shaders = g::cfg.multiview ? g::base_game_multiview_shaders : g::base_game_shaders;
+            is_base_shader = std::find(shaders.cbegin(), shaders.cend(), shader) != shaders.end();
         }
 
         auto reg = g::cfg.multiview ? StartRegister + g::base_shader_data_end_register : StartRegister;
@@ -553,11 +595,10 @@ namespace dx {
             if (set_btb_vertex_shader_constant(This, StartRegister, g::base_shader_data_end_register, fixedfunction::current_worldviewproj_matrix, pConstantData, Vector4fCount))
                 return D3D_OK;
 
-            g::hooks::set_vertex_shader_constant_f.call(g::d3d_dev, StartRegister, pConstantData, Vector4fCount);
             g::hooks::set_vertex_shader_constant_f.call(g::d3d_dev, StartRegister + g::base_shader_data_end_register, pConstantData, Vector4fCount);
             g::hooks::set_vertex_shader_constant_f.call(g::d3d_dev, StartRegister + g::base_shader_data_end_register + 4, pConstantData, Vector4fCount);
 
-            return D3D_OK;
+            return g::hooks::set_vertex_shader_constant_f.call(g::d3d_dev, StartRegister, pConstantData, Vector4fCount);
         }
 
         return g::hooks::set_vertex_shader_constant_f.call(g::d3d_dev, StartRegister, pConstantData, Vector4fCount);
@@ -844,6 +885,7 @@ namespace dx {
             g::hooks::set_transform = Hook(devvtbl->SetTransform, SetTransform);
             g::hooks::present = Hook(devvtbl->Present, Present);
             g::hooks::create_vertex_shader = Hook(devvtbl->CreateVertexShader, CreateVertexShader);
+            g::hooks::get_vertex_shader = Hook(devvtbl->GetVertexShader, GetVertexShader);
             g::hooks::set_vertex_shader = Hook(devvtbl->SetVertexShader, SetVertexShader);
             g::hooks::draw_indexed_primitive = Hook(devvtbl->DrawIndexedPrimitive, DrawIndexedPrimitive);
             g::hooks::draw_primitive = Hook(devvtbl->DrawPrimitive, DrawPrimitive);

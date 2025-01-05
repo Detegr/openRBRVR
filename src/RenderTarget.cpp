@@ -13,9 +13,9 @@ constexpr static bool is_aa_enabled_for_render_target(D3DMULTISAMPLE_TYPE msaa, 
     }
 }
 
-bool is_using_texture_to_render(D3DMULTISAMPLE_TYPE msaa, RenderTarget t)
+bool is_using_texture_to_render(D3DMULTISAMPLE_TYPE msaa, RenderTarget t, bool multiview)
 {
-    if (g::cfg.multiview && (t == LeftEye || t == RightEye || t == FocusLeft || t == FocusRight)) {
+    if (multiview && (t == LeftEye || t == RightEye || t == FocusLeft || t == FocusRight)) {
         // We don't use texture to render as we need to render into a layered image
         // and copy out the result anyway.
         return false;
@@ -54,7 +54,8 @@ bool create_render_target(
     RenderTarget tgt,
     D3DFORMAT fmt,
     uint32_t w,
-    uint32_t h)
+    uint32_t h,
+    bool multiview)
 {
     HRESULT ret = 0;
 
@@ -62,8 +63,8 @@ bool create_render_target(
 
     // If anti-aliasing is enabled, we need to first render into an anti-aliased render target.
     // If not, we can render directly to a texture that has D3DUSAGE_RENDERTARGET set.
-    if (!is_using_texture_to_render(msaa, tgt)) {
-        if (g::cfg.multiview) {
+    if (!is_using_texture_to_render(msaa, tgt, multiview)) {
+        if (multiview) {
             ret |= g::d3d_vr->CreateMultiViewRenderTarget(w, h, fmt, msaa, 0, false, msaa_surface, nullptr, 2);
         } else {
             g::d3d_dev->CreateRenderTarget(w, h, fmt, msaa, 0, false, msaa_surface, nullptr);
@@ -90,7 +91,7 @@ bool create_render_target(
         int i;
         for (i = 0; i < 4; i++) {
             HRESULT create_depth_result = -1;
-            if (g::cfg.multiview) {
+            if (multiview) {
                 create_depth_result = g::d3d_vr->CreateMultiViewDepthStencilSurface(w, h, wantedFormats[i], msaa, 0, true, depth_stencil_surface, nullptr, 2);
             } else {
                 create_depth_result = g::d3d_dev->CreateDepthStencilSurface(w, h, wantedFormats[i], msaa, 0, true, depth_stencil_surface, nullptr);
@@ -102,7 +103,7 @@ bool create_render_target(
         depth_stencil_format = wantedFormats[i];
         dbg(std::format("Using {} as depthstencil format", (int)depth_stencil_format));
     } else {
-        if (g::cfg.multiview) {
+        if (multiview) {
             ret |= g::d3d_vr->CreateMultiViewDepthStencilSurface(w, h, depth_stencil_format, msaa, 0, true, depth_stencil_surface, nullptr, 2);
         } else {
             ret |= g::d3d_dev->CreateDepthStencilSurface(w, h, depth_stencil_format, msaa, 0, true, depth_stencil_surface, nullptr);

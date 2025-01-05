@@ -93,6 +93,7 @@ void OpenVR::init(IDirect3DDevice9* dev, IDirect3DVR9** vrdev, uint32_t companio
                 .height = { hss, hss },
                 .msaa = gfx.second.msaa.value_or(g::cfg.gfx["default"].msaa.value()),
                 .quad_view_rendering = false,
+                .multiview_rendering = gfx.second.multiview_rendering,
             };
             init_surfaces(dev, ctx, companionWindowWidth, companionWindowHeight);
             render_contexts[gfx.first] = ctx;
@@ -170,7 +171,9 @@ void OpenVR::prepare_frames_for_hmd(IDirect3DDevice9* dev)
 {
     const auto msaa = current_render_context->msaa != D3DMULTISAMPLE_NONE;
     if (g::cfg.multiview || msaa) {
+        // Resolve multisampling
         IDirect3DSurface9 *left_eye, *right_eye;
+
         if (current_render_context->dx_texture[LeftEye]->GetSurfaceLevel(0, &left_eye) != D3D_OK) {
             dbg("Failed to get left eye surface");
             return;
