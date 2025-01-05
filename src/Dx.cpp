@@ -540,24 +540,44 @@ namespace dx {
             // These are the different ones passed to shaders, gathered from the BTB stage list of RSF.
             // Some custom stages might have other shaders that pass the data in a different format.
             // Those won't work without handling them here, but such is life.
-            bool patched = false;
             if (set_btb_vertex_shader_constant(This, StartRegister, g::base_shader_data_end_register, fixedfunction::current_projection_matrix, pConstantData, Vector4fCount))
                 return D3D_OK;
             if (set_btb_vertex_shader_constant(This, StartRegister, g::base_shader_data_end_register, fixedfunction::current_view_matrix, pConstantData, Vector4fCount))
                 return D3D_OK;
             if (set_btb_vertex_shader_constant(This, StartRegister, g::base_shader_data_end_register, fixedfunction::current_projview_matrix, pConstantData, Vector4fCount))
                 return D3D_OK;
+            if (set_btb_vertex_shader_constant(This, StartRegister, g::base_shader_data_end_register, fixedfunction::current_viewproj_matrix, pConstantData, Vector4fCount))
+                return D3D_OK;
             if (set_btb_vertex_shader_constant(This, StartRegister, g::base_shader_data_end_register, fixedfunction::current_worldview_matrix, pConstantData, Vector4fCount))
                 return D3D_OK;
             if (set_btb_vertex_shader_constant(This, StartRegister, g::base_shader_data_end_register, fixedfunction::current_worldviewproj_matrix, pConstantData, Vector4fCount))
                 return D3D_OK;
-            if (set_btb_vertex_shader_constant(This, StartRegister, g::base_shader_data_end_register, fixedfunction::current_worldviewproj_matrix, pConstantData, Vector4fCount))
-                return D3D_OK;
+
+            g::hooks::set_vertex_shader_constant_f.call(g::d3d_dev, StartRegister, pConstantData, Vector4fCount);
+            g::hooks::set_vertex_shader_constant_f.call(g::d3d_dev, StartRegister + g::base_shader_data_end_register, pConstantData, Vector4fCount);
+            g::hooks::set_vertex_shader_constant_f.call(g::d3d_dev, StartRegister + g::base_shader_data_end_register + 4, pConstantData, Vector4fCount);
 
             return D3D_OK;
         }
 
         return g::hooks::set_vertex_shader_constant_f.call(g::d3d_dev, StartRegister, pConstantData, Vector4fCount);
+    }
+
+    static void update_btb_comparison_matrices(RenderTarget left, RenderTarget right)
+    {
+        const auto world = m4_from_d3d(fixedfunction::current_world_matrix);
+        const auto update_matrices = [&world](RenderTarget tgt) {
+            const auto proj = m4_from_d3d(fixedfunction::current_projection_matrix[tgt]);
+            const auto view = m4_from_d3d(fixedfunction::current_view_matrix[tgt]);
+
+            fixedfunction::current_projview_matrix[tgt] = d3d_from_m4(glm::transpose(view * proj));
+            fixedfunction::current_viewproj_matrix[tgt] = d3d_from_m4(glm::transpose(proj * view));
+            fixedfunction::current_worldview_matrix[tgt] = d3d_from_m4(glm::transpose(view * world));
+            fixedfunction::current_worldviewproj_matrix[tgt] = d3d_from_m4(glm::transpose(proj * view * world));
+        };
+
+        update_matrices(left);
+        update_matrices(right);
     }
 
     HRESULT __stdcall SetTransform(IDirect3DDevice9* This, D3DTRANSFORMSTATETYPE State, const D3DMATRIX* pMatrix)
@@ -577,6 +597,7 @@ namespace dx {
                 if (g::cfg.multiview) {
                     const auto multiview_target = render_target_counterpart(target);
                     fixedfunction::current_projection_matrix[multiview_target] = d3d_from_m4(g::vr->get_projection(multiview_target));
+                    update_btb_comparison_matrices(target, multiview_target);
                     ret |= g::hooks::set_transform.call(g::d3d_dev, D3DTS_PROJECTION_RIGHT, &fixedfunction::current_projection_matrix[multiview_target]);
                 }
 
@@ -588,16 +609,9 @@ namespace dx {
 
                 if (g::cfg.multiview) {
                     const auto multiview_target = render_target_counterpart(target);
-                    // These matrices are needed for BTB shader constants in multiview case
-                    fixedfunction::current_projview_matrix[target] = d3d_from_m4(glm::transpose(m4_from_d3d(fixedfunction::current_projection_matrix[target]) * m4_from_d3d(fixedfunction::current_view_matrix[target])));
-                    fixedfunction::current_viewproj_matrix[target] = d3d_from_m4(glm::transpose(m4_from_d3d(fixedfunction::current_view_matrix[target]) * m4_from_d3d(fixedfunction::current_projection_matrix[target])));
-                    fixedfunction::current_worldview_matrix[target] = d3d_from_m4(glm::transpose(m4_from_d3d(fixedfunction::current_view_matrix[target]) * m4_from_d3d(fixedfunction::current_world_matrix)));
-
-                    fixedfunction::current_view_matrix[multiview_target] = d3d_from_m4(g::vr->get_eye_pos(multiview_target) * g::vr->get_pose(multiview_target) * g::flip_z_matrix * rbr::get_horizon_lock_matrix() * m4_from_d3d(*pMatrix));
-                    fixedfunction::current_projview_matrix[multiview_target] = d3d_from_m4(glm::transpose(m4_from_d3d(fixedfunction::current_projection_matrix[multiview_target]) * m4_from_d3d(fixedfunction::current_view_matrix[multiview_target])));
-                    fixedfunction::current_viewproj_matrix[multiview_target] = d3d_from_m4(glm::transpose(m4_from_d3d(fixedfunction::current_view_matrix[multiview_target]) * m4_from_d3d(fixedfunction::current_projection_matrix[multiview_target])));
-                    fixedfunction::current_worldview_matrix[multiview_target] = d3d_from_m4(glm::transpose(m4_from_d3d(fixedfunction::current_view_matrix[multiview_target]) * m4_from_d3d(fixedfunction::current_world_matrix)));
-
+                    fixedfunction::current_view_matrix[multiview_target] = d3d_from_m4(
+                        g::vr->get_eye_pos(multiview_target) * g::vr->get_pose(multiview_target) * g::flip_z_matrix * rbr::get_horizon_lock_matrix() * m4_from_d3d(*pMatrix));
+                    update_btb_comparison_matrices(target, multiview_target);
                     ret |= g::hooks::set_transform.call(g::d3d_dev, D3DTS_VIEW_RIGHT, &fixedfunction::current_view_matrix[multiview_target]);
                 }
 
@@ -606,35 +620,36 @@ namespace dx {
                 // These matrices are needed for BTB shader constants in multiview case
                 const auto multiview_target = render_target_counterpart(target);
                 fixedfunction::current_world_matrix = *pMatrix;
-                fixedfunction::current_worldview_matrix[target] = d3d_from_m4(glm::transpose(m4_from_d3d(fixedfunction::current_view_matrix[target]) * m4_from_d3d(fixedfunction::current_world_matrix)));
-                fixedfunction::current_worldviewproj_matrix[target] = d3d_from_m4(glm::transpose(m4_from_d3d(fixedfunction::current_projection_matrix[target]) * m4_from_d3d(fixedfunction::current_view_matrix[target]) * m4_from_d3d(fixedfunction::current_world_matrix)));
-                fixedfunction::current_worldview_matrix[multiview_target] = d3d_from_m4(glm::transpose(m4_from_d3d(fixedfunction::current_view_matrix[multiview_target]) * m4_from_d3d(fixedfunction::current_world_matrix)));
-                fixedfunction::current_worldviewproj_matrix[multiview_target] = d3d_from_m4(glm::transpose(m4_from_d3d(fixedfunction::current_projection_matrix[multiview_target]) * m4_from_d3d(fixedfunction::current_view_matrix[multiview_target]) * m4_from_d3d(fixedfunction::current_world_matrix)));
+                update_btb_comparison_matrices(target, multiview_target);
             }
         } else if (g::cfg.multiview) {
             // Update left eye matrices as the 2D plane texture is drawn using the data from the left eye location
             if (State == D3DTS_PROJECTION) {
                 fixedfunction::current_projection_matrix[LeftEye] = *pMatrix;
                 fixedfunction::current_projection_matrix[FocusLeft] = *pMatrix;
+                fixedfunction::current_projection_matrix[RightEye] = *pMatrix;
+                fixedfunction::current_projection_matrix[FocusRight] = *pMatrix;
+
+                update_btb_comparison_matrices(LeftEye, RightEye);
+                update_btb_comparison_matrices(FocusLeft, FocusRight);
+
                 // Update right view because some other plugin may draw on the 2D plane
                 g::hooks::set_transform.call(g::d3d_dev, D3DTS_PROJECTION_RIGHT, pMatrix);
             } else if (State == D3DTS_VIEW) {
                 fixedfunction::current_view_matrix[LeftEye] = *pMatrix;
                 fixedfunction::current_view_matrix[FocusLeft] = *pMatrix;
-                fixedfunction::current_projview_matrix[LeftEye] = d3d_from_m4(glm::transpose(m4_from_d3d(fixedfunction::current_projection_matrix[LeftEye]) * m4_from_d3d(fixedfunction::current_view_matrix[LeftEye])));
-                fixedfunction::current_viewproj_matrix[LeftEye] = d3d_from_m4(glm::transpose(m4_from_d3d(fixedfunction::current_view_matrix[LeftEye]) * m4_from_d3d(fixedfunction::current_projection_matrix[LeftEye])));
-                fixedfunction::current_worldview_matrix[LeftEye] = d3d_from_m4(glm::transpose(m4_from_d3d(fixedfunction::current_view_matrix[LeftEye]) * m4_from_d3d(fixedfunction::current_world_matrix)));
-                fixedfunction::current_projview_matrix[FocusLeft] = d3d_from_m4(glm::transpose(m4_from_d3d(fixedfunction::current_projection_matrix[FocusLeft]) * m4_from_d3d(fixedfunction::current_view_matrix[FocusLeft])));
-                fixedfunction::current_viewproj_matrix[FocusLeft] = d3d_from_m4(glm::transpose(m4_from_d3d(fixedfunction::current_view_matrix[FocusLeft]) * m4_from_d3d(fixedfunction::current_projection_matrix[FocusLeft])));
-                fixedfunction::current_worldview_matrix[FocusLeft] = d3d_from_m4(glm::transpose(m4_from_d3d(fixedfunction::current_view_matrix[FocusLeft]) * m4_from_d3d(fixedfunction::current_world_matrix)));
+                fixedfunction::current_view_matrix[RightEye] = *pMatrix;
+                fixedfunction::current_view_matrix[FocusRight] = *pMatrix;
+
+                update_btb_comparison_matrices(LeftEye, RightEye);
+                update_btb_comparison_matrices(FocusLeft, FocusRight);
+
                 // Update right view because some other plugin may draw on the 2D plane
                 g::hooks::set_transform.call(g::d3d_dev, D3DTS_VIEW_RIGHT, pMatrix);
             } else if (State == D3DTS_WORLD) {
                 fixedfunction::current_world_matrix = *pMatrix;
-                fixedfunction::current_worldview_matrix[LeftEye] = d3d_from_m4(glm::transpose(m4_from_d3d(fixedfunction::current_view_matrix[LeftEye]) * m4_from_d3d(fixedfunction::current_world_matrix)));
-                fixedfunction::current_worldviewproj_matrix[LeftEye] = d3d_from_m4(glm::transpose(m4_from_d3d(fixedfunction::current_projection_matrix[LeftEye]) * m4_from_d3d(fixedfunction::current_view_matrix[LeftEye]) * m4_from_d3d(fixedfunction::current_world_matrix)));
-                fixedfunction::current_worldview_matrix[FocusLeft] = d3d_from_m4(glm::transpose(m4_from_d3d(fixedfunction::current_view_matrix[FocusLeft]) * m4_from_d3d(fixedfunction::current_world_matrix)));
-                fixedfunction::current_worldviewproj_matrix[FocusLeft] = d3d_from_m4(glm::transpose(m4_from_d3d(fixedfunction::current_projection_matrix[FocusLeft]) * m4_from_d3d(fixedfunction::current_view_matrix[FocusLeft]) * m4_from_d3d(fixedfunction::current_world_matrix)));
+                update_btb_comparison_matrices(LeftEye, RightEye);
+                update_btb_comparison_matrices(FocusLeft, FocusRight);
             }
         }
 
