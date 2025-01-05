@@ -321,7 +321,7 @@ struct Config {
                         stages.push_back(static_cast<int>(*v));
                     });
                 }
-                bool quad_view_stage_rendering = val["quadViewRendering"].value_or(true);
+                bool quad_view_stage_rendering = val["quadViewRendering"].value_or(cfg.quad_view_rendering);
                 cfg.gfx[k] = RenderContextConfig { ss, msaa, stages, quad_view_stage_rendering };
             });
         }
