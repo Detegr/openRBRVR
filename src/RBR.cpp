@@ -25,6 +25,7 @@ namespace g {
     static bool is_rendering_car;
     static bool is_rendering_wet_windscreen;
     static M3* car_rotation_ptr;
+    static int recenter_frame_counter;
 }
 
 namespace rbr {
@@ -353,6 +354,9 @@ namespace rbr {
 
                 // Reload render context in case it was not the default
                 update_render_context();
+
+                // Run auto-recentering again if needed
+                g::recenter_frame_counter = 0;
             }
         }
 
@@ -414,6 +418,14 @@ namespace rbr {
                 }
             } else if (g::seat_movement_request) {
                 g::game->WriteGameMessage("openRBRVR seat position adjustment is implemented for internal camera only.", 2.0, 100.0, 100.0);
+            }
+        }
+
+        if (g::vr && g::cfg.recenter_at_session_start && g::recenter_frame_counter <= 150) {
+            g::recenter_frame_counter += 1;
+            if (g::recenter_frame_counter <= 150 && (g::recenter_frame_counter % 50 == 0)) {
+                dbg("Auto-recentering");
+                g::vr->reset_view();
             }
         }
 
