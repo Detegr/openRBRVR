@@ -45,7 +45,7 @@ set(HEADERS
 set(openRBRVR_Major 2)
 set(openRBRVR_Minor 0)
 set(openRBRVR_Patch 0)
-set(openRBRVR_Tweak 2)
+set(openRBRVR_Tweak 4)
 set(openRBRVR_TweakStr "-beta${openRBRVR_Tweak}")
 
 configure_file(
