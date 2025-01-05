@@ -7,6 +7,7 @@
 
 namespace rbr {
     enum GameMode : uint32_t {
+        NotSet = 0,
         Driving = 1,
         Pause = 2,
         MainMenu = 3,
