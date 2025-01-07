@@ -303,6 +303,16 @@ struct Config {
             cfg.runtime = OPENVR;
         }
 
+        auto oxrnode = parsed["OpenXR"];
+        if (oxrnode.is_table()) {
+            cfg.world_scale = std::clamp(oxrnode["worldScale"].value_or(1000), 500, 1500);
+            cfg.quad_view_rendering = cfg.wanted_quad_view_rendering = oxrnode["quadViewRendering"].value_or(false);
+            cfg.peripheral_msaa = static_cast<D3DMULTISAMPLE_TYPE>(oxrnode["peripheralAntiAliasing"].value_or(0));
+            cfg.openxr_motion_compensation = oxrnode["motionCompensation"].value_or(false);
+            cfg.prediction_dampening = oxrnode["predictionDampening"].value_or(0);
+            cfg.prediction_dampening = std::clamp(cfg.prediction_dampening, 0LL, 100LL);
+        }
+
         auto gfxnode = parsed["gfx"];
         if (gfxnode.is_table()) {
             toml::table* gfx = gfxnode.as_table();
@@ -321,19 +331,9 @@ struct Config {
                         stages.push_back(static_cast<int>(*v));
                     });
                 }
-                bool quad_view_stage_rendering = val["quadViewRendering"].value_or(cfg.quad_view_rendering);
+                bool quad_view_stage_rendering = val["quadViewRendering"].value_or(cfg.wanted_quad_view_rendering);
                 cfg.gfx[k] = RenderContextConfig { ss, msaa, stages, quad_view_stage_rendering };
             });
-        }
-
-        auto oxrnode = parsed["OpenXR"];
-        if (oxrnode.is_table()) {
-            cfg.world_scale = std::clamp(oxrnode["worldScale"].value_or(1000), 500, 1500);
-            cfg.quad_view_rendering = cfg.wanted_quad_view_rendering = oxrnode["quadViewRendering"].value_or(false);
-            cfg.peripheral_msaa = static_cast<D3DMULTISAMPLE_TYPE>(oxrnode["peripheralAntiAliasing"].value_or(0));
-            cfg.openxr_motion_compensation = oxrnode["motionCompensation"].value_or(false);
-            cfg.prediction_dampening = oxrnode["predictionDampening"].value_or(0);
-            cfg.prediction_dampening = std::clamp(cfg.prediction_dampening, 0LL, 100LL);
         }
 
         return cfg;
