@@ -595,10 +595,8 @@ namespace dx {
             if (set_btb_vertex_shader_constant(This, StartRegister, g::base_shader_data_end_register, fixedfunction::current_worldviewproj_matrix, pConstantData, Vector4fCount))
                 return D3D_OK;
 
-            g::hooks::set_vertex_shader_constant_f.call(g::d3d_dev, StartRegister + g::base_shader_data_end_register, pConstantData, Vector4fCount);
-            g::hooks::set_vertex_shader_constant_f.call(g::d3d_dev, StartRegister + g::base_shader_data_end_register + 4, pConstantData, Vector4fCount);
-
-            return g::hooks::set_vertex_shader_constant_f.call(g::d3d_dev, StartRegister, pConstantData, Vector4fCount);
+            g::hooks::set_vertex_shader_constant_f.call(g::d3d_dev, reg, pConstantData, Vector4fCount);
+            g::hooks::set_vertex_shader_constant_f.call(g::d3d_dev, reg + 4, pConstantData, Vector4fCount);
         }
 
         return g::hooks::set_vertex_shader_constant_f.call(g::d3d_dev, StartRegister, pConstantData, Vector4fCount);
