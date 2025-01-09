@@ -184,14 +184,14 @@ namespace dx {
 
     HRESULT __stdcall GetVertexShader(IDirect3DDevice9* This, IDirect3DVertexShader9** pShader)
     {
-        IDirect3DVertexShader9* shader;
-        const auto ret = g::hooks::get_vertex_shader.call(This, &shader);
-        const auto shader_it = std::find(g::base_game_shaders.cbegin(), g::base_game_shaders.cend(), *pShader);
-        if (shader_it == g::base_game_shaders.cend()) {
-            *pShader = shader;
-        } else {
-            const auto index = std::distance(g::base_game_shaders.cbegin(), shader_it);
-            *pShader = g::base_game_multiview_shaders[index];
+        const auto ret = g::hooks::get_vertex_shader.call(This, pShader);
+        if (g::cfg.multiview) {
+            IDirect3DVertexShader9* shader;
+            const auto shader_it = std::find(g::base_game_shaders.cbegin(), g::base_game_shaders.cend(), *pShader);
+            if (shader_it != g::base_game_shaders.cend()) {
+                const auto index = std::distance(g::base_game_shaders.cbegin(), shader_it);
+                *pShader = g::base_game_multiview_shaders[index];
+            }
         }
         return ret;
     }
