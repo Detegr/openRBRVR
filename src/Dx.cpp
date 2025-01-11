@@ -27,6 +27,8 @@ namespace g {
     static std::vector<IDirect3DVertexShader9*> base_game_multiview_shaders;
     static MultiViewPatchFn spirv_change_multiview_access;
     static MultiViewOptimizeFn spirv_optimize_multiview;
+    static std::vector<IDirect3DVertexShader9*> original_btb_shaders;
+    static std::vector<IDirect3DVertexShader9*> multiview_btb_shaders;
     static std::unordered_map<IDirect3DVertexShader9*, std::vector<uint32_t>> patched_btb_shaders;
     static std::unordered_set<IDirect3DVertexShader9*> optimized_btb_shaders;
     static std::unordered_map<uint32_t, std::array<float, 16>> deferred_shader_constants;
@@ -49,6 +51,21 @@ namespace dx {
     }
 
     using rbr::GameMode;
+
+    void free_btb_shaders()
+    {
+        for (auto& s : g::original_btb_shaders) {
+            s->Release();
+        }
+        for (auto& s : g::multiview_btb_shaders) {
+            s->Release();
+        }
+
+        g::original_btb_shaders.clear();
+        g::multiview_btb_shaders.clear();
+        g::optimized_btb_shaders.clear();
+        g::patched_btb_shaders.clear();
+    }
 
     // Call the RBR render function with a texture as the render target
     // Even though the render pipeline changes the render target while rendering,
@@ -150,6 +167,11 @@ namespace dx {
             // to be patched with the VR projection.
             g::base_game_shaders.push_back(*ppShader);
             g::base_game_multiview_shaders.push_back(multiview_shader);
+        } else {
+            // Same for BTB shaders that are loaded during the stage load
+            g::original_btb_shaders.push_back(*ppShader);
+            g::multiview_btb_shaders.push_back(multiview_shader);
+            (*ppShader)->AddRef();
         }
         i++;
         if (i == 40) {
@@ -186,11 +208,24 @@ namespace dx {
     {
         const auto ret = g::hooks::get_vertex_shader.call(This, pShader);
         if (g::cfg.multiview) {
-            IDirect3DVertexShader9* shader;
-            const auto shader_it = std::find(g::base_game_shaders.cbegin(), g::base_game_shaders.cend(), *pShader);
+            auto shader_it = std::find(g::base_game_shaders.cbegin(), g::base_game_shaders.cend(), *pShader);
             if (shader_it != g::base_game_shaders.cend()) {
                 const auto index = std::distance(g::base_game_shaders.cbegin(), shader_it);
-                *pShader = g::base_game_multiview_shaders[index];
+                auto shader = g::base_game_multiview_shaders[index];
+                shader->AddRef();
+                (*pShader)->Release();
+                *pShader = shader;
+                return ret;
+            }
+
+            shader_it = std::find(g::original_btb_shaders.cbegin(), g::original_btb_shaders.cend(), *pShader);
+            if (shader_it != g::original_btb_shaders.cend()) {
+                const auto index = std::distance(g::original_btb_shaders.cbegin(), shader_it);
+                auto shader = g::multiview_btb_shaders[index];
+                shader->AddRef();
+                (*pShader)->Release();
+                *pShader = shader;
+                return ret;
             }
         }
         return ret;
@@ -200,10 +235,16 @@ namespace dx {
     {
         IDirect3DVertexShader9* shader = pShader;
         if (g::cfg.multiview) {
-            const auto shader_it = std::find(g::base_game_shaders.cbegin(), g::base_game_shaders.cend(), pShader);
+            auto shader_it = std::find(g::base_game_shaders.cbegin(), g::base_game_shaders.cend(), pShader);
             if (shader_it != g::base_game_shaders.cend()) {
                 const auto index = std::distance(g::base_game_shaders.cbegin(), shader_it);
                 shader = g::base_game_multiview_shaders[index];
+            } else {
+                shader_it = std::find(g::original_btb_shaders.cbegin(), g::original_btb_shaders.cend(), pShader);
+                if (shader_it != g::original_btb_shaders.cend()) {
+                    const auto index = std::distance(g::original_btb_shaders.cbegin(), shader_it);
+                    shader = g::multiview_btb_shaders[index];
+                }
             }
         }
 

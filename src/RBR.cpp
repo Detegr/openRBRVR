@@ -365,6 +365,7 @@ namespace rbr {
             // Not sure if this is needed, but better be safe than sorry,
             // the car textures will be reloaded when loading the stage.
             g::car_textures.clear();
+            dx::free_btb_shaders();
         }
 
         if (!g::camera_type_ptr) [[unlikely]] {
