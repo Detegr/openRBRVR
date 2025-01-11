@@ -6,6 +6,7 @@
 
 namespace dx {
     void render_vr_eye(void* p, RenderTarget eye, bool clear = true);
+    void free_btb_shaders();
 
     // Hooked functions
     HRESULT __stdcall CreateVertexShader(IDirect3DDevice9* This, const DWORD* pFunction, IDirect3DVertexShader9** ppShader);
