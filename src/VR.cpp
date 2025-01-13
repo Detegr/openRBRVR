@@ -78,7 +78,7 @@ bool VRInterface::create_companion_window_buffer(IDirect3DDevice9* dev)
     return true;
 }
 
-bool create_quad(IDirect3DDevice9* dev, float size, float aspect, IDirect3DVertexBuffer9** dst)
+bool create_quad(IDirect3DDevice9* dev, float size, float aspect, float z, IDirect3DVertexBuffer9** dst)
 {
     auto w = size;
     const auto h = w / aspect;
@@ -86,7 +86,6 @@ bool create_quad(IDirect3DDevice9* dev, float size, float aspect, IDirect3DVerte
     constexpr auto rght = 1.0f;
     constexpr auto top = 0.0f;
     constexpr auto btm = 1.0f;
-    constexpr auto z = 1.0f;
     // clang-format off
     Vertex quad[] = {
         { -w,  h, z, left, top, },
@@ -172,11 +171,11 @@ void VRInterface::init_surfaces(IDirect3DDevice9* dev, RenderContext& ctx, uint3
 
         // Create and fill a vertex buffers for the 2D planes
         // We can reuse all of these in every rendering context
-        if (!create_quad(dev, 0.6f, aspect_ratio, &g::quad_vertex_buf[0]))
+        if (!create_quad(dev, 1.0f, aspect_ratio, 1.05f, &g::quad_vertex_buf[0]))
             throw std::runtime_error("Could not create menu quad");
-        if (!create_quad(dev, 0.6f, aspect_ratio, &g::quad_vertex_buf[1]))
+        if (!create_quad(dev, 0.6f, aspect_ratio, 1.0f, &g::quad_vertex_buf[1]))
             throw std::runtime_error("Could not create overlay quad");
-        if (!create_quad(dev, 1.0f, 1.0f, &g::overlay_border_quad))
+        if (!create_quad(dev, 1.0f, 1.0f, 1.0f, &g::overlay_border_quad))
             throw std::runtime_error("Could not create overlay border quad");
         if (!create_companion_window_buffer(dev))
             throw std::runtime_error("Could not create desktop window buffer");
@@ -255,7 +254,7 @@ static void render_texture(
     dev->SetTextureStageState(0, D3DTSS_ALPHAOP, D3DTOP_SELECTARG1);
     dev->SetTextureStageState(0, D3DTSS_ALPHAARG1, D3DTA_TEXTURE);
 
-    dev->SetRenderState(D3DRS_ZENABLE, false);
+    dev->SetRenderState(D3DRS_ZENABLE, rbr::get_game_mode() == rbr::GameMode::MainMenu);
 
     dev->SetTexture(0, tex);
 
