@@ -76,23 +76,6 @@ static void change_horizon_lock(bool forward)
     }
 }
 
-static void change_render_3d_settings(bool forward)
-{
-    if (forward && g::cfg.render_mainmenu_3d) {
-        g::cfg.render_mainmenu_3d = false;
-        g::cfg.render_prestage_3d = false;
-        g::cfg.render_pausemenu_3d = false;
-    } else if (forward) {
-        g::cfg.render_mainmenu_3d = g::cfg.render_prestage_3d;
-        g::cfg.render_prestage_3d = g::cfg.render_pausemenu_3d;
-        g::cfg.render_pausemenu_3d = true;
-    } else {
-        g::cfg.render_pausemenu_3d = g::cfg.render_prestage_3d;
-        g::cfg.render_prestage_3d = g::cfg.render_mainmenu_3d;
-        g::cfg.render_mainmenu_3d = false;
-    }
-}
-
 static void ChangeCompanionMode(bool forward)
 {
     if (forward) {
@@ -187,12 +170,6 @@ static class Menu graphics_menu = { "openRBRVR rendering settings", {
     .left_action = [] { Toggle(g::cfg.render_prestage_3d); },
     .right_action = [] { Toggle(g::cfg.render_prestage_3d); },
     .select_action = [] { Toggle(g::cfg.render_prestage_3d); },
-  },
-  { .text = [] { return std::format("Render main menu in 3D: {}", g::cfg.render_mainmenu_3d ? "ON" : "OFF"); },
-    .long_text = { "Enable to render the main menu in 3D instead of 2D plane.", "Enabling this option may cause discomfort to some people."},
-    .left_action = [] { Toggle(g::cfg.render_mainmenu_3d); },
-    .right_action = [] { Toggle(g::cfg.render_mainmenu_3d); },
-    .select_action = [] { Toggle(g::cfg.render_mainmenu_3d); },
   },
   { .text = [] { return std::format("Render replays in 3D: {}", g::cfg.render_replays_3d ? "ON" : "OFF"); },
     .long_text = { "Enable to render replays in 3D instead of a 2D plane." },

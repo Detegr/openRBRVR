@@ -83,6 +83,8 @@ namespace rbr {
     static ChangeCameraFn change_camera_fn = reinterpret_cast<ChangeCameraFn>(get_address(0x487680));
     static PrepareCameraFn apply_camera_position = reinterpret_cast<PrepareCameraFn>(get_address(0x4825B0));
     static PrepareCameraFn apply_camera_fov = reinterpret_cast<PrepareCameraFn>(get_address(0x4BF690));
+    using SetupBumperCamFn = void(__thiscall*)(void* This, float a);
+    static SetupBumperCamFn setup_bumper_cam = reinterpret_cast<SetupBumperCamFn>(get_address(0x485760));
 
     uintptr_t get_render_function_addr()
     {
@@ -152,10 +154,15 @@ namespace rbr {
         return g::is_rendering_wet_windscreen;
     }
 
+    static uintptr_t get_camera_info_ptr()
+    {
+        uintptr_t cameraData = *reinterpret_cast<uintptr_t*>(*reinterpret_cast<uintptr_t*>(CAR_INFO_ADDR) + 0x758);
+        return *reinterpret_cast<uintptr_t*>(cameraData + 0x10);
+    }
+
     void change_camera(void* p, uint32_t camera_type)
     {
-        const auto camera_data = *reinterpret_cast<uintptr_t*>(*reinterpret_cast<uintptr_t*>(CAR_INFO_ADDR) + 0x758);
-        const auto camera_info = reinterpret_cast<void*>(*reinterpret_cast<uintptr_t*>(camera_data + 0x10));
+        const auto camera_info = reinterpret_cast<void*>(get_camera_info_ptr());
         const auto camera_fov_this = *reinterpret_cast<void**>(reinterpret_cast<uintptr_t>(p) + 0xcf4);
 
         change_camera_fn(camera_info, camera_type, 1);
@@ -170,7 +177,7 @@ namespace rbr {
 
     bool should_use_reverse_z_buffer()
     {
-        return g::is_rendering_3d;
+        return g::is_rendering_3d && g::game_mode != GameMode::MainMenu;
     }
 
     void update_horizon_lock_matrix()
@@ -210,6 +217,27 @@ namespace rbr {
         } else {
             g::horizon_lock_matrix = glm::identity<M4>();
         }
+    }
+
+    static bool is_profile_loaded()
+    {
+        // RSF draws custom menu screen on profile load which does not work well in VR
+        // Therefore we enable the 3D menu scene after the profile is loaded and the custom
+        // menu screen is cleared.
+        static bool loaded = false;
+        if (!loaded) {
+            const auto menu = *reinterpret_cast<uintptr_t*>(get_address(0x165fa48));
+            const auto current_menu = *reinterpret_cast<uintptr_t*>(menu + 0x8);
+            const auto menus = reinterpret_cast<void**>(menu + 0x78);
+            const auto profile_menu = reinterpret_cast<uintptr_t>(menus[82]);
+            if (auto profile = *reinterpret_cast<uintptr_t*>(get_address(0x7d2554)); profile) {
+                auto profile_name = reinterpret_cast<const char*>(profile + 0x8);
+                if (profile_name[0] != 0 && current_menu != profile_menu) {
+                    loaded = true;
+                }
+            }
+        }
+        return loaded;
     }
 
     static void force_camera_change(void* p, uint32_t magic)
@@ -307,7 +335,7 @@ namespace rbr {
 
         g::is_driving = g::game_mode == GameMode::Driving;
         g::is_rendering_3d = g::is_driving
-            || (g::cfg.render_mainmenu_3d && g::game_mode == GameMode::MainMenu)
+            || (g::game_mode == MainMenu && is_profile_loaded())
             || (g::cfg.render_pausemenu_3d && g::game_mode == GameMode::Pause && g::previous_game_mode != GameMode::Replay)
             || (g::cfg.render_pausemenu_3d && g::game_mode == GameMode::Pause && (g::previous_game_mode == GameMode::Replay && g::cfg.render_replays_3d))
             || (g::cfg.render_prestage_3d && g::game_mode == GameMode::PreStage)
@@ -471,6 +499,50 @@ namespace rbr {
             g::frame_start = std::chrono::steady_clock::now();
 
             if (g::is_rendering_3d) {
+                if (g::game_mode == GameMode::MainMenu && is_profile_loaded()) {
+                    // Use external cam as the camera, but call the same setup function that's used for
+                    // camera type 3, which allows custom camera locations.
+                    // Using camera type 3 directly doesn't work as it doesn't seem to draw the car model for some reason.
+                    rbr::change_camera(p, 1);
+
+                    const auto camera = reinterpret_cast<void*>(reinterpret_cast<uintptr_t>(p) + 0x70);
+                    float* cam_data = reinterpret_cast<float*>(reinterpret_cast<uintptr_t>(camera) + 0x318);
+                    rbr::setup_bumper_cam(camera, 0);
+
+                    // Load the camera matrix that's stored in zxy order
+                    M4 cam;
+                    cam[0] = glm::vec4(cam_data[1], cam_data[2], cam_data[0], 0.0f);
+                    cam[1] = glm::vec4(cam_data[4], cam_data[5], cam_data[3], 0.0f);
+                    cam[2] = glm::vec4(cam_data[7], cam_data[8], cam_data[6], 0.0f);
+                    cam[3] = glm::vec4(cam_data[10], cam_data[11], cam_data[9], 0.0f);
+
+                    // Put the camera into the garage
+                    cam[3].x = 41.0f;
+                    cam[3].y = 0.8f;
+                    cam[3].z = -13.5f;
+
+                    // Rotate the camera to point directly at the wall where we render the menu
+                    static M4 original_cam = cam;
+                    const auto yrotated = glm::rotate(original_cam, glm::radians(114.0f), { 0, 0, 1 });
+                    const auto xrotated = glm::rotate(yrotated, glm::radians(-4.5f), { 0, 1, 0 });
+                    const auto rotated = glm::rotate(xrotated, glm::radians(-2.0f), { 1, 0, 0 });
+
+                    // Store data along with wide FoV to reduce rendering glitches (rocks etc.)
+                    cam_data[0] = rotated[0].z;
+                    cam_data[1] = rotated[0].x;
+                    cam_data[2] = rotated[0].y;
+                    cam_data[3] = rotated[1].z;
+                    cam_data[4] = rotated[1].x;
+                    cam_data[5] = rotated[1].y;
+                    cam_data[6] = rotated[2].z;
+                    cam_data[7] = rotated[2].x;
+                    cam_data[8] = rotated[2].y;
+                    cam_data[9] = rotated[3].z;
+                    cam_data[10] = rotated[3].x;
+                    cam_data[11] = rotated[3].y;
+                    cam_data[12] = glm::degrees(2.4f);
+                }
+
                 dx::render_vr_eye(p, LeftEye);
                 if (!g::cfg.multiview) {
                     dx::render_vr_eye(p, RightEye);
@@ -513,13 +585,19 @@ namespace rbr {
                     g::is_rendering_3d = true;
                 }
 
-                if (g::vr->prepare_vr_rendering(g::d3d_dev, Overlay)) {
-                    g::current_2d_render_target = Overlay;
+                const auto next_2d_render_target = g::game_mode == GameMode::MainMenu ? GameMenu : Overlay;
+                if (g::vr->prepare_vr_rendering(g::d3d_dev, next_2d_render_target)) {
+                    g::current_2d_render_target = next_2d_render_target;
                 } else {
                     dbg("Failed to set 2D render target");
                     g::current_2d_render_target = std::nullopt;
                     g::d3d_dev->SetRenderTarget(0, g::original_render_target);
                     g::d3d_dev->SetDepthStencilSurface(g::original_depth_stencil_target);
+                }
+
+                if (g::game_mode == GameMode::MainMenu) {
+                    rbr::change_camera(p, 7);
+                    g::hooks::render.call(p);
                 }
             } else {
                 // We are not driving, render the scene into a plane

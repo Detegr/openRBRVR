@@ -94,7 +94,6 @@ struct Config {
     bool draw_loading_screen = true;
     bool debug = false;
     int debug_mode = 0;
-    bool render_mainmenu_3d = false;
     bool render_pausemenu_3d = true;
     bool render_prestage_3d = false;
     bool render_replays_3d = false;
@@ -126,7 +125,6 @@ struct Config {
         companion_mode = rhs.companion_mode;
         draw_loading_screen = rhs.draw_loading_screen;
         debug = rhs.debug;
-        render_mainmenu_3d = rhs.render_mainmenu_3d;
         render_pausemenu_3d = rhs.render_pausemenu_3d;
         render_prestage_3d = rhs.render_prestage_3d;
         render_replays_3d = rhs.render_replays_3d;
@@ -163,7 +161,6 @@ struct Config {
             && draw_loading_screen == rhs.draw_loading_screen
             && debug == rhs.debug
             && debug_mode == rhs.debug_mode
-            && render_mainmenu_3d == rhs.render_mainmenu_3d
             && render_pausemenu_3d == rhs.render_pausemenu_3d
             && render_prestage_3d == rhs.render_prestage_3d
             && render_replays_3d == rhs.render_replays_3d
@@ -203,7 +200,6 @@ struct Config {
             { "drawLoadingScreen", draw_loading_screen },
             { "debug", debug },
             { "debugMode", debug_mode },
-            { "renderMainMenu3d", render_mainmenu_3d },
             { "renderPauseMenu3d", render_pausemenu_3d },
             { "renderPreStage3d", render_prestage_3d },
             { "renderReplays3d", render_replays_3d },
@@ -285,7 +281,6 @@ struct Config {
         cfg.draw_loading_screen = parsed["drawLoadingScreen"].value_or(true);
         cfg.debug = parsed["debug"].value_or(false);
         cfg.debug_mode = parsed["debugMode"].value_or(0);
-        cfg.render_mainmenu_3d = parsed["renderMainMenu3d"].value_or(false);
         cfg.render_pausemenu_3d = parsed["renderPauseMenu3d"].value_or(true);
         cfg.render_prestage_3d = parsed["renderPreStage3d"].value_or(false);
         cfg.render_replays_3d = parsed["renderReplays3d"].value_or(false);
