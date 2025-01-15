@@ -1,0 +1,1 @@
+Binary build of https://github.com/Detegr/RBR-spirvpatcher
