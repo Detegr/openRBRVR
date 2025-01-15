@@ -171,7 +171,7 @@ void VRInterface::init_surfaces(IDirect3DDevice9* dev, RenderContext& ctx, uint3
 
         // Create and fill a vertex buffers for the 2D planes
         // We can reuse all of these in every rendering context
-        if (!create_quad(dev, 1.0f, aspect_ratio, 1.05f, &g::quad_vertex_buf[0]))
+        if (!create_quad(dev, 1.25f, aspect_ratio, 2.4f, &g::quad_vertex_buf[0]))
             throw std::runtime_error("Could not create menu quad");
         if (!create_quad(dev, 0.6f, aspect_ratio, 1.0f, &g::quad_vertex_buf[1]))
             throw std::runtime_error("Could not create overlay quad");

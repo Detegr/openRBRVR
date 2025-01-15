@@ -369,8 +369,8 @@ namespace dx {
     // Render `renderTarget2d` on a plane for both eyes
     static void render_vr_overlay(RenderTarget render_target_2d, bool clear)
     {
-        const auto& size = render_target_2d == GameMenu ? g::cfg.menu_size : g::cfg.overlay_size;
-        const auto& translation = render_target_2d == Overlay ? g::cfg.overlay_translation : glm::vec3 { 0.0f, -0.1f, 0.0f };
+        const auto& size = render_target_2d == GameMenu ? 1.0f : g::cfg.overlay_size;
+        const auto& translation = render_target_2d == Overlay ? g::cfg.overlay_translation : (g::cfg.menu_scene ? glm::vec3 { 0.0f, -0.1f, 0.65f - g::cfg.menu_size } : glm::vec3 { 0.0f, -0.1f, 0.65f - g::cfg.menu_size });
         const auto& horizon_lock = render_target_2d == Overlay ? std::make_optional(rbr::get_horizon_lock_matrix()) : std::nullopt;
         const auto& texture = g::vr->get_texture(render_target_2d);
 

@@ -84,6 +84,7 @@ struct RenderContextConfig {
 
 struct Config {
     float menu_size = 1.0;
+    bool menu_scene = true;
     float overlay_size = 1.0;
     glm::vec3 overlay_translation = { 0, 0, 0 };
     float supersampling = 1.0;
@@ -116,6 +117,7 @@ struct Config {
     Config& operator=(const Config& rhs)
     {
         menu_size = rhs.menu_size;
+        menu_scene = rhs.menu_scene;
         overlay_size = rhs.overlay_size;
         overlay_translation = rhs.overlay_translation;
         supersampling = rhs.supersampling;
@@ -151,6 +153,7 @@ struct Config {
     bool operator==(const Config& rhs) const
     {
         return menu_size == rhs.menu_size
+            && menu_scene == rhs.menu_scene
             && overlay_size == rhs.overlay_size
             && overlay_translation == rhs.overlay_translation
             && supersampling == rhs.supersampling
@@ -189,6 +192,7 @@ struct Config {
         }
         toml::table out {
             { "menuSize", round(menu_size) },
+            { "menuScene", menu_scene },
             { "overlaySize", round(overlay_size) },
             { "overlayTranslateX", round(overlay_translation.x) },
             { "overlayTranslateY", round(overlay_translation.y) },
@@ -270,6 +274,7 @@ struct Config {
             return cfg;
         }
         cfg.menu_size = parsed["menuSize"].value_or(1.0f);
+        cfg.menu_scene = parsed["menuScene"].value_or(true);
         cfg.overlay_size = parsed["overlaySize"].value_or(1.0f);
         cfg.overlay_translation.x = parsed["overlayTranslateX"].value_or(0.0f);
         cfg.overlay_translation.y = parsed["overlayTranslateY"].value_or(0.0f);

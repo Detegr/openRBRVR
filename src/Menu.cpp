@@ -112,7 +112,7 @@ static class Menu main_menu = { "openRBRVR", {
   { .text = id("Recenter VR view"), .long_text = {"Recenters VR view"}, .menu_color = IRBRGame::EMenuColors::MENU_TEXT, .position = Menu::menu_items_start_pos, .select_action = recenter_vr },
   { .text = id("Horizon lock settings") , .long_text = {"Horizon lock settings"}, .select_action = [] { select_menu(4); } },
   { .text = id("Rendering settings") , .long_text = {"Selection of different rendering settings"}, .select_action = [] { select_menu(1); } },
-  { .text = id("Overlay settings") , .long_text = {"Adjust the size and position of the 2D content shown on", "top of the 3D view while driving."}, .select_action = [] { select_menu(5); } },
+  { .text = id("Menu & overlay settings") , .long_text = {"Adjust the size and position of the 2D content shown on", "top of the 3D view while driving.", "Also contains main menu settings."}, .select_action = [] { select_menu(5); } },
   { .text = id("Desktop window settings") ,
     .long_text = {"Adjust the size and position of the image shown", "on the desktop window while driving."},
     .select_action = [] { if(g::vr) select_menu(6); },
@@ -242,13 +242,18 @@ static class Menu horizon_lock_menu = { "openRBRVR horizon lock settings", {
   },
 }};
 
-static class Menu overlay_menu = { "openRBRVR overlay settings", {
+static class Menu overlay_menu = { "openRBRVR menu & overlay settings", {
   { .text = [] { return std::format("Menu size: {:.2f}", g::cfg.menu_size); },
     .long_text = { "Adjust menu size." },
     .menu_color = IRBRGame::EMenuColors::MENU_TEXT,
 	.position = Menu::menu_items_start_pos,
-    .left_action = [] { g::cfg.menu_size = std::max<float>((g::cfg.menu_size - 0.05f), 0.05f); },
-    .right_action = [] { g::cfg.menu_size = std::min<float>((g::cfg.menu_size + 0.05f), 10.0f); },
+    .left_action = [] { g::cfg.menu_size = std::max<float>((g::cfg.menu_size - 0.05f), 0.0f); },
+    .right_action = [] { g::cfg.menu_size = std::min<float>((g::cfg.menu_size + 0.05f), 2.5f); },
+  },
+  { .text = [] { return std::format("Use 3D menu scene: {}", g::cfg.menu_scene ? "ON" : "OFF"); },
+    .long_text = { "Use the main menu garage as the scene for the menu." },
+    .left_action = [] { Toggle(g::cfg.menu_scene); },
+    .right_action = [] { Toggle(g::cfg.menu_scene); },
   },
   { .text = [] { return std::format("Overlay size: {:.2f}", g::cfg.overlay_size); },
     .long_text = { "Adjust overlay size. Overlay is the area where 2D content", "is rendered when driving."},

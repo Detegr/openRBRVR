@@ -335,7 +335,7 @@ namespace rbr {
 
         g::is_driving = g::game_mode == GameMode::Driving;
         g::is_rendering_3d = g::is_driving
-            || (g::game_mode == MainMenu && is_profile_loaded())
+            || (g::cfg.menu_scene && g::game_mode == MainMenu && is_profile_loaded())
             || (g::cfg.render_pausemenu_3d && g::game_mode == GameMode::Pause && g::previous_game_mode != GameMode::Replay)
             || (g::cfg.render_pausemenu_3d && g::game_mode == GameMode::Pause && (g::previous_game_mode == GameMode::Replay && g::cfg.render_replays_3d))
             || (g::cfg.render_prestage_3d && g::game_mode == GameMode::PreStage)
@@ -499,7 +499,7 @@ namespace rbr {
             g::frame_start = std::chrono::steady_clock::now();
 
             if (g::is_rendering_3d) {
-                if (g::game_mode == GameMode::MainMenu && is_profile_loaded()) {
+                if (g::cfg.menu_scene && g::game_mode == GameMode::MainMenu && is_profile_loaded()) {
                     // Use external cam as the camera, but call the same setup function that's used for
                     // camera type 3, which allows custom camera locations.
                     // Using camera type 3 directly doesn't work as it doesn't seem to draw the car model for some reason.
@@ -517,29 +517,30 @@ namespace rbr {
                     cam[3] = glm::vec4(cam_data[10], cam_data[11], cam_data[9], 0.0f);
 
                     // Put the camera into the garage
-                    cam[3].x = 41.0f;
+                    cam[3].x = 40.4f;
                     cam[3].y = 0.8f;
-                    cam[3].z = -13.5f;
+                    cam[3].z = -14.7f;
 
                     // Rotate the camera to point directly at the wall where we render the menu
                     static M4 original_cam = cam;
                     const auto yrotated = glm::rotate(original_cam, glm::radians(114.0f), { 0, 0, 1 });
                     const auto xrotated = glm::rotate(yrotated, glm::radians(-4.5f), { 0, 1, 0 });
                     const auto rotated = glm::rotate(xrotated, glm::radians(-2.0f), { 1, 0, 0 });
+                    const auto translated = glm::translate(rotated, { 0, -(0.65f - g::cfg.menu_size), 0.1f });
 
                     // Store data along with wide FoV to reduce rendering glitches (rocks etc.)
-                    cam_data[0] = rotated[0].z;
-                    cam_data[1] = rotated[0].x;
-                    cam_data[2] = rotated[0].y;
-                    cam_data[3] = rotated[1].z;
-                    cam_data[4] = rotated[1].x;
-                    cam_data[5] = rotated[1].y;
-                    cam_data[6] = rotated[2].z;
-                    cam_data[7] = rotated[2].x;
-                    cam_data[8] = rotated[2].y;
-                    cam_data[9] = rotated[3].z;
-                    cam_data[10] = rotated[3].x;
-                    cam_data[11] = rotated[3].y;
+                    cam_data[0] = translated[0].z;
+                    cam_data[1] = translated[0].x;
+                    cam_data[2] = translated[0].y;
+                    cam_data[3] = translated[1].z;
+                    cam_data[4] = translated[1].x;
+                    cam_data[5] = translated[1].y;
+                    cam_data[6] = translated[2].z;
+                    cam_data[7] = translated[2].x;
+                    cam_data[8] = translated[2].y;
+                    cam_data[9] = translated[3].z;
+                    cam_data[10] = translated[3].x;
+                    cam_data[11] = translated[3].y;
                     cam_data[12] = glm::degrees(2.4f);
                 }
 
