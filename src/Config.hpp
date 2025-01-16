@@ -212,7 +212,7 @@ struct Config {
             { "desktopWindowOffsetY", companion_offset.y },
             { "desktopWindowSize", companion_size },
             { "desktopEye", static_cast<int>(companion_eye) },
-            { "renderParticles", static_cast<int>(render_particles) },
+            { "renderParticles", render_particles },
             { "multiViewRendering", multiview },
             { "recenterAtSessionStart", recenter_at_session_start },
         };

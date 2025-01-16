@@ -894,42 +894,33 @@ static void resolve_msaa(IDirect3DDevice9* dev, RenderContext* ctx, RenderTarget
     surface->Release();
 }
 
+static void copy_multiview_surfaces(RenderContext* ctx, RenderTarget left, RenderTarget right)
+{
+    IDirect3DSurface9 *left_eye, *right_eye;
+    if (ctx->dx_texture[left]->GetSurfaceLevel(0, &left_eye) != D3D_OK) {
+        dbg("Failed to get left eye surface");
+        return;
+    }
+    if (ctx->dx_texture[right]->GetSurfaceLevel(0, &right_eye) != D3D_OK) {
+        dbg("Failed to get right eye surface");
+        left_eye->Release();
+        return;
+    }
+    IDirect3DSurface9* eyes[2] = { left_eye, right_eye };
+    g::d3d_vr->CopySurfaceLayers(ctx->dx_surface[left], eyes, 2);
+    left_eye->Release();
+    right_eye->Release();
+}
+
 void OpenXR::prepare_frames_for_hmd(IDirect3DDevice9* dev)
 {
     const auto msaa_enabled = current_render_context->msaa != D3DMULTISAMPLE_NONE;
     const auto peripheral_msaa_enabled = g::cfg.quad_view_rendering && g::cfg.peripheral_msaa != D3DMULTISAMPLE_NONE;
     if (g::cfg.multiview) {
-        IDirect3DSurface9 *left_eye, *right_eye;
-        if (current_render_context->dx_texture[LeftEye]->GetSurfaceLevel(0, &left_eye) != D3D_OK) {
-            dbg("Failed to get left eye surface");
-            return;
-        }
-        if (current_render_context->dx_texture[RightEye]->GetSurfaceLevel(0, &right_eye) != D3D_OK) {
-            dbg("Failed to get right eye surface");
-            left_eye->Release();
-            return;
-        }
-        IDirect3DSurface9* eyes[2] = { left_eye, right_eye };
-        g::d3d_vr->CopySurfaceLayers(current_render_context->dx_surface[LeftEye], eyes, 2);
-        left_eye->Release();
-        right_eye->Release();
-
+        // MSAA is resolved in the process, if needed
+        copy_multiview_surfaces(g::vr->get_current_render_context(), LeftEye, RightEye);
         if (g::cfg.quad_view_rendering) {
-            if (current_render_context->dx_texture[FocusLeft]->GetSurfaceLevel(0, &left_eye) != D3D_OK) {
-                dbg("Failed to get left eye surface");
-                return;
-            }
-            if (current_render_context->dx_texture[FocusRight]->GetSurfaceLevel(0, &right_eye) != D3D_OK) {
-                dbg("Failed to get right eye surface");
-                left_eye->Release();
-                return;
-            }
-            eyes[0] = left_eye;
-            eyes[1] = right_eye;
-
-            g::d3d_vr->CopySurfaceLayers(current_render_context->dx_surface[FocusLeft], eyes, 2);
-            left_eye->Release();
-            right_eye->Release();
+            copy_multiview_surfaces(g::vr->get_current_render_context(), FocusLeft, FocusRight);
         }
     } else {
         resolve_msaa(dev, current_render_context, LeftEye);
