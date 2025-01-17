@@ -80,6 +80,7 @@ jobs:
       id: release-zip
       run: |
         mkdir -p openRBRVR-${{ github.ref_name }}/Plugins/openRBRVR
+        cp multiviewpatcher/multiviewpatcher.dll openRBRVR-${{ github.ref_name }}/Plugins/openRBRVR
         cp thirdparty/dll/* openRBRVR-${{ github.ref_name }}
         cp -r thirdparty/quad-views-foveated openRBRVR-${{ github.ref_name }}/Plugins/openRBRVR
         cp openRBRVR.dll openRBRVR.toml.sample openRBRVR-${{ github.ref_name }}/Plugins
