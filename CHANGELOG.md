@@ -1,3 +1,14 @@
+## 2.0.0
+
+- Implement multiview rendering. Reduces CPU load significantly and fixes some
+  rendering issues like some shadows on BTB stages. Increases the GPU load a
+  little.
+- Use 3D scene as background when the main menu is active
+- Make debug button toggle between debug modes
+- Fix a rendering bug where the skybox was rendered in different colors for
+  different eyes
+- Fix a small logic issue when parsing openRBRVR.toml
+
 ## 1.1.1
 
 - Comment out per-stage settings in openRBRVR.toml
