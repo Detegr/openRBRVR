@@ -1,3 +1,11 @@
+## 2.0.1
+
+- Fix a bug that caused main menu to render in a funny way when the VR desktop
+  view was set to bonnet cam
+- Add configuration parameters to adjust whether the VR view should
+  automatically recenter at the start of a VR session or at the start of each
+  stage
+
 ## 2.0.0
 
 - Implement multiview rendering. Reduces CPU load significantly and fixes some
