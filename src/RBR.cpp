@@ -556,7 +556,7 @@ namespace rbr {
                     }
                 }
 
-                if (g::cfg.companion_mode == CompanionMode::Static && g::game_mode != PreStage && g::game_mode != Replay) {
+                if (g::cfg.companion_mode == CompanionMode::Static && g::game_mode != PreStage && g::game_mode != Replay && g::game_mode != MainMenu) {
                     g::is_rendering_3d = false;
 
                     auto orig_camera = *g::camera_type_ptr;

@@ -439,7 +439,7 @@ namespace dx {
                 } else if (game_mode == GameMode::PreStage) {
                     render_companion_window_from_render_target(g::d3d_dev, g::vr, g::cfg.render_prestage_3d ? companion_eye : GameMenu);
                 } else if (game_mode != GameMode::Driving) {
-                    render_companion_window_from_render_target(g::d3d_dev, g::vr, rbr::is_rendering_3d() ? companion_eye : GameMenu);
+                    render_companion_window_from_render_target(g::d3d_dev, g::vr, rbr::is_rendering_3d() && game_mode != GameMode::MainMenu ? companion_eye : GameMenu);
                 }
             } else if (g::cfg.companion_mode == CompanionMode::VREye || game_mode != GameMode::Driving) {
                 render_companion_window_from_render_target(g::d3d_dev, g::vr, (rbr::is_rendering_3d() && rbr::get_game_mode() != GameMode::MainMenu) ? companion_eye : GameMenu);
