@@ -25,7 +25,8 @@ namespace g {
     static bool is_rendering_car;
     static bool is_rendering_wet_windscreen;
     static M3* car_rotation_ptr;
-    static int recenter_frame_counter;
+    static int session_recenter_frame_counter;
+    static int stage_recenter_frame_counter = INT32_MAX;
 }
 
 namespace rbr {
@@ -384,7 +385,7 @@ namespace rbr {
                 update_render_context();
 
                 // Run auto-recentering again if needed
-                g::recenter_frame_counter = 0;
+                g::session_recenter_frame_counter = 0;
             }
         }
 
@@ -408,6 +409,7 @@ namespace rbr {
             g::stage_id_ptr = reinterpret_cast<uint32_t*>(game_mode_ext_2 + 0x20);
         } else if (g::vr && g::current_stage_id != *g::stage_id_ptr) {
             // Stage has changed
+            g::stage_recenter_frame_counter = 0;
             g::current_stage_id = *g::stage_id_ptr;
             g::seat_position_loaded = false;
             update_render_context();
@@ -450,11 +452,20 @@ namespace rbr {
             }
         }
 
-        if (g::vr && g::cfg.recenter_at_session_start && g::recenter_frame_counter <= 150) {
-            g::recenter_frame_counter += 1;
-            if (g::recenter_frame_counter <= 150 && (g::recenter_frame_counter % 50 == 0)) {
-                dbg("Auto-recentering");
-                g::vr->reset_view();
+        if (g::vr) {
+            if (g::cfg.recenter_at_session_start && g::session_recenter_frame_counter <= 150) {
+                g::session_recenter_frame_counter += 1;
+                if (g::session_recenter_frame_counter <= 150 && (g::session_recenter_frame_counter % 50 == 0)) {
+                    dbg("Auto-recentering");
+                    g::vr->reset_view();
+                }
+            }
+            if (g::cfg.recenter_at_stage_start && g::stage_recenter_frame_counter <= 150) {
+                g::stage_recenter_frame_counter += 1;
+                if (g::stage_recenter_frame_counter <= 150 && (g::stage_recenter_frame_counter % 50 == 0)) {
+                    dbg("Auto-recentering");
+                    g::vr->reset_view();
+                }
             }
         }
 

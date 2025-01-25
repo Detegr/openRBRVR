@@ -113,6 +113,7 @@ struct Config {
     int64_t prediction_dampening = 0;
     bool multiview = false;
     bool recenter_at_session_start = false;
+    bool recenter_at_stage_start = false;
 
     Config& operator=(const Config& rhs)
     {
@@ -147,6 +148,7 @@ struct Config {
         prediction_dampening = rhs.prediction_dampening;
         multiview = rhs.multiview;
         recenter_at_session_start = rhs.recenter_at_session_start;
+        recenter_at_stage_start = rhs.recenter_at_stage_start;
         return *this;
     }
 
@@ -179,7 +181,8 @@ struct Config {
             && render_particles == rhs.render_particles
             && prediction_dampening == rhs.prediction_dampening
             && multiview == rhs.multiview
-            && recenter_at_session_start == rhs.recenter_at_session_start;
+            && recenter_at_session_start == rhs.recenter_at_session_start
+            && recenter_at_stage_start == rhs.recenter_at_stage_start;
     }
 
     bool write(const std::filesystem::path& path) const
@@ -215,6 +218,7 @@ struct Config {
             { "renderParticles", render_particles },
             { "multiViewRendering", multiview },
             { "recenterAtSessionStart", recenter_at_session_start },
+            { "recenterAtStageStart", recenter_at_stage_start },
         };
 
         toml::table gfxTbl;
@@ -295,7 +299,7 @@ struct Config {
         cfg.render_particles = parsed["renderParticles"].value_or(true);
         cfg.multiview = parsed["multiViewRendering"].value_or(false);
         cfg.recenter_at_session_start = parsed["recenterAtSessionStart"].value_or(false);
-        // cfg.recenterAtStageStart = parsed["recenterAtStageStart"].value_or(false);
+        cfg.recenter_at_stage_start = parsed["recenterAtStageStart"].value_or(false);
 
         const std::string& runtime = parsed["runtime"].value_or("steamvr");
         if (runtime == "openxr" || runtime == "openxr-wmr") {

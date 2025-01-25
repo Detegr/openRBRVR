@@ -17,6 +17,7 @@ overlayTranslateX = 0.0
 overlayTranslateY = 0.0
 overlayTranslateZ = 0.0
 recenterAtSessionStart = true
+recenterAtStageStart = false
 renderParticles = true
 renderPauseMenu3d = true
 renderPreStage3d = false
