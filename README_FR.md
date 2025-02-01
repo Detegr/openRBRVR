@@ -24,8 +24,6 @@ Pour installer une version plus récente que celle disponible sur le launcher RS
 
 Les paramètres du plugin peuvent être modifiés dans `Options -> Plugins -> openRBRVR` et sauvegardés dans `Plugins/openRBRVR.toml` via le menu.
 
-Avec le FoV du bureau, les objets peuvent disparaitre de votre vision périphérique. C'est plus important sur certaines spéciales que sur d'autres. Cela peut être réglé sur le launcher RSF, NGPCarMenu, ou en utilisant le plugin PaceNote (double clic droit avec la souris pour ouvrir le menu). Les valeurs entre 2.3-2.6 fonctionnent pour mon casque avec un FoV large.
-
 ## FAQ
 
 - Voir [FAQ](https://github.com/Detegr/openRBRVR/blob/master/FAQ_FR.md).
