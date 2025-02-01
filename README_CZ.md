@@ -35,12 +35,6 @@ Nastavení pluginu můžete změnit ve hře v `Options -> Plugins -> openRBRVR`
 respektivě `Nastavení -> Plugins -> openRBRVR` a jeho nastavení naleznete v
 souboru `Plugins/openRBRVR.toml`
 
-Při různých nastavení FoV (Field of View) mohou některé objekty zmizet z vašeho
-periferního vidění dřív než se dostanou mimo obraz. V některých etapách je to
-viditelnější než v jiných. Můžete to spravit přímo v RSF launcheru, NGPCarMenu
-nebo přímo ve hře použitím PaceNote pluginu (Dvakrát klikněte pravým tlačítkem
-myši pro zobrazení menu). U mého headsetu dobře fungují hodnoty 2.3 až 2.6
-
 ## Často kladené dotazy
 
 - Naleznete v [FAQ](https://github.com/Detegr/openRBRVR/blob/master/FAQ_CZ.md).
