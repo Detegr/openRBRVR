@@ -34,12 +34,6 @@ the plugin.
 Plugin settings can be changed from `Options -> Plugins -> openRBRVR` and saved
 to `Plugins/openRBRVR.toml` via the menu.
 
-With the desktop FoV, objects might disappear from your peripheral vision
-before they go out of frame. On some stages this is more apparent than others.
-This can be fixed either from the RSF launcher, NGPCarMenu, or runtime by using
-the PaceNote plugin (double click right mouse button to open up the menu).
-Values between 2.3-2.6 work fine for my wide FoV headset.
-
 ## Frequently asked questions
 
 - See the [FAQ](https://github.com/Detegr/openRBRVR/blob/master/FAQ.md).
