@@ -1,3 +1,7 @@
+## 2.0.2
+
+- Add support for OpenXR-Layer-OBSMirror (https://github.com/Jabbah/OpenXR-Layer-OBSMirror)
+
 ## 2.0.1
 
 - Fix a bug that caused main menu to render in a funny way when the VR desktop

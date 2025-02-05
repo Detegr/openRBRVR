@@ -194,6 +194,7 @@ static M4 xr_pose_to_m4(const XrPosef& pose)
 static void set_openrbrvr_api_layer_path()
 {
     std::filesystem::path quad_views_path = std::filesystem::current_path() / "Plugins" / "openRBRVR" / "quad-views-foveated";
+    std::filesystem::path obsmirror_path = std::filesystem::current_path() / "Plugins" / "openRBRVR" / "obsmirror";
 
     constexpr auto env_buf_chars = 32767;
     constexpr auto env_buf_bytes = env_buf_chars * sizeof(wchar_t);
@@ -206,10 +207,11 @@ static void set_openrbrvr_api_layer_path()
     auto env_var_len = GetEnvironmentVariableW(L"XR_API_LAYER_PATH", env_buf, 32767);
     bool env_var_ok = false;
     if (env_var_len > 0) {
-        std::wstring wide_xr_api_layer_path = std::wstring(env_buf) + L";" + quad_views_path.c_str();
+        std::wstring wide_xr_api_layer_path = std::wstring(env_buf) + L";" + quad_views_path.c_str() + L";" + obsmirror_path.c_str();
         env_var_ok = SetEnvironmentVariableW(L"XR_API_LAYER_PATH", wide_xr_api_layer_path.c_str());
     } else {
-        env_var_ok = SetEnvironmentVariableW(L"XR_API_LAYER_PATH", quad_views_path.c_str());
+        std::wstring wide_xr_api_layer_path = std::wstring(quad_views_path) + L";" + obsmirror_path.c_str();
+        env_var_ok = SetEnvironmentVariableW(L"XR_API_LAYER_PATH", wide_xr_api_layer_path.c_str());
     }
     free(env_buf);
 
@@ -313,6 +315,7 @@ OpenXR::OpenXR()
             }
         }
     }
+    api_layers.push_back("XR_APILAYER_NOVENDOR_OBSMirror");
 
     if (g::cfg.openxr_motion_compensation) {
         auto motion_compensation_layer = std::ranges::find_if(available_api_layers, [](const XrApiLayerProperties& p) {
