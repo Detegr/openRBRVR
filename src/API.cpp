@@ -1,5 +1,6 @@
 #include "API.hpp"
 #include "Config.hpp"
+#include "Dx.hpp"
 #include "Globals.hpp"
 #include "IPlugin.h"
 #include "OpenXR.hpp"
@@ -27,7 +28,13 @@ extern "C" __declspec(dllexport) int64_t openRBRVR_Exec(ApiOperation ops, uint64
     dbg(std::format("Exec: {} {}", (uint64_t)ops, (uint64_t)value));
 
     if (ops == API_VERSION) {
-        return 3;
+        return 4;
+    }
+    if (ops & NOTIFY_VERTEX_SHADER) {
+        auto shader = reinterpret_cast<IDirect3DVertexShader9*>(value);
+        if (!dx::add_vertex_shader(shader)) {
+            return -1;
+        }
     }
     if (ops & MOVE_SEAT) {
         if (value > static_cast<uint64_t>(MOVE_SEAT_DOWN)) {
