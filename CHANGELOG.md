@@ -1,6 +1,8 @@
 ## 2.0.2
 
-- Add support for OpenXR-Layer-OBSMirror (https://github.com/Jabbah/OpenXR-Layer-OBSMirror)
+- Add support for OpenXR-Layer-OBSMirror
+  (https://github.com/Jabbah/OpenXR-Layer-OBSMirror)
+- Improve compatibility with other plugins doing shader modifications
 
 ## 2.0.1
 
