@@ -25,6 +25,8 @@ namespace g {
     static bool applying_state_block;
     static std::vector<IDirect3DVertexShader9*> base_game_shaders;
     static std::vector<IDirect3DVertexShader9*> base_game_multiview_shaders;
+    static std::vector<IDirect3DVertexShader9*> external_shaders;
+    static std::vector<IDirect3DVertexShader9*> external_multiview_shaders;
     static MultiViewPatchFn spirv_change_multiview_access;
     static MultiViewOptimizeFn spirv_optimize_multiview;
     static std::vector<IDirect3DVertexShader9*> original_btb_shaders;
@@ -134,6 +136,59 @@ namespace dx {
         return true;
     }
 
+    static void patch_spirv_shader_registers(IDirect3DVertexShader9* s)
+    {
+        // Make room for the extra data
+        g::d3d_vr->SetShaderConstantCount(s, g::base_shader_data_end_register * 2);
+
+        // MVP matrix
+        if (!patch_spirv_shader(s, 0, g::base_shader_data_end_register, false)) {
+            char hash[64] = { 0 };
+            g::d3d_vr->GetShaderHash(s, (char**)&hash);
+            dbg(std::format("Error patching a shader: {}", hash));
+            return;
+        }
+
+        // Skybox/fog
+        if (!patch_spirv_shader(s, 20, g::base_shader_data_end_register, true)) {
+            char hash[64] = { 0 };
+            g::d3d_vr->GetShaderHash(s, (char**)&hash);
+            dbg(std::format("Error patching a shader: {}", hash));
+        }
+    }
+
+    bool add_vertex_shader(IDirect3DVertexShader9* shader)
+    {
+        UINT fn_size;
+
+        if (shader->GetFunction(nullptr, &fn_size) != D3D_OK) {
+            dbg("Failed to get vertex shader function");
+            return false;
+        }
+
+        std::vector<DWORD> bytecode(fn_size / sizeof(DWORD) - 1); // -1 as we don't need the 65536 at the end, we're adding it manually
+        if (shader->GetFunction(bytecode.data(), &fn_size) != D3D_OK) {
+            dbg("Failed to get vertex shader function");
+            return false;
+        }
+
+        // Add a zero-length comment opcode in the shader code to make DXVK
+        // handle this as a new shader and not reuse the one we just created
+        bytecode.push_back(65534);
+        bytecode.push_back(65535);
+
+        IDirect3DVertexShader9* modified_shader;
+        const auto ret = g::hooks::create_vertex_shader.call(g::d3d_dev, bytecode.data(), &modified_shader);
+        patch_spirv_shader_registers(modified_shader);
+
+        // Treat shaders from other plugins as base game shaders
+        // Nobody will want to edit BTB shaders :D
+        g::base_game_shaders.push_back(shader);
+        g::base_game_multiview_shaders.push_back(modified_shader);
+
+        return true;
+    }
+
     HRESULT __stdcall CreateVertexShader(IDirect3DDevice9* This, const DWORD* pFunction, IDirect3DVertexShader9** ppShader)
     {
         if (!g::spirv_change_multiview_access || !g::spirv_optimize_multiview) {
@@ -183,22 +238,7 @@ namespace dx {
             g::base_shader_data_end_register = 110;
 
             for (auto s : g::base_game_multiview_shaders) {
-                // Make room for the extra data
-                g::d3d_vr->SetShaderConstantCount(s, g::base_shader_data_end_register * 2);
-
-                // MVP matrix
-                if (!patch_spirv_shader(s, 0, g::base_shader_data_end_register, false)) {
-                    char hash[64] = { 0 };
-                    g::d3d_vr->GetShaderHash(s, (char**)&hash);
-                    dbg(std::format("Error patching a shader: {}", hash));
-                }
-
-                // Skybox/fog
-                if (!patch_spirv_shader(s, 20, g::base_shader_data_end_register, true)) {
-                    char hash[64] = { 0 };
-                    g::d3d_vr->GetShaderHash(s, (char**)&hash);
-                    dbg(std::format("Error patching a shader: {}", hash));
-                }
+                patch_spirv_shader_registers(s);
             }
         }
         return ret;

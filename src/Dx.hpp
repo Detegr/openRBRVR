@@ -5,6 +5,7 @@
 #include <d3d9.h>
 
 namespace dx {
+    bool add_vertex_shader(IDirect3DVertexShader9* shader);
     void render_vr_eye(void* p, RenderTarget eye, bool clear = true);
     void free_btb_shaders();
 

@@ -6,7 +6,7 @@ enum ApiOperation : uint64_t {
     API_VERSION = 0x0,
     RECENTER_VR_VIEW = 0x1,
     TOGGLE_DEBUG_INFO = 0x2,
-    RESERVED1 = 0x4,
+    NOTIFY_VERTEX_SHADER = 0x4,
     RESERVED2 = 0x8,
     GET_VR_RUNTIME = 0x10,
     MOVE_SEAT = 0x20,
