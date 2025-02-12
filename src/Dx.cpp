@@ -166,11 +166,14 @@ namespace dx {
             return false;
         }
 
-        std::vector<DWORD> bytecode(fn_size / sizeof(DWORD) - 1); // -1 as we don't need the 65536 at the end, we're adding it manually
+        std::vector<DWORD> bytecode(fn_size / sizeof(DWORD));
         if (shader->GetFunction(bytecode.data(), &fn_size) != D3D_OK) {
             dbg("Failed to get vertex shader function");
             return false;
         }
+
+        // Pop one off the end as we're adding more bytecode
+        bytecode.pop_back();
 
         // Add a zero-length comment opcode in the shader code to make DXVK
         // handle this as a new shader and not reuse the one we just created
