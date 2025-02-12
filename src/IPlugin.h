@@ -115,6 +115,14 @@ public:
     virtual const EGameLanguage GetLanguage(void) = 0;
 };
 
+struct IRBRGameVtbl {
+    bool(__stdcall* StartGame)(int iMap, int iCar, const IRBRGame::ERBRWeatherType, const IRBRGame::ERBRTyreTypes eTyre, const char* ptxtCarSetupFileName);
+    void(__stdcall* WriteGameMessage)(const char* ptxtMessage, float fTimeToDisplay, float x, float y);
+    void(__stdcall* WriteText)(float x, float y, const char* ptxtText);
+
+    // Rest of the functions omitted because of laziness as we're only interested in WriteText
+};
+
 class IPlugin {
 public:
     virtual ~IPlugin() { }

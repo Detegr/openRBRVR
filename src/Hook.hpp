@@ -55,7 +55,10 @@ struct Hook {
     ~Hook()
     {
         if (src)
-            MH_DisableHook(reinterpret_cast<void*>(src));
+            MH_RemoveHook(reinterpret_cast<void*>(src));
+
+        call = nullptr;
+        src = nullptr;
     }
 };
 

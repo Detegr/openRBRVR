@@ -27,6 +27,9 @@ namespace g {
     static M3* car_rotation_ptr;
     static int session_recenter_frame_counter;
     static int stage_recenter_frame_counter = INT32_MAX;
+
+    static bool allow_writetext;
+    static Hook<decltype(IRBRGameVtbl::WriteText)> writetext_hook;
 }
 
 namespace rbr {
@@ -299,8 +302,24 @@ namespace rbr {
         }
     }
 
+    static void __stdcall WriteText(float x, float y, const char* ptxtText)
+    {
+        // Must be careful here, ECX must not change or we lose
+        // the this pointer to the original WriteText method call
+        if (!g::allow_writetext) {
+            return;
+        }
+
+        g::writetext_hook.call(x, y, ptxtText);
+    }
+
     static bool init_or_update_game_data(uintptr_t ptr)
     {
+        if (!g::writetext_hook.call && g::game_mode == GameMode::MainMenu) {
+            auto vtbl = get_vtable<IRBRGameVtbl>(g::game);
+            g::writetext_hook = Hook(vtbl->WriteText, WriteText);
+        }
+
         if (!g::hooks::load_texture.call) [[unlikely]] {
             auto handle = reinterpret_cast<uintptr_t>(GetModuleHandle("HedgeHog3D.dll"));
             if (!handle) {
@@ -510,7 +529,13 @@ namespace rbr {
             g::frame_start = std::chrono::steady_clock::now();
 
             if (g::is_rendering_3d) {
-                if (g::cfg.menu_scene && g::game_mode == GameMode::MainMenu && is_profile_loaded()) {
+                const auto menu_scene_active = g::cfg.menu_scene && g::game_mode == GameMode::MainMenu && is_profile_loaded();
+
+                if (menu_scene_active) {
+                    // Prevent calling IRBRGame::WriteText so we don't flood the internal
+                    // structures by calling it multiple times
+                    g::allow_writetext = false;
+
                     // Use external cam as the camera, but call the same setup function that's used for
                     // camera type 3, which allows custom camera locations.
                     // Using camera type 3 directly doesn't work as it doesn't seem to draw the car model for some reason.
@@ -607,8 +632,10 @@ namespace rbr {
                     g::d3d_dev->SetDepthStencilSurface(g::original_depth_stencil_target);
                 }
 
-                if (g::game_mode == GameMode::MainMenu) {
+                if (menu_scene_active) {
+                    // Change the camera back to the original menu camera
                     rbr::change_camera(p, 7);
+                    g::allow_writetext = true;
                     g::hooks::render.call(p);
                 }
             } else {
