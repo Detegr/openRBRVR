@@ -1,3 +1,7 @@
+## 2.0.3
+
+- Fix a bug where menuScene = false did not work properly
+
 ## 2.0.2
 
 - Add support for OpenXR-Layer-OBSMirror

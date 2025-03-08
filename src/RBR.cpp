@@ -28,7 +28,7 @@ namespace g {
     static int session_recenter_frame_counter;
     static int stage_recenter_frame_counter = INT32_MAX;
 
-    static bool allow_writetext;
+    static bool allow_writetext = true;
     static Hook<decltype(IRBRGameVtbl::WriteText)> writetext_hook;
 }
 
