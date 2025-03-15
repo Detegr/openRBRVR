@@ -40,3 +40,8 @@
 build/
 .vs/
 CMakeSettings.json
+
+.cache
+.zig-cache
+zig-out
+compile_commands.json

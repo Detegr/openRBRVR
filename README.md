@@ -40,11 +40,23 @@ to `Plugins/openRBRVR.toml` via the menu.
 
 ## Build instructions (for developers only)
 
-The project uses CMake. I've been developing it with Visual Studio 2022
-community edition that has CMake support built in.
+The project uses [Zig](https://ziglang.org/) as the build system. To build the
+project, download the [Zig compiler version
+0.14.0](https://ziglang.org/download/0.14.0/zig-windows-x86_64-0.14.0.zip),
+extract it to a path of your liking and invoke `zig build`.
 
-To build d3d9.dll, build `dxvk` using meson. I used `meson setup
---backend=vs2022 --build_type=release` to configure it.
+For a release build, use `zig build --release=fast`. To build directly to RBR
+plugins directory, use `zig build --release=fast --prefix=/path/to/RBR/Plugins
+--prefix-exe-dir . --prefix-lib-dir .`
+
+The provided `Makefile` can also be used to execute these commands easier.
+
+For `compile_commands.json` to be used with C++ language servers, invoke `zig
+cdb`.
+
+To build d3d9.dll, build
+[dxvk-openRBRVR](https://github.com/Detegr/dxvk-openRBRVR) using meson. I used
+`meson setup --backend=vs2022 --build_type=release` to configure it.
 
 ## Thanks
 
