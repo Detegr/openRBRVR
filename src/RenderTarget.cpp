@@ -1,7 +1,7 @@
 #include "RenderTarget.hpp"
 #include "Globals.hpp"
 
-constexpr static bool is_aa_enabled_for_render_target(D3DMULTISAMPLE_TYPE msaa, RenderTarget t)
+static bool is_aa_enabled_for_render_target(D3DMULTISAMPLE_TYPE msaa, RenderTarget t)
 {
     if (g::vr && g::vr->is_using_quad_view_rendering()) {
         if (t < 2)

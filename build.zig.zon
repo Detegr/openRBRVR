@@ -1,0 +1,12 @@
+.{
+    .name = .openRBRVR,
+    .version = "0.0.0", // This is not a Zig package
+    .paths = .{"src"},
+    .dependencies = .{
+        .compile_commands = .{
+            .url = "https://github.com/Sazerac4/zig-compile-commands/archive/b2b2f0e82f1d18d8c5768ac51bf0515475a1417a.tar.gz",
+            .hash = "N-V-__8AABjOAAD9JOGy29zdkAQcgyQyd0NaOn0zP0KyC40W",
+        },
+    },
+    .fingerprint = 0x5781faea52030520,
+}

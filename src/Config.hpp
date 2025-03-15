@@ -358,7 +358,7 @@ struct Config {
                     std::string key, value;
                     std::getline(ss, key, '=');
                     std::getline(ss, value);
-                    gfx["default"].msaa = std::max<D3DMULTISAMPLE_TYPE>(D3DMULTISAMPLE_NONE, static_cast<D3DMULTISAMPLE_TYPE>(int_or_default(value, 0)));
+                    gfx["default"].msaa = static_cast<D3DMULTISAMPLE_TYPE>(std::max<int>(0, int_or_default(value, 0)));
                 }
                 if (s.starts_with("d3d9.samplerAnisotropy")) {
                     std::stringstream ss { s };

@@ -899,7 +899,8 @@ namespace dx {
                 }
             } else if (State == D3DRS_DEPTHBIAS) {
                 // Invert depth bias if reversed Z buffer is in use
-                val = static_cast<DWORD>(-static_cast<float>(Value));
+                float fval = -*reinterpret_cast<float*>(&Value);
+                val = *reinterpret_cast<DWORD*>(&fval);
             }
         }
 
