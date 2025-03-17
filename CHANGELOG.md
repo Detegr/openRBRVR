@@ -1,6 +1,8 @@
 ## 2.0.3
 
 - Fix a bug where menuScene = false did not work properly
+- Update DXVK version to 2.6. This should fix issues where the game failed to
+  start with new AMD GPUs.
 
 ## 2.0.2
 
