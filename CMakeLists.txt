@@ -44,7 +44,7 @@ set(HEADERS
 
 set(openRBRVR_Major 2)
 set(openRBRVR_Minor 0)
-set(openRBRVR_Patch 3)
+set(openRBRVR_Patch 4)
 set(openRBRVR_Tweak 0)
 # set(openRBRVR_TweakStr "-beta${openRBRVR_Tweak}")
 

@@ -1,3 +1,7 @@
+## 2.0.4
+
+- Fix a bug in DXVK that caused BTB stages to render black
+
 ## 2.0.3
 
 - Fix a bug where menuScene = false did not work properly
