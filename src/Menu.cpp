@@ -198,6 +198,12 @@ static class Menu graphics_menu = { "openRBRVR rendering settings", {
     .right_action = [] { Toggle(g::cfg.render_particles); },
     .select_action = [] { Toggle(g::cfg.render_particles); },
   },
+  { .text = [] { return std::format("Always render particles in replay: {}", g::cfg.always_render_particles_in_replay ? "ON" : "OFF"); },
+    .long_text = { "Override Render particles setting in replay mode.", "", "This option has no effect if particles are disabled from RSF launcher or elsewhere." },
+    .left_action = [] { Toggle(g::cfg.always_render_particles_in_replay); },
+    .right_action = [] { Toggle(g::cfg.always_render_particles_in_replay); },
+    .select_action = [] { Toggle(g::cfg.always_render_particles_in_replay); },
+  },
   { .text = id("Back to previous menu"),
 	.select_action = [] { select_menu(0); }
   },

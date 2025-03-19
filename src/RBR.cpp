@@ -65,6 +65,11 @@ namespace rbr {
         return addr;
     }
 
+    static constexpr bool should_render_particles()
+    {
+        return g::cfg.render_particles || (g::game_mode == GameMode::Replay && g::cfg.always_render_particles_in_replay);
+    }
+
     uintptr_t get_hedgehog_address(uintptr_t target)
     {
         constexpr uintptr_t HEDGEHOG_ABSOLUTE_LOAD_ADDR = 0x10000000;
@@ -335,8 +340,8 @@ namespace rbr {
         // in rendering particles. The skipped code is very expensive on stages like Mlynky R.
         // If render_particles has been changed and we already patched the code, revert the change.
         const auto addr = get_hedgehog_address(PARTICLE_HANDLING_CHECK_ADDR);
-        const auto current = g::cfg.render_particles ? 0x75 : 0x74;
-        const auto wanted = g::cfg.render_particles ? 0x74 : 0x75;
+        const auto current = should_render_particles() ? 0x75 : 0x74;
+        const auto wanted = should_render_particles() ? 0x74 : 0x75;
         const volatile uint8_t* p = reinterpret_cast<volatile uint8_t*>(addr);
         if (*p == current) {
             write_byte(addr, wanted);
@@ -679,28 +684,28 @@ namespace rbr {
 
     void __fastcall render_particles(void* This)
     {
-        if (g::cfg.render_particles) {
+        if (should_render_particles()) {
             g::hooks::render_particles.call(This);
         }
     }
 
     void __fastcall render_particles_2(void* This)
     {
-        if (g::cfg.render_particles) {
+        if (should_render_particles()) {
             g::hooks::render_particles_2.call(This);
         }
     }
 
     void __fastcall render_particles_3(void* This)
     {
-        if (g::cfg.render_particles) {
+        if (should_render_particles()) {
             g::hooks::render_particles_3.call(This);
         }
     }
 
     void __fastcall render_particles_4(void* This)
     {
-        if (g::cfg.render_particles) {
+        if (should_render_particles()) {
             g::hooks::render_particles_4.call(This);
         }
     }
