@@ -110,6 +110,7 @@ struct Config {
     D3DMULTISAMPLE_TYPE peripheral_msaa = D3DMULTISAMPLE_NONE;
     bool openxr_motion_compensation = false; // OpenXR-MotionCompensation support https://github.com/BuzzteeBear/OpenXR-MotionCompensation
     bool render_particles = true;
+    bool always_render_particles_in_replay = false;
     int64_t prediction_dampening = 0;
     bool multiview = false;
     bool recenter_at_session_start = false;
@@ -145,6 +146,7 @@ struct Config {
         peripheral_msaa = rhs.peripheral_msaa;
         openxr_motion_compensation = rhs.openxr_motion_compensation;
         render_particles = rhs.render_particles;
+        always_render_particles_in_replay = rhs.always_render_particles_in_replay;
         prediction_dampening = rhs.prediction_dampening;
         multiview = rhs.multiview;
         recenter_at_session_start = rhs.recenter_at_session_start;
@@ -179,6 +181,7 @@ struct Config {
             && peripheral_msaa == rhs.peripheral_msaa
             && openxr_motion_compensation == rhs.openxr_motion_compensation
             && render_particles == rhs.render_particles
+            && always_render_particles_in_replay == rhs.always_render_particles_in_replay
             && prediction_dampening == rhs.prediction_dampening
             && multiview == rhs.multiview
             && recenter_at_session_start == rhs.recenter_at_session_start
@@ -216,6 +219,7 @@ struct Config {
             { "desktopWindowSize", companion_size },
             { "desktopEye", static_cast<int>(companion_eye) },
             { "renderParticles", render_particles },
+            { "alwaysRenderParticlesInReplay", always_render_particles_in_replay },
             { "multiViewRendering", multiview },
             { "recenterAtSessionStart", recenter_at_session_start },
             { "recenterAtStageStart", recenter_at_stage_start },
@@ -297,6 +301,7 @@ struct Config {
         cfg.companion_size = parsed["desktopWindowSize"].value_or(100);
         cfg.companion_eye = static_cast<RenderTarget>(std::clamp(parsed["desktopEye"].value_or(0), 0, 1));
         cfg.render_particles = parsed["renderParticles"].value_or(true);
+        cfg.always_render_particles_in_replay = parsed["alwaysRenderParticlesInReplay"].value_or(false);
         cfg.multiview = parsed["multiViewRendering"].value_or(false);
         cfg.recenter_at_session_start = parsed["recenterAtSessionStart"].value_or(false);
         cfg.recenter_at_stage_start = parsed["recenterAtStageStart"].value_or(false);
