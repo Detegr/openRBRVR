@@ -360,7 +360,7 @@ namespace rbr {
 
         g::is_driving = g::game_mode == GameMode::Driving;
         g::is_rendering_3d = g::is_driving
-            || (g::cfg.menu_scene && g::game_mode == MainMenu && is_profile_loaded())
+            || (g::cfg.menu_scene && g::game_mode == MainMenu && is_profile_loaded() && g::current_stage_id == 4)
             || (g::cfg.render_pausemenu_3d && g::game_mode == GameMode::Pause && g::previous_game_mode != GameMode::Replay)
             || (g::cfg.render_pausemenu_3d && g::game_mode == GameMode::Pause && (g::previous_game_mode == GameMode::Replay && g::cfg.render_replays_3d))
             || (g::cfg.render_prestage_3d && g::game_mode == GameMode::PreStage)
@@ -536,7 +536,7 @@ namespace rbr {
             if (g::is_rendering_3d) {
                 const auto menu_scene_active = g::cfg.menu_scene && g::game_mode == GameMode::MainMenu && is_profile_loaded();
 
-                if (menu_scene_active) {
+                if (menu_scene_active && g::current_stage_id == 4) {
                     // Prevent calling IRBRGame::WriteText so we don't flood the internal
                     // structures by calling it multiple times
                     g::allow_writetext = false;
