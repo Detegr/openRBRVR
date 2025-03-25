@@ -1,3 +1,12 @@
+## 2.0.5
+
+- Fix rally school menu scene being broken if `3D menu scene` option was
+  enabled. Fixed by using the 3D menu scene only in main menus.
+
+- Add setting to allow overriding "Render particles" setting for replays
+
+- Internal change: change build system and compiler used to build the project
+
 ## 2.0.4
 
 - Fix a bug in DXVK that caused BTB stages to render black
