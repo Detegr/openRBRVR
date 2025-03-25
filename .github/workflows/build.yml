@@ -27,27 +27,34 @@ jobs:
         Expand-Archive -Path 'dx.zip' -DestinationPath '.'
         Move-Item -Path $headersPath -Destination 'C:\Program Files (x86)\Microsoft SDKs\Windows\v10.0A\Include'
 
-    - name: Add CMake to PATH
-      run: |
-        $env:PATH += ";C:\Program Files\CMake\bin"
+    - name: Cache Zig compiler
+      id: cache-zig
+      uses: actions/cache@v4
+      with:
+        path: zig-windows-x86_64-0.14.0
+        key: ${{ runner.os }}-zig
 
-    - name: Configure CMake
-      run: cmake -S . -B build -A Win32 -DCMAKE_BUILD_TYPE=RelWithDebInfo
+    - name: Download Zig 0.14.0
+      if: steps.cache-zig.outputs.cache-hit != 'true'
+      run: |
+        $url = 'https://ziglang.org/download/0.14.0/zig-windows-x86_64-0.14.0.zip'
+        Invoke-WebRequest -Uri $url -OutFile 'zig.zip'
+        Expand-Archive -Path 'zig.zip' -DestinationPath '.'
 
     - name: Build
-      run: cmake --build build --config RelWithDebInfo
+      run: .\zig-windows-x86_64-0.14.0\zig.exe build --release=fast
 
     - name: Upload openRBRVR.dll
       uses: actions/upload-artifact@v4
       with:
         name: openRBRVR.dll
-        path: build\RelWithDebInfo\openRBRVR.dll
+        path: zig-out\bin\openRBRVR.dll
 
     - name: Upload openRBRVR.pdb
       uses: actions/upload-artifact@v4
       with:
         name: openRBRVR.pdb
-        path: build\RelWithDebInfo\openRBRVR.pdb
+        path: zig-out\bin\openRBRVR.pdb
 
   release:
     runs-on: ubuntu-latest
