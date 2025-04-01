@@ -1,3 +1,8 @@
+## 2.1.0
+
+- Change the folder structure of the released zip file in a way that it doesn't
+  have a folder in the topmost level
+
 ## 2.0.5
 
 - Fix rally school menu scene being broken if `3D menu scene` option was
