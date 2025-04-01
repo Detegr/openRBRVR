@@ -328,6 +328,7 @@ namespace dx {
 
         if (g::cfg.debug_mode == 0) {
             g::game->WriteText(0, 18 * ++i, std::format("openRBRVR {}", VERSION_STR).c_str());
+            g::game->WriteText(0, 18 * ++i, g::dxvk_version.c_str());
             g::game->WriteText(0, 18 * ++i, std::format("VR runtime: {}", g::vr->get_runtime_type() == OPENVR ? "OpenVR (SteamVR)" : "OpenXR").c_str());
 
             if (g::vr->get_runtime_type() == OPENVR) {

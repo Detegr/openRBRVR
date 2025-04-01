@@ -24,6 +24,7 @@ namespace g {
     uint8_t* btb_track_status_ptr;
     SeatMovement seat_movement_request;
     bool seat_position_loaded;
+    std::string dxvk_version = "Unknown";
 
     namespace hooks {
         // DirectX functions

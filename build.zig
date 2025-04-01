@@ -81,6 +81,7 @@ pub fn build(b: *std.Build) void {
     dll.linkSystemLibrary("openvr_api");
     dll.linkSystemLibrary("openxr_loader");
     dll.linkSystemLibrary("user32");
+    dll.linkSystemLibrary("version");
 
     b.installArtifact(dll);
 

@@ -5,6 +5,7 @@
 #include <ranges>
 #include <unordered_map>
 #include <vector>
+#include <winver.h>
 
 #include "Config.hpp"
 #include "D3D.hpp"
@@ -34,6 +35,28 @@ openRBRVR::openRBRVR(IRBRGame* g)
         dbg("failed to get handle to d3d9.dll\n");
         return;
     }
+
+    const auto d3d9dll_versioninfosize = GetFileVersionInfoSizeA("d3d9.dll", nullptr);
+    if (d3d9dll_versioninfosize > 0) {
+        const auto versioninfo = new uint8_t[d3d9dll_versioninfosize];
+        if (GetFileVersionInfoA("d3d9.dll", 0, d3d9dll_versioninfosize, versioninfo) == TRUE) {
+            uint32_t tsize;
+            struct LANGANDCODEPAGE {
+                uint16_t lang;
+                uint16_t cp;
+            }* t = nullptr;
+            if (VerQueryValueA(versioninfo, "\\VarFileInfo\\Translation", reinterpret_cast<void**>(&t), &tsize) == TRUE && tsize >= sizeof(LANGANDCODEPAGE)) {
+                const auto sub_block = std::format("\\StringFileInfo\\{:04x}{:04x}\\FileVersion", t[0].lang, t[0].cp);
+                uint32_t size = 0;
+                char* value = nullptr;
+                if (VerQueryValueA(versioninfo, sub_block.c_str(), reinterpret_cast<void**>(&value), &size) && value) {
+                    g::dxvk_version = std::string(value, value + size);
+                }
+            }
+        }
+        delete[] versioninfo;
+    }
+
     auto d3dcreate = reinterpret_cast<decltype(&dx::Direct3DCreate9)>(GetProcAddress(d3ddll, "Direct3DCreate9"));
     if (!d3dcreate) {
         dbg("failed to find address to Direct3DCreate9\n");

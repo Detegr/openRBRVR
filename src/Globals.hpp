@@ -99,6 +99,9 @@ namespace g {
     // Is a saved seat position loaded from disk for the current car
     extern bool seat_position_loaded;
 
+    // String containing the current DXVK version in use
+    extern std::string dxvk_version;
+
     // Hooks to DirectX and RBR functions
     namespace hooks {
         // DirectX functions
