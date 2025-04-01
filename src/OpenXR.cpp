@@ -343,6 +343,8 @@ OpenXR::OpenXR()
             throw std::runtime_error("xrCreateInstance failed: XR_ERROR_EXTENSION_NOT_PRESENT\nA requested extension is missing.");
         } else if (err == XR_ERROR_FILE_ACCESS_ERROR) {
             throw std::runtime_error("xrCreateInstance failed. XR_ERROR_FILE_ACCESS_ERROR\nMake sure Visual C++ redistributables (https://aka.ms/vs/17/release/vc_redist.x64.exe) are installed. Please try uninstalling Reshade if it is installed.");
+        } else if (err == XR_ERROR_API_LAYER_NOT_PRESENT) {
+            throw std::runtime_error("xrCreateInstance failed: XR_ERROR_API_LAYER_NOT_PRESENT\nRequested API layer could not be found. This may be caused by running RBR with administrator privileges.\nIf this happens right after an update, please close and restart the RSF launcher.");
         }
         throw std::runtime_error(std::format("Failed to initialize OpenXR. xrCreateInstance failed: {}", xr_result_to_str(err)));
     }
