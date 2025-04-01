@@ -1,5 +1,10 @@
 ## 2.1.0
 
+- Support both DXVK 2.4.1 and 2.6 versions. For some people the 2.6 based
+  version of DXVK has issues, therefore 2.4.1 based version will be supported
+  as long as necessary.
+- Add DXVK version string in the debug view
+- Add an explanation for a certain OpenXR error that can happen on startup
 - Change the folder structure of the released zip file in a way that it doesn't
   have a folder in the topmost level
 

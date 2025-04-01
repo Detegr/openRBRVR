@@ -4,8 +4,8 @@ const zcc = @import("compile_commands");
 
 const OPENRBRVR_VERSION = .{
     .openRBRVR_Major = "2",
-    .openRBRVR_Minor = "0",
-    .openRBRVR_Patch = "5",
+    .openRBRVR_Minor = "1",
+    .openRBRVR_Patch = "0",
     .openRBRVR_Tweak = "0",
     .openRBRVR_TweakStr = "",
 };
