@@ -20,7 +20,6 @@ using MultiViewOptimizeFn = int (*)(uint32_t*, uint32_t, uint32_t*, uint32_t*);
 namespace g {
     static std::chrono::steady_clock::time_point second_start;
     static int fps;
-    static int target_fps;
     static int current_frames;
     static bool applying_state_block;
     static std::vector<IDirect3DVertexShader9*> base_game_shaders;

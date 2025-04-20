@@ -37,7 +37,7 @@ namespace rbr {
 
     void change_camera(void* p, uint32_t cameraType);
     const M4& get_horizon_lock_matrix();
-
+    double calculate_lowpass_alpha();
     bool should_use_reverse_z_buffer();
 
     // Hookable functions

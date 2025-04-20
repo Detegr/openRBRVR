@@ -27,7 +27,8 @@ namespace g {
     static M3* car_rotation_ptr;
     static int session_recenter_frame_counter;
     static int stage_recenter_frame_counter = INT32_MAX;
-
+    static double lowpass_pitch_alpha;
+    static double lowpass_roll_alpha;
     static bool allow_writetext = true;
     static Hook<decltype(IRBRGameVtbl::WriteText)> writetext_hook;
 }
@@ -148,6 +149,14 @@ namespace rbr {
         return *g::camera_type_ptr == 5;
     }
 
+    bool is_using_cfh_camera()
+    {
+        if (!g::camera_type_ptr) {
+            return false;
+        }
+        return *g::camera_type_ptr == 13;
+    }
+
     bool is_car_texture(IDirect3DBaseTexture9* tex)
     {
         for (const auto& entry : g::car_textures) {
@@ -184,6 +193,18 @@ namespace rbr {
         return g::horizon_lock_matrix;
     }
 
+    double calculate_lowpass_roll_alpha()
+    {
+        g::lowpass_roll_alpha = 1.0 - exp(-(1.0 / g::target_fps) / g::cfg.lowpass_roll_filter);
+        return g::lowpass_roll_alpha;
+    }
+
+    double calculate_lowpass_pitch_alpha()
+    {
+        g::lowpass_pitch_alpha = 1.0 - exp(-(1.0 / g::target_fps) / g::cfg.lowpass_pitch_filter);
+        return g::lowpass_pitch_alpha;
+    }
+
     bool should_use_reverse_z_buffer()
     {
         return g::is_rendering_3d && g::game_mode != GameMode::MainMenu;
@@ -192,7 +213,37 @@ namespace rbr {
     void update_horizon_lock_matrix()
     {
         auto horizon_lock_game_mode = is_using_cockpit_camera() && (g::game_mode == Driving || g::game_mode == Replay);
-        if (horizon_lock_game_mode && (g::cfg.lock_to_horizon != HorizonLock::LOCK_NONE)) {
+        if (horizon_lock_game_mode && ((g::cfg.lock_to_horizon == HorizonLock::LOWPASS_ROLL) || (g::cfg.lock_to_horizon == HorizonLock::LOWPASS_PITCH) || (g::cfg.lock_to_horizon == (HorizonLock::LOWPASS_ROLL | HorizonLock::LOWPASS_PITCH)))) {
+            // If car quaternion is given, calculate matrix for low-pass filter
+            auto q = glm::quat_cast(*g::car_rotation_ptr);
+            auto pitch = (g::cfg.lock_to_horizon & HorizonLock::LOWPASS_PITCH) ? glm::pitch(q) : 0.0f;
+            auto roll = (g::cfg.lock_to_horizon & HorizonLock::LOWPASS_ROLL) ? glm::yaw(q) : 0.0f; // somehow in glm the axis is yaw
+            auto yaw = 0.0f;
+            auto pitch_alpha = calculate_lowpass_pitch_alpha();
+            auto roll_alpha = calculate_lowpass_roll_alpha();
+
+            static double previous_frame_pitch = pitch;
+            static double previous_frame_roll = roll;
+            auto pitch_offset = 0.0;
+            auto roll_offset = 0.0;
+
+            auto pitch_new = pitch_alpha * pitch + (1.0 - pitch_alpha) * previous_frame_pitch;
+            auto roll_new = roll_alpha * roll + (1.0 - roll_alpha) * previous_frame_roll;
+
+            previous_frame_pitch = pitch_new;
+            previous_frame_roll = roll_new;
+
+            if (is_using_cfh_camera) {
+                previous_frame_pitch = pitch;
+                previous_frame_roll = roll;
+            }
+
+            pitch_offset = pitch - pitch_new;
+            roll_offset = roll - roll_new;
+
+            glm::quat cancel_car_rotation = glm::normalize(glm::quat(glm::vec3(pitch_offset, yaw, roll_offset)));
+            g::horizon_lock_matrix = glm::mat4_cast(cancel_car_rotation);
+        } else if (horizon_lock_game_mode && ((g::cfg.lock_to_horizon == HorizonLock::LOCK_ROLL) || (g::cfg.lock_to_horizon == HorizonLock::LOCK_PITCH) || (g::cfg.lock_to_horizon == (HorizonLock::LOCK_ROLL | HorizonLock::LOCK_PITCH)))) {
             // If car quaternion is given, calculate matrix for locking the horizon
             auto q = glm::quat_cast(*g::car_rotation_ptr);
             const auto multiplier = static_cast<float>(g::cfg.horizon_lock_multiplier);
@@ -356,6 +407,8 @@ namespace rbr {
         if (g::previous_game_mode != g::game_mode && (g::game_mode == GameMode::PreStage || g::game_mode == GameMode::Pause)) {
             // Make sure we reload the seat position whenever the stage is restarted
             g::seat_position_loaded = false;
+            // Reset the horizon lock matrix when restarting
+            g::horizon_lock_matrix = glm::identity<M4>();
         }
 
         g::is_driving = g::game_mode == GameMode::Driving;

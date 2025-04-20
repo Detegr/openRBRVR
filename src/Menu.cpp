@@ -50,6 +50,14 @@ static std::string get_horizon_lock_str()
             return "Pitch";
         case (HorizonLock::LOCK_ROLL | HorizonLock::LOCK_PITCH):
             return "Pitch and roll";
+        case HorizonLock::LOWPASS_NONE:
+            return "Off";
+        case HorizonLock::LOWPASS_PITCH:
+            return "Off";
+        case HorizonLock::LOWPASS_ROLL:
+            return "Off";
+        case (HorizonLock::LOWPASS_ROLL | HorizonLock::LOWPASS_PITCH):
+            return "Off";
         default:
             return "Unknown";
     }
@@ -75,6 +83,53 @@ static void change_horizon_lock(bool forward)
             break;
     }
 }
+
+
+static std::string get_lowpass_str()
+{
+    switch (g::cfg.lock_to_horizon) {
+        case HorizonLock::LOWPASS_NONE:
+            return "Off";
+        case HorizonLock::LOWPASS_ROLL:
+            return "Roll";
+        case HorizonLock::LOWPASS_PITCH:
+            return "Pitch";
+        case (HorizonLock::LOWPASS_ROLL | HorizonLock::LOWPASS_PITCH):
+            return "Pitch and roll";
+        case HorizonLock::LOCK_NONE:
+            return "Off";
+        case HorizonLock::LOCK_PITCH:
+            return "Off";
+        case HorizonLock::LOCK_ROLL:
+            return "Off";
+        case (HorizonLock::LOCK_ROLL | HorizonLock::LOCK_PITCH):
+            return "Off";
+        default:
+            return "Unknown";
+    }
+}
+
+static void change_lowpass(bool forward)
+{
+    switch (g::cfg.lock_to_horizon) {
+        case HorizonLock::LOWPASS_NONE:
+            g::cfg.lock_to_horizon = forward ? HorizonLock::LOWPASS_ROLL : static_cast<HorizonLock>((HorizonLock::LOWPASS_ROLL | HorizonLock::LOWPASS_PITCH));
+            break;
+        case HorizonLock::LOWPASS_ROLL:
+            g::cfg.lock_to_horizon = forward ? HorizonLock::LOWPASS_PITCH : HorizonLock::LOWPASS_NONE;
+            break;
+        case HorizonLock::LOWPASS_PITCH:
+            g::cfg.lock_to_horizon = forward ? static_cast<HorizonLock>((HorizonLock::LOWPASS_ROLL | HorizonLock::LOWPASS_PITCH)) : HorizonLock::LOWPASS_ROLL;
+            break;
+        case (HorizonLock::LOWPASS_ROLL | HorizonLock::LOWPASS_PITCH):
+            g::cfg.lock_to_horizon = forward ? HorizonLock::LOWPASS_NONE : HorizonLock::LOWPASS_PITCH;
+            break;
+        default:
+            g::cfg.lock_to_horizon = HorizonLock::LOWPASS_NONE;
+            break;
+    }
+}
+
 
 static void ChangeCompanionMode(bool forward)
 {
@@ -120,7 +175,7 @@ static class Menu main_menu = { "openRBRVR", {
     .left_action = [] { Toggle(g::cfg.recenter_at_stage_start); },
     .right_action = [] { Toggle(g::cfg.recenter_at_stage_start); },
   },
-  { .text = id("Horizon lock settings") , .long_text = {"Horizon lock settings"}, .select_action = [] { select_menu(4); } },
+  { .text = id("Horizon lock and low-pass filter settings") , .long_text = {"Horizon lock and low-pass filter settings"}, .select_action = [] { select_menu(4); } },
   { .text = id("Rendering settings") , .long_text = {"Selection of different rendering settings"}, .select_action = [] { select_menu(1); } },
   { .text = id("Menu & overlay settings") , .long_text = {"Adjust the size and position of the 2D content shown on", "top of the 3D view while driving.", "Also contains main menu settings."}, .select_action = [] { select_menu(5); } },
   { .text = id("Desktop window settings") ,
@@ -230,7 +285,7 @@ static class Menu debug_menu = { "openRBRVR debug settings", {
 
 static LicenseMenu license_menu;
 
-static class Menu horizon_lock_menu = { "openRBRVR horizon lock settings", {
+static class Menu horizon_lock_menu = { "openRBRVR horizon lock and low-pass filter settings", {
   { .text = [] { return std::format("Lock horizon: {}", get_horizon_lock_str()); },
     .long_text = {
         "Enable to rotate the car around the headset instead of rotating the headset with the car.",
@@ -244,16 +299,44 @@ static class Menu horizon_lock_menu = { "openRBRVR horizon lock settings", {
     .right_action = [] { change_horizon_lock(true); },
     .select_action = [] { change_horizon_lock(true); },
   },
-  { .text = [] { return std::format("Percentage: {}%", static_cast<int>(g::cfg.horizon_lock_multiplier * 100.0)); },
+  { .text = [] { return std::format("Lock Percentage: {}%", g::cfg.horizon_lock_multiplier * 100); },
     .long_text = {
-        "Amount of locking that's happening. 100 means the horizon is always level.",
+        "Insert horizon lock percentage.",
     },
-    .left_action = [] { g::cfg.horizon_lock_multiplier = std::max<double>(0.05, (g::cfg.horizon_lock_multiplier * 100.0 - 5) / 100.0); },
+    .left_action = [] { g::cfg.horizon_lock_multiplier = std::max<double>(0.0, (g::cfg.horizon_lock_multiplier * 100.0 - 5) / 100.0); },
     .right_action = [] { g::cfg.horizon_lock_multiplier = std::min<double>(1.0, (g::cfg.horizon_lock_multiplier * 100.0 + 5) / 100.0); },
   },
+  { .text = [] { return std::format("Low-pass axis select: {}", get_lowpass_str()); },
+    .long_text = {
+        "Enable to rotate the car around the headset instead of rotating the headset with the car.",
+        "For some people, enabling this option gives a more comfortable VR experience.",
+        "Roll means locking the left-right axis.",
+        "Pitch means locking the front-back axis."
+    },
+    .menu_color = IRBRGame::EMenuColors::MENU_TEXT,
+//    .position = Menu::menu_items_start_pos,
+    .left_action = [] { change_lowpass(false); },
+    .right_action = [] { change_lowpass(true); },
+    .select_action = [] { change_lowpass(true); },
+  },
+  { .text = [] { return std::format("Roll Time Dampen: {:.2f} seconds", g::cfg.lowpass_roll_filter); },
+    .long_text = {
+        "Insert time value (in seconds) to be smoothed by low-pass filter for", "the roll (left-right) axis.",
+    },
+    .left_action = [] { g::cfg.lowpass_roll_filter = std::max<double>(0.05, (g::cfg.lowpass_roll_filter - 0.05)); },
+    .right_action = [] { g::cfg.lowpass_roll_filter = std::min<double>(10.0, (g::cfg.lowpass_roll_filter + 0.05)); },
+  },
+  { .text = [] { return std::format("Pitch Time Dampen: {:.2f} seconds", g::cfg.lowpass_pitch_filter); },
+    .long_text = {
+        "Insert time value (in seconds) to be smoothed by low-pass filter for", "the pitch (front-back) axis.",
+    },
+    .left_action = [] { g::cfg.lowpass_pitch_filter = std::max<double>(0.05, (g::cfg.lowpass_pitch_filter - 0.05)); },
+    .right_action = [] { g::cfg.lowpass_pitch_filter = std::min<double>(10.0, (g::cfg.lowpass_pitch_filter + 0.05)); },
+  },
+
   { .text = [] { return std::format("Flip camera when the car tilts: {}", g::cfg.horizon_lock_flip ? "ON" : "OFF"); },
     .long_text = {
-        "Flip the camera 180 degrees if the car tilts over 90 degrees forwards or backwards.", "As the camera stays still, without this you may be looking through the back window", "if the car flips around.", "This may cause strange camera movements that may not feel good in VR, which", "is why it is disabled by default."
+        "Flip the camera 180 degrees if the car tilts over 90 degrees forwards or backwards.", "As the camera stays still, without this you may be looking through the back window", "if the car flips around.", "This may cause strange camera movements that may not feel good in VR, which", "is why it is disabled by default.", "***Does not work with low-pass filter enabled.***"
     },
     .left_action = [] { Toggle(g::cfg.horizon_lock_flip); },
     .right_action = [] { Toggle(g::cfg.horizon_lock_flip); },

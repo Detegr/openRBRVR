@@ -90,6 +90,8 @@ struct Config {
     float supersampling = 1.0;
     HorizonLock lock_to_horizon = HorizonLock::LOCK_NONE;
     double horizon_lock_multiplier = 1.0;
+    double lowpass_roll_filter = 1.0;
+    double lowpass_pitch_filter = 1.0;
     bool horizon_lock_flip = false;
     CompanionMode companion_mode;
     bool draw_loading_screen = true;
@@ -128,6 +130,8 @@ struct Config {
         supersampling = rhs.supersampling;
         lock_to_horizon = rhs.lock_to_horizon;
         horizon_lock_multiplier = rhs.horizon_lock_multiplier;
+        lowpass_roll_filter = rhs.lowpass_roll_filter;
+        lowpass_pitch_filter = rhs.lowpass_pitch_filter;
         horizon_lock_flip = rhs.horizon_lock_flip;
         companion_mode = rhs.companion_mode;
         draw_loading_screen = rhs.draw_loading_screen;
@@ -167,6 +171,8 @@ struct Config {
             && supersampling == rhs.supersampling
             && lock_to_horizon == rhs.lock_to_horizon
             && horizon_lock_multiplier == rhs.horizon_lock_multiplier
+            && lowpass_roll_filter == rhs.lowpass_roll_filter
+            && lowpass_pitch_filter == rhs.lowpass_pitch_filter
             && horizon_lock_flip == rhs.horizon_lock_flip
             && companion_mode == rhs.companion_mode
             && draw_loading_screen == rhs.draw_loading_screen
@@ -195,7 +201,7 @@ struct Config {
 
     bool write(const std::filesystem::path& path) const
     {
-        constexpr auto round = [](double v) -> double { return std::round(v * 100.0) / 100.0; };
+        constexpr auto round = [](double v) -> double { return std::round(v * 1000.0) / 1000.0; };
 
         std::ofstream f(path);
         if (!f.good()) {
@@ -209,7 +215,9 @@ struct Config {
             { "overlayTranslateY", round(overlay_translation.y) },
             { "overlayTranslateZ", round(overlay_translation.z) },
             { "lockToHorizon", static_cast<int>(lock_to_horizon) },
-            { "horizonLockMultiplier", round(horizon_lock_multiplier) },
+            { "horizonLockMultiplier", horizon_lock_multiplier },
+            { "lowpassRollFilter", lowpass_roll_filter },
+            { "lowpassPitchFilter", lowpass_pitch_filter },
             { "horizonLockFlip", horizon_lock_flip },
             { "desktopWindowMode", companion_mode_str(companion_mode) },
             { "drawLoadingScreen", draw_loading_screen },
@@ -298,6 +306,8 @@ struct Config {
         cfg.overlay_translation.z = parsed["overlayTranslateZ"].value_or(0.0f);
         cfg.lock_to_horizon = static_cast<HorizonLock>(parsed["lockToHorizon"].value_or(0));
         cfg.horizon_lock_multiplier = parsed["horizonLockMultiplier"].value_or(1.0);
+        cfg.lowpass_pitch_filter = parsed["lowpassPitchFilter"].value_or(0.05);
+        cfg.lowpass_roll_filter = parsed["lowpassRollFilter"].value_or(0.05);
         cfg.horizon_lock_flip = parsed["horizonLockFlip"].value_or(false);
         cfg.companion_mode = companion_mode_from_str(parsed["desktopWindowMode"].value_or("vreye"));
         cfg.draw_loading_screen = parsed["drawLoadingScreen"].value_or(true);

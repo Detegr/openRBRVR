@@ -102,6 +102,9 @@ namespace g {
     // String containing the current DXVK version in use
     extern std::string dxvk_version;
 
+    // Int for the target HMD framerate
+    extern int target_fps;
+
     // Hooks to DirectX and RBR functions
     namespace hooks {
         // DirectX functions

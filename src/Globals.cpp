@@ -25,6 +25,7 @@ namespace g {
     SeatMovement seat_movement_request;
     bool seat_position_loaded;
     std::string dxvk_version = "Unknown";
+    int target_fps;
 
     namespace hooks {
         // DirectX functions
