@@ -195,33 +195,17 @@ namespace rbr {
         if (horizon_lock_game_mode && (g::cfg.lock_to_horizon != HorizonLock::LOCK_NONE)) {
             // If car quaternion is given, calculate matrix for locking the horizon
             auto q = glm::quat_cast(*g::car_rotation_ptr);
-            const auto multiplier = static_cast<float>(g::cfg.horizon_lock_multiplier);
-            auto pitch = (g::cfg.lock_to_horizon & HorizonLock::LOCK_PITCH) ? glm::pitch(q) * multiplier : 0.0f;
-            auto roll = (g::cfg.lock_to_horizon & HorizonLock::LOCK_ROLL) ? glm::yaw(q) * multiplier : 0.0f; // somehow in glm the axis is yaw
-
+            auto pitch = (g::cfg.lock_to_horizon & HorizonLock::LOCK_PITCH) ? glm::pitch(q) : 0.0f;
+            auto roll = (g::cfg.lock_to_horizon & HorizonLock::LOCK_ROLL) ? glm::yaw(q) : 0.0f; // somehow in glm the axis is yaw
             auto yaw = 0.0f;
-            if (g::cfg.horizon_lock_flip) {
-                constexpr auto flip_speed = 0.02f;
-                static float yaw_flip_progress = 0.0f;
-                static int frames_upside_down = 0;
+            auto alpha = g::cfg.horizon_lock_multiplier;
 
-                // TODO: This still works awfully bad in some situations. A better solution is needed.
-                // Flip the yaw if the car goes upside down (by pitch)
-                // To prevent jerky movement, make sure the car has been upside down for a while before adjusting the view
-                // Also smooth out the rotation of the camera with linear interpolation
-                if (pitch > glm::radians(90.0f) || pitch < glm::radians(-90.0f)) {
-                    frames_upside_down += 1;
-                    if (frames_upside_down > 50) {
-                        yaw_flip_progress = std::min(yaw_flip_progress + flip_speed, 1.0f);
-                    }
-                } else {
-                    yaw_flip_progress = std::max(yaw_flip_progress - flip_speed, 0.0f);
-                    frames_upside_down = 0;
-                }
-                yaw = std::lerp(0.0f, glm::radians(180.0f), yaw_flip_progress);
-            }
+            static double previous_frame_pitch = 0.0;
 
-            glm::quat cancel_car_rotation = glm::normalize(glm::quat(glm::vec3(pitch, yaw, roll)));
+            auto pitch_new = alpha * pitch + (1.0 - alpha) * previous_frame_pitch;
+            previous_frame_pitch = pitch_new;
+
+            glm::quat cancel_car_rotation = glm::normalize(glm::quat(glm::vec3(pitch_new, yaw, roll)));
             g::horizon_lock_matrix = glm::mat4_cast(cancel_car_rotation);
         } else {
             g::horizon_lock_matrix = glm::identity<M4>();

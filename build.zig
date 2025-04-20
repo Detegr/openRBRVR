@@ -6,8 +6,8 @@ const OPENRBRVR_VERSION = .{
     .openRBRVR_Major = "2",
     .openRBRVR_Minor = "1",
     .openRBRVR_Patch = "0",
-    .openRBRVR_Tweak = "0",
-    .openRBRVR_TweakStr = "",
+    .openRBRVR_Tweak = "1",
+    .openRBRVR_TweakStr = "-lowpass",
 };
 
 pub fn build(b: *std.Build) void {
