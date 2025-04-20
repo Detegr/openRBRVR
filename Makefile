@@ -1,4 +1,4 @@
-RBRDIR = C:\\RBR
+RBRDIR = I:\\RBR2
 VSEXE  = C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\Common7\\IDE\\devenv.exe
 
 release: compile_commands.json
