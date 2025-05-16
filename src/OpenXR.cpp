@@ -1,12 +1,12 @@
 #include "OpenXR.hpp"
 #include "Config.hpp"
+#include "Dx.hpp"
 #include "Globals.hpp"
 #include "Util.hpp"
 #include <d3d9_interop.h>
 #include <gtx/quaternion.hpp>
 #include <ranges>
 
-#include "D3D.hpp"
 #include <d3d11.h>
 #include <d3d11_1.h>
 #include <ranges>
@@ -921,7 +921,7 @@ void OpenXR::prepare_frames_for_hmd(IDirect3DDevice9* dev)
 {
     const auto msaa_enabled = current_render_context->msaa != D3DMULTISAMPLE_NONE;
     const auto peripheral_msaa_enabled = g::cfg.quad_view_rendering && g::cfg.peripheral_msaa != D3DMULTISAMPLE_NONE;
-    if (g::cfg.multiview) {
+    if (dx::multiview_rendering_enabled()) {
         // MSAA is resolved in the process, if needed
         copy_multiview_surfaces(g::vr->get_current_render_context(), LeftEye, RightEye);
         if (g::cfg.quad_view_rendering) {

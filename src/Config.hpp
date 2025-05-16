@@ -115,6 +115,9 @@ struct Config {
     bool multiview = false;
     bool recenter_at_session_start = false;
     bool recenter_at_stage_start = false;
+    struct {
+        bool disable_multiview = false;
+    } experimental;
 
     Config& operator=(const Config& rhs)
     {
@@ -151,6 +154,7 @@ struct Config {
         multiview = rhs.multiview;
         recenter_at_session_start = rhs.recenter_at_session_start;
         recenter_at_stage_start = rhs.recenter_at_stage_start;
+        experimental = rhs.experimental;
         return *this;
     }
 
@@ -185,7 +189,8 @@ struct Config {
             && prediction_dampening == rhs.prediction_dampening
             && multiview == rhs.multiview
             && recenter_at_session_start == rhs.recenter_at_session_start
-            && recenter_at_stage_start == rhs.recenter_at_stage_start;
+            && recenter_at_stage_start == rhs.recenter_at_stage_start
+            && experimental.disable_multiview == rhs.experimental.disable_multiview;
     }
 
     bool write(const std::filesystem::path& path) const
@@ -253,6 +258,10 @@ struct Config {
         openxr.insert("motionCompensation", openxr_motion_compensation);
         openxr.insert("predictionDampening", prediction_dampening);
         out.insert("OpenXR", openxr);
+
+        toml::table experimental_node;
+        experimental_node.insert("disableMultiView", experimental.disable_multiview);
+        out.insert("experimental", experimental_node);
 
         f << out;
         f.close();
@@ -345,6 +354,11 @@ struct Config {
                 bool multiview_stage_rendering = val["multiViewRendering"].value_or(cfg.multiview);
                 cfg.gfx[k] = RenderContextConfig { ss, msaa, stages, quad_view_stage_rendering, multiview_stage_rendering };
             });
+        }
+
+        auto experimental_node = parsed["experimental"];
+        if (experimental_node.is_table()) {
+            cfg.experimental.disable_multiview = experimental_node["disableMultiView"].value_or(false);
         }
 
         return cfg;
