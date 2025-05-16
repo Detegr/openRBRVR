@@ -1,6 +1,6 @@
 #include "OpenVR.hpp"
 #include "Config.hpp"
-#include "D3D.hpp"
+#include "Dx.hpp"
 #include "Globals.hpp"
 
 static constexpr std::string vr_compositor_error_str(vr::VRCompositorError e)
@@ -170,7 +170,7 @@ void OpenVR::set_render_context(const std::string& name)
 void OpenVR::prepare_frames_for_hmd(IDirect3DDevice9* dev)
 {
     const auto msaa = current_render_context->msaa != D3DMULTISAMPLE_NONE;
-    if (g::cfg.multiview || msaa) {
+    if (dx::multiview_rendering_enabled() || msaa) {
         // Resolve multisampling
         IDirect3DSurface9 *left_eye, *right_eye;
 
@@ -183,7 +183,7 @@ void OpenVR::prepare_frames_for_hmd(IDirect3DDevice9* dev)
             left_eye->Release();
             return;
         }
-        if (g::cfg.multiview) {
+        if (dx::multiview_rendering_enabled()) {
             IDirect3DSurface9* eyes[2] = { left_eye, right_eye };
             g::d3d_vr->CopySurfaceLayers(current_render_context->dx_surface[LeftEye], eyes, 2);
         } else {

@@ -1,15 +1,12 @@
 #include "VR.hpp"
 #include "Config.hpp"
+#include "Dx.hpp"
 #include "Globals.hpp"
-#include "OpenVR.hpp"
-#include "OpenXR.hpp"
 
-#include "D3D.hpp"
 #include "Util.hpp"
 #include "Vertex.hpp"
 
 #include <format>
-#include <vector>
 
 // Compliation unit global variables
 namespace g {
@@ -30,9 +27,9 @@ void VRInterface::set_render_context(const std::string& name)
     current_render_context = &render_contexts[name];
 
     // Per-stage setting of multiview rendering
-    if (g::cfg.multiview != g::vr->get_current_render_context()->multiview_rendering) {
+    if (dx::multiview_rendering_enabled() != g::vr->get_current_render_context()->multiview_rendering) {
         g::cfg.multiview = g::vr->get_current_render_context()->multiview_rendering;
-        g::d3d_vr->EnableMultiView(g::cfg.multiview);
+        g::d3d_vr->EnableMultiView(dx::multiview_rendering_enabled());
     }
 }
 
@@ -100,7 +97,7 @@ bool create_quad(IDirect3DDevice9* dev, float size, float aspect, float z, IDire
 
 IDirect3DSurface9* VRInterface::prepare_vr_rendering(IDirect3DDevice9* dev, RenderTarget tgt, bool clear)
 {
-    if (is_using_texture_to_render(current_render_context->msaa, tgt, g::cfg.multiview)) {
+    if (is_using_texture_to_render(current_render_context->msaa, tgt, dx::multiview_rendering_enabled())) {
         if (current_render_context->dx_texture[tgt]->GetSurfaceLevel(0, &current_render_context->dx_surface[tgt]) != D3D_OK) {
             dbg("PrepareVRRendering: Failed to get surface level");
             current_render_context->dx_surface[tgt] = nullptr;
@@ -127,7 +124,7 @@ IDirect3DSurface9* VRInterface::prepare_vr_rendering(IDirect3DDevice9* dev, Rend
 
 void VRInterface::finish_vr_rendering(IDirect3DDevice9* dev, RenderTarget tgt)
 {
-    if (is_using_texture_to_render(current_render_context->msaa, tgt, g::cfg.multiview) && current_render_context->dx_surface[tgt]) {
+    if (is_using_texture_to_render(current_render_context->msaa, tgt, dx::multiview_rendering_enabled()) && current_render_context->dx_surface[tgt]) {
         current_render_context->dx_surface[tgt]->Release();
         current_render_context->dx_surface[tgt] = nullptr;
     }
@@ -231,7 +228,7 @@ static void render_texture(
 
     dev->SetTransform(D3DTS_PROJECTION_LEFT, proj);
     dev->SetTransform(D3DTS_VIEW_LEFT, view);
-    if (g::cfg.multiview) {
+    if (dx::multiview_rendering_enabled()) {
         dev->GetTransform(D3DTS_PROJECTION_RIGHT, &origProj2);
         dev->GetTransform(D3DTS_VIEW_RIGHT, &origView2);
         dev->SetTransform(D3DTS_PROJECTION_RIGHT, proj_multiview);
@@ -270,7 +267,7 @@ static void render_texture(
     dev->SetPixelShader(ps);
     dev->SetTransform(D3DTS_PROJECTION_LEFT, &origProj);
     dev->SetTransform(D3DTS_VIEW_LEFT, &origView);
-    if (g::cfg.multiview) {
+    if (dx::multiview_rendering_enabled()) {
         dev->SetTransform(D3DTS_PROJECTION_RIGHT, &origProj2);
         dev->SetTransform(D3DTS_VIEW_RIGHT, &origView2);
     }
@@ -291,7 +288,7 @@ void render_menu_quad(IDirect3DDevice9* dev, VRInterface* vr, IDirect3DTexture9*
     const auto& posel = vr->get_pose(left);
 
     D3DMATRIX mvpr = { 0 };
-    if (g::cfg.multiview) {
+    if (dx::multiview_rendering_enabled()) {
         const auto right = render_target_counterpart(left);
         const auto& projectionr = vr->get_projection(right);
         const auto& eyeposr = vr->get_eye_pos(right);

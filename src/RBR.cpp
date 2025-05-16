@@ -377,7 +377,7 @@ namespace rbr {
 
         if (quad_view_rendering_in_use) {
             bool restart_session = false;
-            const auto on_btb_without_multiview = (!g::cfg.multiview) && is_on_btb_stage();
+            const auto on_btb_without_multiview = (!dx::multiview_rendering_enabled()) && is_on_btb_stage();
 
             if (!g::previously_on_btb_stage && on_btb_without_multiview && g::game_mode == PreStage) {
                 // BTB rendering does not play along well with quad view rendering so revert back to stereo rendering for BTB stages
@@ -586,13 +586,13 @@ namespace rbr {
                 }
 
                 dx::render_vr_eye(p, LeftEye);
-                if (!g::cfg.multiview) {
+                if (!dx::multiview_rendering_enabled()) {
                     dx::render_vr_eye(p, RightEye);
                 }
 
                 if (g::vr->is_using_quad_view_rendering()) {
                     dx::render_vr_eye(p, FocusLeft);
-                    if (!g::cfg.multiview) {
+                    if (!dx::multiview_rendering_enabled()) {
                         dx::render_vr_eye(p, FocusRight);
                     }
                 }

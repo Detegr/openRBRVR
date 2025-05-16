@@ -2,9 +2,11 @@
 
 #include "RenderTarget.hpp"
 
+#include "Globals.hpp"
 #include <d3d9.h>
 
 namespace dx {
+    inline bool multiview_rendering_enabled() { return g::cfg.multiview && !g::cfg.experimental.disable_multiview; }
     bool add_vertex_shader(IDirect3DVertexShader9* shader);
     void render_vr_eye(void* p, RenderTarget eye, bool clear = true);
     void free_btb_shaders();
