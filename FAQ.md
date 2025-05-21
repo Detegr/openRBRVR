@@ -40,6 +40,7 @@ Please refer to the following table to check if your device is supported:
 | Pico         | [VDXR](https://github.com/mbucchia/VirtualDesktop-OpenXR)                  | ✅          |                                                                             |
 | Reverb       | WMR                                                                        | ✅          |                                                                             |
 | Valve        | SteamVR OpenXR                                                             | ⛔          | No 32-bit runtime available                                                 |
+| Sony         | SteamVR OpenXR                                                             | ⛔          | No 32-bit runtime available                                                 |
 | Varjo        | Varjo OpenXR                                                               | ⛔          | No 32-bit runtime available                                                 |
 
 Enable OpenXR runtime from `Options -> Plugins -> openRBRVR -> VR runtime` or
