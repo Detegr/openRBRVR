@@ -1,3 +1,10 @@
+## 2.1.1
+
+- Update DXVK to 2.6.2
+- Fix cubemap rendering (within DXVK, was broken by me)
+- Add multiview workaround for new AMD cards while the investigation of the
+  issue continues
+
 ## 2.1.0
 
 - Support both DXVK 2.4.1 and 2.6 versions. For some people the 2.6 based
