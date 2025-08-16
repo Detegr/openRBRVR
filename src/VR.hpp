@@ -19,12 +19,12 @@ constexpr auto D3DTS_PROJECTION_LEFT = D3DTS_PROJECTION;
 constexpr auto D3DTS_PROJECTION_RIGHT = D3DTS_WORLDMATRIX(11);
 
 enum HorizonLock : uint8_t {
-    LOCK_NONE = 0x0,        //0000 0000
-    LOCK_ROLL = 0x1,        //0000 0001
-    LOCK_PITCH = 0x2,       //0000 0010
-    LOWPASS_NONE = 0x4,     //0000 0100
-    LOWPASS_ROLL = 0x8,     //0000 1000
-    LOWPASS_PITCH = 0x10,   //0001 0000 
+    LOCK_NONE = 0x0,
+    LOCK_ROLL = 0x1,
+    LOCK_PITCH = 0x2,
+    LOWPASS_NONE = 0x4,
+    LOWPASS_ROLL = 0x8,
+    LOWPASS_PITCH = 0x10,
 };
 
 enum VRRuntime {

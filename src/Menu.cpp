@@ -84,7 +84,6 @@ static void change_horizon_lock(bool forward)
     }
 }
 
-
 static std::string get_lowpass_str()
 {
     switch (g::cfg.lock_to_horizon) {
@@ -129,7 +128,6 @@ static void change_lowpass(bool forward)
             break;
     }
 }
-
 
 static void ChangeCompanionMode(bool forward)
 {
