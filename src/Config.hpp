@@ -90,8 +90,8 @@ struct Config {
     float supersampling = 1.0;
     HorizonLock lock_to_horizon = HorizonLock::LOCK_NONE;
     double horizon_lock_multiplier = 1.0;
-    double lowpass_roll_filter = 1.0;
-    double lowpass_pitch_filter = 1.0;
+    float lowpass_roll_filter = 1.0;
+    float lowpass_pitch_filter = 1.0;
     bool horizon_lock_flip = false;
     CompanionMode companion_mode;
     bool draw_loading_screen = true;
@@ -216,8 +216,8 @@ struct Config {
             { "overlayTranslateZ", round(overlay_translation.z) },
             { "lockToHorizon", static_cast<int>(lock_to_horizon) },
             { "horizonLockMultiplier", horizon_lock_multiplier },
-            { "lowpassRollFilter", lowpass_roll_filter },
-            { "lowpassPitchFilter", lowpass_pitch_filter },
+            { "lowpassRollFilter", round(lowpass_roll_filter) },
+            { "lowpassPitchFilter", round(lowpass_pitch_filter) },
             { "horizonLockFlip", horizon_lock_flip },
             { "desktopWindowMode", companion_mode_str(companion_mode) },
             { "drawLoadingScreen", draw_loading_screen },
@@ -306,8 +306,8 @@ struct Config {
         cfg.overlay_translation.z = parsed["overlayTranslateZ"].value_or(0.0f);
         cfg.lock_to_horizon = static_cast<HorizonLock>(parsed["lockToHorizon"].value_or(0));
         cfg.horizon_lock_multiplier = parsed["horizonLockMultiplier"].value_or(1.0);
-        cfg.lowpass_pitch_filter = parsed["lowpassPitchFilter"].value_or(0.05);
-        cfg.lowpass_roll_filter = parsed["lowpassRollFilter"].value_or(0.05);
+        cfg.lowpass_pitch_filter = parsed["lowpassPitchFilter"].value_or(1.0f);
+        cfg.lowpass_roll_filter = parsed["lowpassRollFilter"].value_or(1.0f);
         cfg.horizon_lock_flip = parsed["horizonLockFlip"].value_or(false);
         cfg.companion_mode = companion_mode_from_str(parsed["desktopWindowMode"].value_or("vreye"));
         cfg.draw_loading_screen = parsed["drawLoadingScreen"].value_or(true);
