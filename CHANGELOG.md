@@ -1,3 +1,8 @@
+## 2.2.0
+
+- Use lowpass filter for horizon locking. This allows smooth transitions to the
+  current orientation of the car. Thanks to @conjuredghoul for the contribution.
+
 ## 2.1.1
 
 - Update DXVK to 2.6.2
