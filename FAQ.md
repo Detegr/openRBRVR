@@ -75,12 +75,9 @@ for it.
 
 ## How do I move the seat?
 
-- Enable 3-2-1 countdown pause from `Controls` page of RSF launcher to have
-  time to adjust the seat before starting a stage.
-- Open RBR and go to stage.
-- Open PaceNote plugin by double clicking the RBR window with right mouse
-  button. Adjust the seat, hit save and close the window from the `X` in
-  top-right corner.
+- Go to `Utils -> RBR Controls`
+- Make sure JoyKey is ENABLED on the first page
+- Go to page [4/4] openRBRVR and bind buttons for seat movement
 
 ## How do I enable anisotropic filtering?
 
