@@ -205,8 +205,9 @@ namespace rbr {
         if (horizon_lock_enabled) {
             // If car quaternion is given, calculate matrix for low-pass filter
             const auto q = glm::quat_cast(*g::car_rotation_ptr);
-            const auto pitch = (g::cfg.lock_to_horizon & HorizonLock::LOCK_PITCH) ? glm::pitch(q) : 0.0f;
-            const auto roll = (g::cfg.lock_to_horizon & HorizonLock::LOCK_ROLL) ? glm::yaw(q) : 0.0f; // somehow in glm the axis is yaw
+            const auto multiplier = static_cast<float>(g::cfg.horizon_lock_multiplier);
+            const auto pitch = (g::cfg.lock_to_horizon & HorizonLock::LOCK_PITCH) ? glm::pitch(q) * multiplier : 0.0f;
+            const auto roll = (g::cfg.lock_to_horizon & HorizonLock::LOCK_ROLL) ? glm::yaw(q) * multiplier : 0.0f; // somehow in glm the axis is yaw
 
             if (horizon_lock_game_mode) {
                 const auto pitch_alpha = 1.0 - exp(-(1.0 / g::target_fps) / g::cfg.lowpass_pitch_filter);

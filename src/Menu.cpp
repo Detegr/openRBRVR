@@ -260,6 +260,13 @@ static class Menu horizon_lock_menu = { "openRBRVR horizon lock and low-pass fil
     .right_action = [] { g::cfg.lowpass_roll_filter = std::min<float>(3.0, (g::cfg.lowpass_roll_filter + 0.05f)); },
     .visible = [] { return (g::cfg.lock_to_horizon & HorizonLock::LOCK_ROLL) != 0; }
   },
+  { .text = [] { return std::format("Lock Percentage: {}%", g::cfg.horizon_lock_multiplier * 100); },
+    .long_text = {
+        "Adjust to make the horizon lock less effective",
+    },
+    .left_action = [] { g::cfg.horizon_lock_multiplier = std::max<double>(0.0, (g::cfg.horizon_lock_multiplier * 100.0 - 5) / 100.0); },
+    .right_action = [] { g::cfg.horizon_lock_multiplier = std::min<double>(1.0, (g::cfg.horizon_lock_multiplier * 100.0 + 5) / 100.0); },
+  },
   { .text = id("Back to previous menu"),
     .select_action = [] { select_menu(0); }
   },
