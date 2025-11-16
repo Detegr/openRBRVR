@@ -135,7 +135,7 @@ namespace dx {
         return true;
     }
 
-    static void patch_spirv_shader_registers(IDirect3DVertexShader9* s)
+    static bool patch_spirv_shader_registers(IDirect3DVertexShader9* s)
     {
         // Make room for the extra data
         g::d3d_vr->SetShaderConstantCount(s, g::base_shader_data_end_register * 2);
@@ -145,7 +145,7 @@ namespace dx {
             char hash[64] = { 0 };
             g::d3d_vr->GetShaderHash(s, (char**)&hash);
             dbg(std::format("Error patching a shader: {}", hash));
-            return;
+            return false;
         }
 
         // Skybox/fog
@@ -153,7 +153,10 @@ namespace dx {
             char hash[64] = { 0 };
             g::d3d_vr->GetShaderHash(s, (char**)&hash);
             dbg(std::format("Error patching a shader: {}", hash));
+            return false;
         }
+
+        return true;
     }
 
     bool add_vertex_shader(IDirect3DVertexShader9* shader)
@@ -186,8 +189,13 @@ namespace dx {
         if (!g::cfg.experimental.disable_multiview) {
             IDirect3DVertexShader9* modified_shader;
             const auto ret = g::hooks::create_vertex_shader.call(g::d3d_dev, bytecode.data(), &modified_shader);
-            patch_spirv_shader_registers(modified_shader);
-            g::base_game_multiview_shaders.push_back(modified_shader);
+            if (patch_spirv_shader_registers(modified_shader)) {
+                g::base_game_multiview_shaders.push_back(modified_shader);
+            } else {
+                // If the patching fails, just use the original shader
+                // This will probably cause rendering glitches but should not crash the game
+                g::base_game_multiview_shaders.push_back(shader);
+            }
         }
 
         return true;
@@ -247,8 +255,15 @@ namespace dx {
             // but BTB stage shaders aren't loaded at startup, so we're making an educated guess here.
             g::base_shader_data_end_register = 110;
 
-            for (auto s : g::base_game_multiview_shaders) {
-                patch_spirv_shader_registers(s);
+            for (auto j = 0; j < i; ++j) {
+                const auto original_shader = g::base_game_shaders[j];
+                const auto multiview_shader = g::base_game_multiview_shaders[j];
+
+                if (!patch_spirv_shader_registers(multiview_shader)) {
+                    // If the patching fails, use the original shader
+                    // This will probably cause rendering glitches but should not crash the game
+                    g::base_game_multiview_shaders[j] = original_shader;
+                }
             }
         }
 
@@ -506,11 +521,10 @@ namespace dx {
         g::current_frames++;
 
         for (auto& it : g::patched_btb_shaders) {
-            if (optimize_spirv_shader(it.first)) {
-                g::optimized_btb_shaders.insert(it.first);
-            } else {
-                MessageBoxA(nullptr, "Shader optimization failed!", "Multiview", MB_OK);
+            if (!optimize_spirv_shader(it.first)) {
+                dbg("Shader optimization failed!");
             }
+            g::optimized_btb_shaders.insert(it.first);
         }
         g::patched_btb_shaders.clear();
 
@@ -655,14 +669,14 @@ namespace dx {
                 if (regs.empty()) {
                     g::d3d_vr->SetShaderConstantCount(shader, g::base_shader_data_end_register * 2);
                     if (!patch_spirv_shader(shader, StartRegister, g::base_shader_data_end_register, false)) {
-                        MessageBoxA(nullptr, "Shader patch failed!", "Multiview", MB_OK);
+                        dbg("Shader patch failed!");
                     }
                     regs.push_back(StartRegister);
                     g::patched_btb_shaders[shader] = regs;
                 } else if (!this_register_patched) {
                     // This is another variable at `StartRegister`, patch the shader again
                     if (!patch_spirv_shader(shader, StartRegister, g::base_shader_data_end_register, false)) {
-                        MessageBoxA(nullptr, "Shader patch failed!", "Multiview", MB_OK);
+                        dbg("Shader patch failed!");
                     }
                     regs.push_back(StartRegister);
                     g::patched_btb_shaders[shader] = regs;
