@@ -7,7 +7,7 @@ const OPENRBRVR_VERSION = .{
     .openRBRVR_Minor = "2",
     .openRBRVR_Patch = "1",
     .openRBRVR_Tweak = "0",
-    .openRBRVR_TweakStr = "-horizonlock",
+    .openRBRVR_TweakStr = "",
 };
 
 pub fn build(b: *std.Build) void {
