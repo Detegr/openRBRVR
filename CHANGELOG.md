@@ -1,3 +1,17 @@
+## 2.2.1
+
+- Bring back horizon lock multiplier, it was removed in the last release. It
+  works the same way with the new horizon lock logic than before.
+- Fix a bug in the multiview implementation that caused a crash at startup with
+  new AMD cards.
+- As the multiview crash should be fixed, experimental.disableMultiview
+  workaround has been deprecated, and an annoying nag window will be displayed
+  if it is enabled. This will be removed in the next release. If the game still
+  crashes without this option, please let me know!
+- Fix jittery eye tracking with foveated rendering. Eye tracked foveated
+  rendering should now work with supported OpenXR headsets that have eye
+  tracker!
+
 ## 2.2.0
 
 - Use lowpass filter for horizon locking. This allows smooth transitions to the
