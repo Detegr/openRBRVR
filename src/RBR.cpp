@@ -329,6 +329,12 @@ namespace rbr {
 
     static bool init_or_update_game_data(uintptr_t ptr)
     {
+        static bool deprecation_warning_shown = false;
+        if (g::cfg.experimental.disable_multiview && !deprecation_warning_shown) [[unlikely]] {
+            MessageBoxA(nullptr, "experimental.disableMultiview option is deprecated!\n\nPlease disable the option or remove it from openRBRVR.toml\nto get rid of this message.\n\nIf the game crashes with the option turned off,\nplease report it as a bug.\n\nThis option will be removed in the next release of openRBRVR.", "Deprecation warning", MB_OK);
+            deprecation_warning_shown = true;
+        }
+
         if (!g::writetext_hook.call && g::game_mode == GameMode::MainMenu) {
             auto vtbl = get_vtable<IRBRGameVtbl>(g::game);
             g::writetext_hook = Hook(vtbl->WriteText, WriteText);
