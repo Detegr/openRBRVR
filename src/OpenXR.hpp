@@ -57,7 +57,6 @@ private:
     XrViewConfigurationType primary_view_config_type;
     InputState input_state; // For sending poses to OpenXR-MotionCompensation https://github.com/BuzzteeBear/OpenXR-MotionCompensation
     bool reset_view_requested;
-    bool has_views;
 
     PFN_xrConvertWin32PerformanceCounterToTimeKHR xr_convert_win32_performance_counter_to_time;
 
@@ -79,7 +78,7 @@ private:
     XrSwapchainImageD3D11KHR& acquire_swapchain_image(RenderTarget tgt);
     std::optional<XrViewState> update_views();
     void update_poses();
-    bool get_projection_matrix();
+    bool get_projection_matrix(XrViewState view_state);
     void recenter_view();
     void synchronize_graphics_apis(bool wait_for_cpu = false);
     OpenXRRenderContext* xr_context()
