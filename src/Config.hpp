@@ -114,6 +114,8 @@ struct Config {
     bool render_particles = true;
     bool always_render_particles_in_replay = false;
     int64_t prediction_dampening = 0;
+    bool enable_xr_api_path_modification = true;
+    bool enable_obsmirror_support = true;
     bool multiview = false;
     bool recenter_at_session_start = false;
     bool recenter_at_stage_start = false;
@@ -155,6 +157,8 @@ struct Config {
         render_particles = rhs.render_particles;
         always_render_particles_in_replay = rhs.always_render_particles_in_replay;
         prediction_dampening = rhs.prediction_dampening;
+        enable_xr_api_path_modification = rhs.enable_xr_api_path_modification;
+        enable_obsmirror_support = rhs.enable_obsmirror_support;
         multiview = rhs.multiview;
         recenter_at_session_start = rhs.recenter_at_session_start;
         recenter_at_stage_start = rhs.recenter_at_stage_start;
@@ -193,6 +197,8 @@ struct Config {
             && render_particles == rhs.render_particles
             && always_render_particles_in_replay == rhs.always_render_particles_in_replay
             && prediction_dampening == rhs.prediction_dampening
+            && enable_xr_api_path_modification == rhs.enable_xr_api_path_modification
+            && enable_obsmirror_support == rhs.enable_obsmirror_support
             && multiview == rhs.multiview
             && recenter_at_session_start == rhs.recenter_at_session_start
             && recenter_at_stage_start == rhs.recenter_at_stage_start
@@ -265,6 +271,12 @@ struct Config {
         openxr.insert("peripheralAntiAliasing", peripheral_msaa);
         openxr.insert("motionCompensation", openxr_motion_compensation);
         openxr.insert("predictionDampening", prediction_dampening);
+        if (!enable_xr_api_path_modification) {
+            openxr.insert("xrApiPathModification", false);
+        }
+        if (!enable_obsmirror_support) {
+            openxr.insert("xrApiLayerObsmirror", false);
+        }
         out.insert("OpenXR", openxr);
 
         toml::table experimental_node;
@@ -340,6 +352,8 @@ struct Config {
             cfg.openxr_motion_compensation = oxrnode["motionCompensation"].value_or(false);
             cfg.prediction_dampening = oxrnode["predictionDampening"].value_or(0);
             cfg.prediction_dampening = std::clamp(cfg.prediction_dampening, 0LL, 100LL);
+            cfg.enable_xr_api_path_modification = oxrnode["xrApiPathModification"].value_or(true);
+            cfg.enable_obsmirror_support = oxrnode["xrApiLayerObsmirror"].value_or(true);
         }
 
         auto gfxnode = parsed["gfx"];

@@ -235,7 +235,7 @@ OpenXR::OpenXR()
     auto extensions = std::vector { "XR_KHR_D3D11_enable" };
     std::vector<const char*> api_layers;
 
-    if (!g::api_layer_search_path_fixed) {
+    if (g::cfg.enable_xr_api_path_modification && !g::api_layer_search_path_fixed) {
         set_openrbrvr_api_layer_path();
         g::api_layer_search_path_fixed = true;
     }
@@ -314,7 +314,10 @@ OpenXR::OpenXR()
             }
         }
     }
-    api_layers.push_back("XR_APILAYER_NOVENDOR_OBSMirror");
+
+    if (g::cfg.enable_obsmirror_support) {
+        api_layers.push_back("XR_APILAYER_NOVENDOR_OBSMirror");
+    }
 
     if (g::cfg.openxr_motion_compensation) {
         auto motion_compensation_layer = std::ranges::find_if(available_api_layers, [](const XrApiLayerProperties& p) {
