@@ -220,6 +220,64 @@ static void set_openrbrvr_api_layer_path()
     }
 }
 
+static void handle_registry()
+{
+    // Check active runtime
+    DWORD runtime_path_len = 0;
+    auto reg_err = RegGetValue(HKEY_LOCAL_MACHINE, "SOFTWARE\\WOW6432Node\\Khronos\\OpenXR\\1", "ActiveRuntime", RRF_RT_REG_SZ, nullptr, nullptr, &runtime_path_len);
+    if (reg_err != ERROR_SUCCESS) {
+        if (reg_err == ERROR_FILE_NOT_FOUND) {
+            MessageBoxA(nullptr, "No 32-bit OpenXR runtime active.\nOpenXR initialization will likely fail.\nCheck the openRBRVR FAQ for runtime and device support.", "Error", MB_OK);
+        } else {
+            MessageBoxA(nullptr, std::format("Could not check the registry for runtime (error {}). OpenXR initialization may not succeed.", reg_err).c_str(), "Error", MB_OK);
+        }
+    } else if (runtime_path_len == 0) {
+        MessageBoxA(nullptr, "No 32-bit OpenXR runtime active.\nOpenXR initialization will likely fail.\nCheck the openRBRVR FAQ for runtime and device support.", "Error", MB_OK);
+    }
+
+    if (auto wineopenxr = LoadLibrary("wineopenxr"); wineopenxr) {
+        // wineopenxr is present, initialize the registry if needed
+        using WineOpenXRInitRegistry = BOOL(__cdecl*)(void);
+        auto wineopenxr_init_registry = reinterpret_cast<WineOpenXRInitRegistry>(GetProcAddress(wineopenxr, "wineopenxr_init_registry"));
+        if (!wineopenxr_init_registry) {
+            dbg("Failed to find wineopenxr_init_registry export");
+            FreeLibrary(wineopenxr);
+            return;
+        }
+
+        // Initialize wineopenxr registry, if wineopenxr is present
+        // This is normally done by SteamVR if I'm not mistaken, but to
+        // support running without SteamVR, we call it ourselves
+        HKEY vr_key;
+        DWORD ret;
+
+        // First, we create the registry entry wineopenxr is expecting to be present
+        if (RegCreateKeyExW(HKEY_CURRENT_USER, L"Software\\Wine\\VR", 0, NULL,
+                REG_OPTION_VOLATILE, KEY_ALL_ACCESS, NULL, &vr_key, &ret)
+            != ERROR_SUCCESS) {
+            dbg("Failed to create Software\\Wine\\VR registry entry");
+            RegCloseKey(vr_key);
+            return;
+        }
+
+        if (ret == REG_CREATED_NEW_KEY) {
+            // Key did not exist, so we need to initialize the registry
+            // Set "state" DWORD variable to 1 to indicate that the init has been done
+            DWORD value = 1;
+            if (RegSetValueExW(vr_key, L"state", 0, REG_DWORD, (BYTE*)&value, sizeof(value)) != ERROR_SUCCESS) {
+                dbg("Could not set Software\\Wine\\VR\\state");
+            }
+            RegCloseKey(vr_key);
+
+            wineopenxr_init_registry();
+        } else {
+            RegCloseKey(vr_key);
+        }
+
+        FreeLibrary(wineopenxr);
+    }
+}
+
 OpenXR::OpenXR()
     : session()
     , reset_view_requested(false)
@@ -240,17 +298,7 @@ OpenXR::OpenXR()
         g::api_layer_search_path_fixed = true;
     }
 
-    DWORD runtime_path_len = 0;
-    auto reg_err = RegGetValue(HKEY_LOCAL_MACHINE, "SOFTWARE\\WOW6432Node\\Khronos\\OpenXR\\1", "ActiveRuntime", RRF_RT_REG_SZ, nullptr, nullptr, &runtime_path_len);
-    if (reg_err != ERROR_SUCCESS) {
-        if (reg_err == ERROR_FILE_NOT_FOUND) {
-            MessageBoxA(nullptr, "No 32-bit OpenXR runtime active.\nOpenXR initialization will likely fail.\nCheck the openRBRVR FAQ for runtime and device support.", "Error", MB_OK);
-        } else {
-            MessageBoxA(nullptr, std::format("Could not check the registry for runtime (error {}). OpenXR initialization may not succeed.", reg_err).c_str(), "Error", MB_OK);
-        }
-    } else if (runtime_path_len == 0) {
-        MessageBoxA(nullptr, "No 32-bit OpenXR runtime active.\nOpenXR initialization will likely fail.\nCheck the openRBRVR FAQ for runtime and device support.", "Error", MB_OK);
-    }
+    handle_registry();
 
     uint32_t api_layer_count;
     if (auto err = xrEnumerateApiLayerProperties(0, &api_layer_count, nullptr); err != XR_SUCCESS) {
