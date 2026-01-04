@@ -1,3 +1,9 @@
+## 2.2.2
+
+- Add option(s) for disabling explicit OpenXR layer loading
+- Add support for initializing Wine registry when running via wineopenxr on
+  Linux
+
 ## 2.2.1
 
 - Bring back horizon lock multiplier, it was removed in the last release. It
