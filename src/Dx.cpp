@@ -33,6 +33,10 @@ namespace g {
     static std::unordered_map<IDirect3DVertexShader9*, std::vector<uint32_t>> patched_btb_shaders;
     static std::unordered_set<IDirect3DVertexShader9*> optimized_btb_shaders;
     static std::unordered_map<uint32_t, std::array<float, 16>> deferred_shader_constants;
+    static int failed_multiview_base_game_shaders;
+    static int failed_multiview_external_shaders;
+    static int failed_multiview_btb_shaders;
+    static int failed_multiview_btb_shader_optimizations;
 }
 
 namespace dx {
@@ -195,6 +199,7 @@ namespace dx {
                 // If the patching fails, just use the original shader
                 // This will probably cause rendering glitches but should not crash the game
                 g::base_game_multiview_shaders.push_back(shader);
+                g::failed_multiview_external_shaders++;
             }
         }
 
@@ -263,6 +268,7 @@ namespace dx {
                     // If the patching fails, use the original shader
                     // This will probably cause rendering glitches but should not crash the game
                     g::base_game_multiview_shaders[j] = original_shader;
+                    g::failed_multiview_base_game_shaders++;
                 }
             }
         }
@@ -407,6 +413,14 @@ namespace dx {
             }
             if (multiview_rendering_enabled()) {
                 g::game->WriteText(0, 18 * ++i, std::format("Multiview rendering").c_str());
+                if (g::failed_multiview_base_game_shaders > 0)
+                    g::game->WriteText(0, 18 * ++i, std::format("  Failed base game shaders: {}", g::failed_multiview_base_game_shaders).c_str());
+                if (g::failed_multiview_external_shaders > 0)
+                    g::game->WriteText(0, 18 * ++i, std::format("  Failed external shaders: {}", g::failed_multiview_external_shaders).c_str());
+                if (g::failed_multiview_btb_shaders > 0)
+                    g::game->WriteText(0, 18 * ++i, std::format("  Failed BTB shaders: {}", g::failed_multiview_btb_shaders).c_str());
+                if (g::failed_multiview_btb_shader_optimizations > 0)
+                    g::game->WriteText(0, 18 * ++i, std::format("  Failed BTB shader optimizations: {}", g::failed_multiview_btb_shader_optimizations).c_str());
             }
             g::game->WriteText(0, 18 * ++i, std::format("Anisotropic filtering: {}x", g::cfg.anisotropy).c_str());
             g::game->WriteText(0, 18 * ++i, std::format("Current stage ID: {}", rbr::get_current_stage_id()).c_str());
@@ -523,6 +537,7 @@ namespace dx {
         for (auto& it : g::patched_btb_shaders) {
             if (!optimize_spirv_shader(it.first)) {
                 dbg("Shader optimization failed!");
+                g::failed_multiview_btb_shader_optimizations++;
             }
             g::optimized_btb_shaders.insert(it.first);
         }
@@ -670,6 +685,7 @@ namespace dx {
                     g::d3d_vr->SetShaderConstantCount(shader, g::base_shader_data_end_register * 2);
                     if (!patch_spirv_shader(shader, StartRegister, g::base_shader_data_end_register, false)) {
                         dbg("Shader patch failed!");
+                        g::failed_multiview_btb_shaders++;
                     }
                     regs.push_back(StartRegister);
                     g::patched_btb_shaders[shader] = regs;
@@ -677,6 +693,7 @@ namespace dx {
                     // This is another variable at `StartRegister`, patch the shader again
                     if (!patch_spirv_shader(shader, StartRegister, g::base_shader_data_end_register, false)) {
                         dbg("Shader patch failed!");
+                        g::failed_multiview_btb_shaders++;
                     }
                     regs.push_back(StartRegister);
                     g::patched_btb_shaders[shader] = regs;
