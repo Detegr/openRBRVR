@@ -223,7 +223,6 @@ static void set_openrbrvr_api_layer_path()
 OpenXR::OpenXR()
     : session()
     , reset_view_requested(false)
-    , has_views(false)
 {
     XrApplicationInfo appInfo = {
         .applicationName = "openRBRVR",
@@ -1176,8 +1175,6 @@ bool OpenXR::update_vr_poses()
         dbg(std::format("xrBeginFrame: {}", XrResultToString(instance, res)));
     }
 
-    get_projection_matrix();
-
     update_poses();
 
     if (g::cfg.debug && perf_query_free_to_use) [[unlikely]] {
@@ -1188,17 +1185,8 @@ bool OpenXR::update_vr_poses()
     return true;
 }
 
-bool OpenXR::get_projection_matrix()
+bool OpenXR::get_projection_matrix(XrViewState view_state)
 {
-    if (!has_views) {
-        auto view_state = update_views();
-        if (!view_state) {
-            dbg("Failed to update OpenXR views");
-            return false;
-        }
-        has_views = true;
-    }
-
     const auto view_count = xr_context()->views.size();
     for (size_t i = 0; i < view_count; ++i) {
         projection[i] = create_projection_matrix(xr_context()->views[i].fov, z_near, z_far, rbr::should_use_reverse_z_buffer());
@@ -1215,6 +1203,7 @@ void OpenXR::update_poses()
     }
 
     auto& vs = viewState.value();
+    get_projection_matrix(vs);
     const auto view_count = xr_context()->views.size();
     for (size_t i = 0; i < view_count; ++i) {
         if (vs.viewStateFlags & (XR_VIEW_STATE_POSITION_VALID_BIT | XR_VIEW_STATE_ORIENTATION_VALID_BIT)) {
