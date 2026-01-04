@@ -129,3 +129,7 @@ changed by modifying `dxvk.conf` by hand:
   lifting. For additional configuration and fine tuning, refer to the
   [Quad-Views-Foveated layer
   documentation](https://github.com/mbucchia/Quad-Views-Foveated/wiki/Advanced-Configuration)
+
+## Does this work on Linux?
+
+- Yes, at least partially. See [linux.md](https://github.com/Detegr/openRBRVR/blob/master/linux.md).
