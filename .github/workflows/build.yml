@@ -31,18 +31,18 @@ jobs:
       id: cache-zig
       uses: actions/cache@v4
       with:
-        path: zig-windows-x86_64-0.14.0
+        path: zig-x86_64-windows-0.15.2
         key: ${{ runner.os }}-zig
 
-    - name: Download Zig 0.14.0
+    - name: Download Zig 0.15.2
       if: steps.cache-zig.outputs.cache-hit != 'true'
       run: |
-        $url = 'https://ziglang.org/download/0.14.0/zig-windows-x86_64-0.14.0.zip'
+        $url = 'https://ziglang.org/download/0.15.2/zig-x86_64-windows-0.15.2.zip'
         Invoke-WebRequest -Uri $url -OutFile 'zig.zip'
         Expand-Archive -Path 'zig.zip' -DestinationPath '.'
 
     - name: Build
-      run: .\zig-windows-x86_64-0.14.0\zig.exe build --release=fast
+      run: .\zig-x86_64-windows-0.15.2\zig.exe build --release=fast
 
     - name: Upload openRBRVR.dll
       uses: actions/upload-artifact@v4

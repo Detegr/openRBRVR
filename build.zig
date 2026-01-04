@@ -20,10 +20,13 @@ pub fn build(b: *std.Build) void {
     });
     const optimize = b.standardOptimizeOption(.{});
 
-    const dll = b.addSharedLibrary(.{
+    const dll = b.addLibrary(.{
         .name = "openRBRVR",
-        .target = target,
-        .optimize = optimize,
+        .linkage = .dynamic,
+        .root_module = b.createModule(.{
+            .target = target,
+            .optimize = optimize,
+        }),
     });
     dll.linkLibC();
     dll.addCSourceFiles(.{ .files = &.{
@@ -86,7 +89,7 @@ pub fn build(b: *std.Build) void {
     b.installArtifact(dll);
 
     // For compile_commands.json
-    var targets = std.ArrayList(*std.Build.Step.Compile).init(b.allocator);
-    targets.append(dll) catch @panic("OOM");
-    zcc.createStep(b, "cdb", targets.toOwnedSlice() catch @panic("OOM"));
+    var targets: std.ArrayListUnmanaged(*std.Build.Step.Compile) = .empty;
+    targets.append(b.allocator, dll) catch @panic("OOM");
+    _ = zcc.createStep(b, "cdb", targets.toOwnedSlice(b.allocator) catch @panic("OOM"));
 }

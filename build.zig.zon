@@ -4,8 +4,8 @@
     .paths = .{"src"},
     .dependencies = .{
         .compile_commands = .{
-            .url = "https://github.com/Sazerac4/zig-compile-commands/archive/b2b2f0e82f1d18d8c5768ac51bf0515475a1417a.tar.gz",
-            .hash = "N-V-__8AABjOAAD9JOGy29zdkAQcgyQyd0NaOn0zP0KyC40W",
+            .url = "https://github.com/the-argus/zig-compile-commands/archive/70fb439897e12cae896c071717d7c9c382918689.tar.gz",
+            .hash = "zig_compile_commands-0.0.1-OZg5-ULBAABTh3NXO3WXoSUX1474ez0EouuoT2yDANhz",
         },
     },
     .fingerprint = 0x5781faea52030520,
