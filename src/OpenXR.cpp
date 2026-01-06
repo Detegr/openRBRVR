@@ -1107,9 +1107,10 @@ void OpenXR::submit_frames_to_hmd(IDirect3DDevice9* dev)
         reinterpret_cast<XrCompositionLayerBaseHeader*>(&projection_layer),
     };
 
+    constexpr auto ns_in_ms = 1000000;
     XrFrameEndInfo frame_end_info = {
         .type = XR_TYPE_FRAME_END_INFO,
-        .displayTime = frame_state.predictedDisplayTime,
+        .displayTime = frame_state.predictedDisplayTime + (g::cfg.experimental.adjust_displaytime_ms * ns_in_ms),
         .environmentBlendMode = XR_ENVIRONMENT_BLEND_MODE_OPAQUE,
         .layerCount = 1,
         .layers = layers,

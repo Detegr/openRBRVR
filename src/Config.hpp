@@ -121,6 +121,7 @@ struct Config {
     bool recenter_at_stage_start = false;
     struct {
         bool disable_multiview = false;
+        int64_t adjust_displaytime_ms = 0;
     } experimental;
 
     Config& operator=(const Config& rhs)
@@ -202,7 +203,8 @@ struct Config {
             && multiview == rhs.multiview
             && recenter_at_session_start == rhs.recenter_at_session_start
             && recenter_at_stage_start == rhs.recenter_at_stage_start
-            && experimental.disable_multiview == rhs.experimental.disable_multiview;
+            && experimental.disable_multiview == rhs.experimental.disable_multiview
+            && experimental.adjust_displaytime_ms == rhs.experimental.adjust_displaytime_ms;
     }
 
     bool write(const std::filesystem::path& path) const
@@ -281,6 +283,7 @@ struct Config {
 
         toml::table experimental_node;
         experimental_node.insert("disableMultiView", experimental.disable_multiview);
+        experimental_node.insert("adjustDisplayTimeMs", experimental.adjust_displaytime_ms);
         out.insert("experimental", experimental_node);
 
         f << out;
@@ -382,6 +385,7 @@ struct Config {
 
         auto experimental_node = parsed["experimental"];
         if (experimental_node.is_table()) {
+            cfg.experimental.adjust_displaytime_ms = experimental_node["adjustDisplayTimeMs"].value_or(0);
             cfg.experimental.disable_multiview = experimental_node["disableMultiView"].value_or(false);
         }
 
