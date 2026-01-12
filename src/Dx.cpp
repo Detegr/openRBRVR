@@ -396,6 +396,7 @@ namespace dx {
             }
 
             g::game->WriteText(0, 18 * ++i, std::format("Mods: {} {}", rbr_rx::is_loaded() ? "RBRRX" : "", rbrhud::is_loaded() ? "RBRHUD" : "").c_str());
+            g::game->WriteText(0, 18 * ++i, std::format("Render context: {}", g::vr->get_current_render_context_name()).c_str());
             const auto& [lw, lh] = g::vr->get_render_resolution(LeftEye);
             const auto& [rw, rh] = g::vr->get_render_resolution(RightEye);
             g::game->WriteText(0, 18 * ++i, std::format("Render resolution: {}x{} (left), {}x{} (right)", lw, lh, rw, rh).c_str());

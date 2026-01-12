@@ -111,6 +111,7 @@ struct RenderContext {
 class VRInterface {
 protected:
     std::unordered_map<std::string, RenderContext> render_contexts;
+    std::string current_render_context_name;
     RenderContext* current_render_context;
 
     M4 hmd_pose[4];
@@ -152,6 +153,7 @@ public:
     const M4& get_pose(RenderTarget tgt) const { return hmd_pose[tgt]; }
     IDirect3DTexture9* get_texture(RenderTarget tgt) const { return current_render_context->dx_texture[tgt]; }
     RenderContext* get_current_render_context() const { return current_render_context; }
+    const std::string& get_current_render_context_name() const { return current_render_context_name; }
     bool create_companion_window_buffer(IDirect3DDevice9* dev);
 
     virtual void reset_view() = 0;

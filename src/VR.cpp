@@ -25,6 +25,7 @@ bool VRInterface::is_using_quad_view_rendering() const
 void VRInterface::set_render_context(const std::string& name)
 {
     current_render_context = &render_contexts[name];
+    current_render_context_name = name;
 
     // Per-stage setting of multiview rendering
     if (dx::multiview_rendering_enabled() != g::vr->get_current_render_context()->multiview_rendering) {
