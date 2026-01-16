@@ -39,41 +39,9 @@ void recenter_vr()
     g::vr->reset_view();
 }
 
-static std::string get_horizon_lock_str()
+static void toggle_horizon_lock_bit(HorizonLock lock_bit)
 {
-    switch (g::cfg.lock_to_horizon) {
-        case HorizonLock::LOCK_NONE:
-            return "Off";
-        case HorizonLock::LOCK_ROLL:
-            return "Roll";
-        case HorizonLock::LOCK_PITCH:
-            return "Pitch";
-        case (HorizonLock::LOCK_ROLL | HorizonLock::LOCK_PITCH):
-            return "Pitch and roll";
-        default:
-            return "Unknown";
-    }
-}
-
-static void change_horizon_lock(bool forward)
-{
-    switch (g::cfg.lock_to_horizon) {
-        case HorizonLock::LOCK_NONE:
-            g::cfg.lock_to_horizon = forward ? HorizonLock::LOCK_ROLL : static_cast<HorizonLock>((HorizonLock::LOCK_ROLL | HorizonLock::LOCK_PITCH));
-            break;
-        case HorizonLock::LOCK_ROLL:
-            g::cfg.lock_to_horizon = forward ? HorizonLock::LOCK_PITCH : HorizonLock::LOCK_NONE;
-            break;
-        case HorizonLock::LOCK_PITCH:
-            g::cfg.lock_to_horizon = forward ? static_cast<HorizonLock>((HorizonLock::LOCK_ROLL | HorizonLock::LOCK_PITCH)) : HorizonLock::LOCK_ROLL;
-            break;
-        case (HorizonLock::LOCK_ROLL | HorizonLock::LOCK_PITCH):
-            g::cfg.lock_to_horizon = forward ? HorizonLock::LOCK_NONE : HorizonLock::LOCK_PITCH;
-            break;
-        default:
-            g::cfg.lock_to_horizon = HorizonLock::LOCK_NONE;
-            break;
-    }
+    g::cfg.lock_to_horizon = static_cast<HorizonLock>(g::cfg.lock_to_horizon ^ lock_bit);
 }
 
 static void ChangeCompanionMode(bool forward)
@@ -120,7 +88,7 @@ static class Menu main_menu = { "openRBRVR", {
     .left_action = [] { Toggle(g::cfg.recenter_at_stage_start); },
     .right_action = [] { Toggle(g::cfg.recenter_at_stage_start); },
   },
-  { .text = id("Horizon lock and low-pass filter settings") , .long_text = {"Horizon lock and low-pass filter settings"}, .select_action = [] { select_menu(4); } },
+  { .text = id("Headset movement settings") , .long_text = {"Headset movement settings"}, .select_action = [] { select_menu(4); } },
   { .text = id("Rendering settings") , .long_text = {"Selection of different rendering settings"}, .select_action = [] { select_menu(1); } },
   { .text = id("Menu & overlay settings") , .long_text = {"Adjust the size and position of the 2D content shown on", "top of the 3D view while driving.", "Also contains main menu settings."}, .select_action = [] { select_menu(5); } },
   { .text = id("Desktop window settings") ,
@@ -230,19 +198,20 @@ static class Menu debug_menu = { "openRBRVR debug settings", {
 
 static LicenseMenu license_menu;
 
-static class Menu horizon_lock_menu = { "openRBRVR horizon lock and low-pass filter settings", {
-  { .text = [] { return std::format("Lock horizon: {}", get_horizon_lock_str()); },
+static class Menu horizon_lock_menu = { "openRBRVR headset movement settings", {
+  { .text = [] { return std::format("Lock pitch: {}", (g::cfg.lock_to_horizon & HorizonLock::LOCK_PITCH) != 0 ? "ON" : "OFF"); },
     .long_text = {
         "Enable to rotate the car around the headset instead of rotating the headset with the car.",
         "For some people, enabling this option gives a more comfortable VR experience.",
-        "Roll means locking the left-right axis.",
-        "Pitch means locking the front-back axis."
+        "Pitch means locking the front-back tilt.",
+        "Roll means locking the left-right tilt.",
+        "Yaw means locking the rotation."
     },
     .menu_color = IRBRGame::EMenuColors::MENU_TEXT,
     .position = Menu::menu_items_start_pos,
-    .left_action = [] { change_horizon_lock(false); },
-    .right_action = [] { change_horizon_lock(true); },
-    .select_action = [] { change_horizon_lock(true); },
+    .left_action = [] { toggle_horizon_lock_bit(HorizonLock::LOCK_PITCH); },
+    .right_action = [] { toggle_horizon_lock_bit(HorizonLock::LOCK_PITCH); },
+    .select_action = [] { toggle_horizon_lock_bit(HorizonLock::LOCK_PITCH); },
   },
   { .text = [] { return std::format("Pitch Time Dampen: {:.2f} seconds", g::cfg.lowpass_pitch_filter); },
     .long_text = {
@@ -252,6 +221,16 @@ static class Menu horizon_lock_menu = { "openRBRVR horizon lock and low-pass fil
     .right_action = [] { g::cfg.lowpass_pitch_filter = std::min<float>(3.0, (g::cfg.lowpass_pitch_filter + 0.05f)); },
     .visible = [] { return (g::cfg.lock_to_horizon & HorizonLock::LOCK_PITCH) != 0; }
   },
+  { .text = [] { return std::format("Lock roll: {}", (g::cfg.lock_to_horizon & HorizonLock::LOCK_ROLL) != 0 ? "ON" : "OFF"); },
+    .long_text = {
+        "Enable to rotate the car around the headset instead of rotating the headset with the car.",
+        "For some people, enabling this option gives a more comfortable VR experience.",
+        "Roll means locking the left-right tilt.",
+    },
+    .left_action = [] { toggle_horizon_lock_bit(HorizonLock::LOCK_ROLL); },
+    .right_action = [] { toggle_horizon_lock_bit(HorizonLock::LOCK_ROLL); },
+    .select_action = [] { toggle_horizon_lock_bit(HorizonLock::LOCK_ROLL); },
+  },
   { .text = [] { return std::format("Roll Time Dampen: {:.2f} seconds", g::cfg.lowpass_roll_filter); },
     .long_text = {
         "Insert time value (in seconds) to be smoothed by low-pass filter for", "the roll (left-right) axis.",
@@ -259,6 +238,24 @@ static class Menu horizon_lock_menu = { "openRBRVR horizon lock and low-pass fil
     .left_action = [] { g::cfg.lowpass_roll_filter = std::max<float>(0.05, (g::cfg.lowpass_roll_filter - 0.05f)); },
     .right_action = [] { g::cfg.lowpass_roll_filter = std::min<float>(3.0, (g::cfg.lowpass_roll_filter + 0.05f)); },
     .visible = [] { return (g::cfg.lock_to_horizon & HorizonLock::LOCK_ROLL) != 0; }
+  },
+  { .text = [] { return std::format("Lock yaw: {}", (g::cfg.lock_to_horizon & HorizonLock::LOCK_YAW) != 0 ? "ON" : "OFF"); },
+    .long_text = {
+        "Enable to rotate the car around the headset instead of rotating the headset with the car.",
+        "For some people, enabling this option gives a more comfortable VR experience.",
+        "Yaw means locking the left-right rotation."
+    },
+    .left_action = [] { toggle_horizon_lock_bit(HorizonLock::LOCK_YAW); },
+    .right_action = [] { toggle_horizon_lock_bit(HorizonLock::LOCK_YAW); },
+    .select_action = [] { toggle_horizon_lock_bit(HorizonLock::LOCK_YAW); },
+  },
+  { .text = [] { return std::format("Yaw Time Dampen: {:.2f} seconds", g::cfg.lowpass_yaw_filter); },
+    .long_text = {
+        "Insert time value (in seconds) to be smoothed by low-pass filter for", "the yaw (direction) axis.",
+    },
+    .left_action = [] { g::cfg.lowpass_yaw_filter = std::max<float>(0.01, (g::cfg.lowpass_yaw_filter - 0.01f)); },
+    .right_action = [] { g::cfg.lowpass_yaw_filter = std::min<float>(0.5, (g::cfg.lowpass_yaw_filter + 0.01f)); },
+    .visible = [] { return (g::cfg.lock_to_horizon & HorizonLock::LOCK_YAW) != 0; }
   },
   { .text = [] { return std::format("Lock Percentage: {}%", g::cfg.horizon_lock_multiplier * 100); },
     .long_text = {

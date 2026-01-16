@@ -31,6 +31,7 @@ namespace g {
     static Hook<decltype(IRBRGameVtbl::WriteText)> writetext_hook;
     static double previous_frame_pitch;
     static double previous_frame_roll;
+    static double previous_frame_yaw;
 }
 
 namespace rbr {
@@ -198,38 +199,64 @@ namespace rbr {
         return g::is_rendering_3d && g::game_mode != GameMode::MainMenu;
     }
 
+    static constexpr double unwrap_angle(double angle, double reference)
+    {
+        constexpr auto pi = glm::pi<double>();
+        constexpr auto twopi = glm::two_pi<double>();
+
+        double diff = std::fmod(angle - reference, twopi);
+        if (diff > pi) {
+            return reference + diff - twopi;
+        } else if (diff < -pi) {
+            return reference + diff + twopi;
+        }
+
+        return reference + diff;
+    }
+
     void update_horizon_lock_matrix()
     {
         const auto horizon_lock_game_mode = is_using_cockpit_camera() && (g::game_mode == Driving || g::game_mode == Replay);
-        const auto horizon_lock_enabled = (g::cfg.lock_to_horizon == HorizonLock::LOCK_ROLL) || (g::cfg.lock_to_horizon == HorizonLock::LOCK_PITCH) || (g::cfg.lock_to_horizon == (HorizonLock::LOCK_ROLL | HorizonLock::LOCK_PITCH));
+        const auto horizon_lock_enabled = g::cfg.lock_to_horizon != HorizonLock::LOCK_NONE;
         if (horizon_lock_enabled) {
             // If car quaternion is given, calculate matrix for low-pass filter
             const auto q = glm::quat_cast(*g::car_rotation_ptr);
             const auto multiplier = static_cast<float>(g::cfg.horizon_lock_multiplier);
             const auto pitch = (g::cfg.lock_to_horizon & HorizonLock::LOCK_PITCH) ? glm::pitch(q) * multiplier : 0.0f;
             const auto roll = (g::cfg.lock_to_horizon & HorizonLock::LOCK_ROLL) ? glm::yaw(q) * multiplier : 0.0f; // somehow in glm the axis is yaw
+            const auto yaw = (g::cfg.lock_to_horizon & HorizonLock::LOCK_YAW) ? glm::roll(q) * multiplier : 0.0f; // somehow in glm the axis is roll
 
             if (horizon_lock_game_mode) {
                 const auto pitch_alpha = 1.0 - exp(-(1.0 / g::target_fps) / g::cfg.lowpass_pitch_filter);
                 const auto roll_alpha = 1.0 - exp(-(1.0 / g::target_fps) / g::cfg.lowpass_roll_filter);
+                const auto yaw_alpha = 1.0 - exp(-(1.0 / g::target_fps) / g::cfg.lowpass_yaw_filter);
 
-                const auto pitch_new = pitch_alpha * pitch + (1.0 - pitch_alpha) * g::previous_frame_pitch;
-                const auto roll_new = roll_alpha * roll + (1.0 - roll_alpha) * g::previous_frame_roll;
+                // Unwrap angles to prevent discontinuity at +-pi
+                const auto pitch_unwrapped = unwrap_angle(pitch, g::previous_frame_pitch);
+                const auto roll_unwrapped = unwrap_angle(roll, g::previous_frame_roll);
+                const auto yaw_unwrapped = unwrap_angle(yaw, g::previous_frame_yaw);
 
-                const auto pitch_offset = pitch - pitch_new;
-                const auto roll_offset = roll - roll_new;
+                const auto pitch_new = pitch_alpha * pitch_unwrapped + (1.0 - pitch_alpha) * g::previous_frame_pitch;
+                const auto roll_new = roll_alpha * roll_unwrapped + (1.0 - roll_alpha) * g::previous_frame_roll;
+                const auto yaw_new = yaw_alpha * yaw_unwrapped + (1.0 - yaw_alpha) * g::previous_frame_yaw;
+
+                const auto pitch_offset = pitch_unwrapped - pitch_new;
+                const auto roll_offset = roll_unwrapped - roll_new;
+                const auto yaw_offset = yaw_unwrapped - yaw_new;
 
                 g::previous_frame_pitch = pitch_new;
                 g::previous_frame_roll = roll_new;
+                g::previous_frame_yaw = yaw_new;
 
-                glm::quat cancel_car_rotation = glm::normalize(glm::quat(glm::vec3(pitch_offset, 0.0f, roll_offset)));
+                glm::quat cancel_car_rotation = glm::normalize(glm::quat(glm::vec3(pitch_offset, -yaw_offset, roll_offset)));
                 g::horizon_lock_matrix = glm::mat4_cast(cancel_car_rotation);
             } else {
                 // If lowpass mode is selected but we're not in the cockpit camera
                 // Update the previous frame values in order to prevent sudden movements
                 // when we get back to locking the horizon
-                g::previous_frame_pitch = pitch;
-                g::previous_frame_roll = roll;
+                g::previous_frame_pitch = unwrap_angle(pitch, g::previous_frame_pitch);
+                g::previous_frame_roll = unwrap_angle(roll, g::previous_frame_roll);
+                g::previous_frame_yaw = unwrap_angle(yaw, g::previous_frame_yaw);
                 g::horizon_lock_matrix = glm::identity<M4>();
             }
         } else {

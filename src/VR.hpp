@@ -22,6 +22,7 @@ enum HorizonLock : uint8_t {
     LOCK_NONE = 0x0,
     LOCK_ROLL = 0x1,
     LOCK_PITCH = 0x2,
+    LOCK_YAW = 0x4,
 };
 
 enum VRRuntime {
