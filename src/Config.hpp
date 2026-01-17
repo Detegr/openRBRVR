@@ -90,9 +90,9 @@ struct Config {
     float supersampling = 1.0;
     HorizonLock lock_to_horizon = HorizonLock::LOCK_NONE;
     double horizon_lock_multiplier = 1.0;
-    float lowpass_roll_filter = 1.0;
-    float lowpass_pitch_filter = 1.0;
-    float lowpass_yaw_filter = 1.0;
+    float lowpass_roll_filter = 0.1;
+    float lowpass_pitch_filter = 0.1;
+    float lowpass_yaw_filter = 0.1;
     bool horizon_lock_flip = false;
     CompanionMode companion_mode;
     bool draw_loading_screen = true;
