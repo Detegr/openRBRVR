@@ -120,6 +120,7 @@ struct Config {
     bool multiview = false;
     bool recenter_at_session_start = false;
     bool recenter_at_stage_start = false;
+    bool threedof = false;
     struct {
         bool disable_multiview = false;
         int64_t adjust_displaytime_ms = 0;
@@ -165,6 +166,7 @@ struct Config {
         multiview = rhs.multiview;
         recenter_at_session_start = rhs.recenter_at_session_start;
         recenter_at_stage_start = rhs.recenter_at_stage_start;
+        threedof = rhs.threedof;
         experimental = rhs.experimental;
         return *this;
     }
@@ -206,6 +208,7 @@ struct Config {
             && multiview == rhs.multiview
             && recenter_at_session_start == rhs.recenter_at_session_start
             && recenter_at_stage_start == rhs.recenter_at_stage_start
+            && threedof == rhs.threedof
             && experimental.disable_multiview == rhs.experimental.disable_multiview
             && experimental.adjust_displaytime_ms == rhs.experimental.adjust_displaytime_ms;
     }
@@ -248,6 +251,7 @@ struct Config {
             { "multiViewRendering", multiview },
             { "recenterAtSessionStart", recenter_at_session_start },
             { "recenterAtStageStart", recenter_at_stage_start },
+            { "3dof", threedof },
         };
 
         toml::table gfxTbl;
@@ -344,6 +348,7 @@ struct Config {
         cfg.multiview = parsed["multiViewRendering"].value_or(false);
         cfg.recenter_at_session_start = parsed["recenterAtSessionStart"].value_or(false);
         cfg.recenter_at_stage_start = parsed["recenterAtStageStart"].value_or(false);
+        cfg.threedof = parsed["3dof"].value_or(false);
 
         const std::string& runtime = parsed["runtime"].value_or("steamvr");
         if (runtime == "openxr" || runtime == "openxr-wmr") {

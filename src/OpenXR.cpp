@@ -1260,6 +1260,9 @@ void OpenXR::update_poses()
     for (size_t i = 0; i < view_count; ++i) {
         if (vs.viewStateFlags & (XR_VIEW_STATE_POSITION_VALID_BIT | XR_VIEW_STATE_ORIENTATION_VALID_BIT)) {
             hmd_pose[i] = glm::inverse(xr_pose_to_m4(xr_context()->views[i].pose));
+            if (g::cfg.threedof) {
+                m4_to_3dof(hmd_pose[i]);
+            }
         } else {
             dbg("Invalid VR poses");
             return;

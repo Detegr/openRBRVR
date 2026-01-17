@@ -53,6 +53,18 @@ constexpr M4 m4_from_shader_constant_ptr(const float* p)
     return M4(p[0], p[1], p[2], p[3], p[4], p[5], p[6], p[7], p[8], p[9], p[10], p[11], p[12], p[13], p[14], p[15]);
 }
 
+constexpr void m4_to_3dof(M4& m)
+{
+    // Remove translation for 3 degrees of freedom
+    m[0][3] = 0;
+    m[1][3] = 0;
+    m[2][3] = 0;
+
+    m[3][0] = 0;
+    m[3][1] = 0;
+    m[3][2] = 0;
+}
+
 void write_data(uintptr_t address, uint8_t* values, size_t byte_count);
 
 inline void write_byte(uintptr_t address, uint8_t value)

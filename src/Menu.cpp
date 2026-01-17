@@ -264,6 +264,13 @@ static class Menu horizon_lock_menu = { "openRBRVR headset movement settings", {
     .left_action = [] { g::cfg.horizon_lock_multiplier = std::max<double>(0.0, (g::cfg.horizon_lock_multiplier * 100.0 - 5) / 100.0); },
     .right_action = [] { g::cfg.horizon_lock_multiplier = std::min<double>(1.0, (g::cfg.horizon_lock_multiplier * 100.0 + 5) / 100.0); },
   },
+  { .text = [] { return std::format("3 degrees of freedom: {}", g::cfg.threedof ? "ON" : "OFF"); },
+    .long_text = {
+        "Enable to only track the headset's rotation and keep the position constant.",
+    },
+    .left_action = [] { Toggle(g::cfg.threedof); },
+    .right_action = [] { Toggle(g::cfg.threedof); },
+  },
   { .text = id("Back to previous menu"),
     .select_action = [] { select_menu(0); }
   },

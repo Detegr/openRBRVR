@@ -220,6 +220,11 @@ bool OpenVR::update_vr_poses()
     auto pose = &poses[vr::k_unTrackedDeviceIndex_Hmd];
     if (pose->bPoseIsValid) {
         hmd_pose[LeftEye] = glm::inverse(m4_from_steamvr_matrix(pose->mDeviceToAbsoluteTracking));
+
+        if (g::cfg.threedof) {
+            m4_to_3dof(hmd_pose[LeftEye]);
+        }
+
         hmd_pose[RightEye] = hmd_pose[LeftEye];
     }
 
