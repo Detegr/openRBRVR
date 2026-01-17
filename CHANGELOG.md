@@ -1,3 +1,17 @@
+## 2.2.3
+
+- New experimental option `adjustDisplayTimeMs` adjusts `displayTime` variable
+  sent to OpenXR via `xrEndFrame`. This exists for development purposes and
+  should normally be zero.
+- Current render context (`[gfx.somegroup]`) is now shown in the debug display
+- Add locking for yaw axis. Works like the horizon lock but for the direction
+  the car is heading.
+- Add more reasonable default values for horizon lock low-pass filters
+- Add option for 3 degrees of freedom. In this mode, only the headset rotation
+  is tracked and the position stays still.
+- Rename in-game menu `Horizon lock and low-pass filter settings` to `Headset
+  movement settings`
+
 ## 2.2.2
 
 - Add option(s) for disabling explicit OpenXR layer loading
