@@ -28,6 +28,7 @@ enum HorizonLock : uint8_t {
 enum VRRuntime {
     OPENVR = 1,
     OPENXR = 2,
+    DUMMY = 3,
 };
 
 enum class Projection {
@@ -163,9 +164,11 @@ public:
     virtual void reset_view() = 0;
     virtual VRRuntime get_runtime_type() const = 0;
     virtual void set_render_context(const std::string& name);
+    virtual void projection_changed(const M4& proj) { }
 };
 
 bool create_quad(IDirect3DDevice9* dev, float size, float aspect, IDirect3DVertexBuffer9** dst);
 void render_overlay_border(IDirect3DDevice9* dev, IDirect3DTexture9* tex);
 void render_menu_quad(IDirect3DDevice9* dev, VRInterface* vr, IDirect3DTexture9* texture, RenderTarget renderTarget3D, RenderTarget render_target_2d, float size, glm::vec3 translation, const std::optional<M4>& horizon_lock);
+void render_2d_fullscreen(IDirect3DDevice9* dev, IDirect3DTexture9* texture);
 void render_companion_window_from_render_target(IDirect3DDevice9* dev, VRInterface* vr, RenderTarget tgt);

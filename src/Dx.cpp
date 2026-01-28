@@ -1,4 +1,5 @@
 #include "Dx.hpp"
+#include "DummyVR.hpp"
 #include "Globals.hpp"
 #include "IPlugin.h"
 #include "OpenVR.hpp"
@@ -457,8 +458,17 @@ namespace dx {
         const auto& horizon_lock = render_target_2d == Overlay ? std::make_optional(rbr::get_horizon_lock_matrix()) : std::nullopt;
         const auto& texture = g::vr->get_texture(render_target_2d);
 
+        const auto render_2d = [&](RenderTarget render_target_3d) {
+            if (g::vr->get_runtime_type() == DUMMY) {
+                // Without a headset, the 2D content is drawn as it's drawn without VR
+                render_2d_fullscreen(g::d3d_dev, texture);
+            } else {
+                render_menu_quad(g::d3d_dev, g::vr, texture, render_target_3d, render_target_2d, size, translation, horizon_lock);
+            }
+        };
+
         if (g::vr->prepare_vr_rendering(g::d3d_dev, LeftEye, clear)) {
-            render_menu_quad(g::d3d_dev, g::vr, texture, LeftEye, render_target_2d, size, translation, horizon_lock);
+            render_2d(LeftEye);
             g::vr->finish_vr_rendering(g::d3d_dev, LeftEye);
         } else {
             dbg("Failed to render left eye overlay");
@@ -466,7 +476,7 @@ namespace dx {
 
         if (g::vr->is_using_quad_view_rendering()) {
             if (g::vr->prepare_vr_rendering(g::d3d_dev, FocusLeft, clear)) {
-                render_menu_quad(g::d3d_dev, g::vr, texture, FocusLeft, render_target_2d, size, translation, horizon_lock);
+                render_2d(FocusLeft);
                 g::vr->finish_vr_rendering(g::d3d_dev, FocusLeft);
             } else {
                 dbg("Failed to render left eye overlay");
@@ -475,14 +485,14 @@ namespace dx {
 
         if (!multiview_rendering_enabled()) {
             if (g::vr->prepare_vr_rendering(g::d3d_dev, RightEye, clear)) {
-                render_menu_quad(g::d3d_dev, g::vr, texture, RightEye, render_target_2d, size, translation, horizon_lock);
+                render_2d(RightEye);
                 g::vr->finish_vr_rendering(g::d3d_dev, RightEye);
             } else {
                 dbg("Failed to render left eye overlay");
             }
             if (g::vr->is_using_quad_view_rendering()) {
                 if (g::vr->prepare_vr_rendering(g::d3d_dev, FocusRight, clear)) {
-                    render_menu_quad(g::d3d_dev, g::vr, texture, FocusRight, render_target_2d, size, translation, horizon_lock);
+                    render_2d(FocusRight);
                     g::vr->finish_vr_rendering(g::d3d_dev, FocusRight);
                 } else {
                     dbg("Failed to render left eye overlay");
@@ -754,6 +764,7 @@ namespace dx {
                 // Store the inverse of the matrix passed to the function in order to cancel it out later on
                 shader::current_projection_matrix = m4_from_d3d(*pMatrix);
                 shader::current_projection_matrix_inverse = glm::inverse(shader::current_projection_matrix);
+                g::vr->projection_changed(shader::current_projection_matrix);
 
                 // Change projection matrix to current VR render target matrix
                 fixedfunction::current_projection_matrix[target] = d3d_from_m4(g::vr->get_projection(target));
@@ -1031,8 +1042,10 @@ namespace dx {
 
                 if (g::vr->get_runtime_type() == OPENXR) {
                     reinterpret_cast<OpenXR*>(g::vr)->init(dev, &g::d3d_vr, companion_window_width, companion_window_height);
-                } else {
+                } else if (g::vr->get_runtime_type() == OPENVR) {
                     reinterpret_cast<OpenVR*>(g::vr)->init(dev, &g::d3d_vr, companion_window_width, companion_window_height);
+                } else if (g::vr->get_runtime_type() == DUMMY) {
+                    reinterpret_cast<DummyVR*>(g::vr)->init(dev, &g::d3d_vr, companion_window_width, companion_window_height);
                 }
             }
         } catch (const std::runtime_error& e) {
@@ -1066,7 +1079,7 @@ namespace dx {
             } catch (const std::runtime_error& e) {
                 MessageBoxA(nullptr, e.what(), "OpenXR init failed", MB_OK);
             }
-        } else {
+        } else if (g::cfg.runtime == OPENVR) {
             // OpenVR must be initialized before creating the d3d device
             // otherwise it cause a crash when the Reshade VK layer is used
             // while SteamVR is already running and vrclient.dll loaded
@@ -1075,6 +1088,8 @@ namespace dx {
             } catch (const std::runtime_error& e) {
                 MessageBoxA(nullptr, e.what(), "OpenVR init failed", MB_OK);
             }
+        } else {
+            g::vr = new DummyVR();
         }
 
         auto d3d = g::hooks::create.call(SDKVersion);

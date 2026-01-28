@@ -157,6 +157,7 @@ void VRInterface::init_surfaces(IDirect3DDevice9* dev, RenderContext& ctx, uint3
         throw std::runtime_error("Could not create texture for menus");
     if (!create_render_target(dev, D3DMULTISAMPLE_NONE, ctx, Overlay, D3DFMT_A8B8G8R8, res_x_2d, res_y_2d, false))
         throw std::runtime_error("Could not create texture for overlay");
+
     if (dev->CreateTexture(res_x_2d, res_y_2d, 1, D3DUSAGE_RENDERTARGET, D3DFMT_A8B8G8R8, D3DPOOL_DEFAULT, &ctx.overlay_border, nullptr) != D3D_OK)
         throw std::runtime_error("Could not create overlay border texture");
 
@@ -211,7 +212,8 @@ static void render_texture(
     const D3DMATRIX* view,
     const D3DMATRIX* world,
     IDirect3DTexture9* tex,
-    IDirect3DVertexBuffer9* vbuf)
+    IDirect3DVertexBuffer9* vbuf,
+    bool depth_test = rbr::get_game_mode() == rbr::GameMode::MainMenu)
 {
     IDirect3DVertexShader9* vs;
     IDirect3DPixelShader9* ps;
@@ -252,7 +254,7 @@ static void render_texture(
     dev->SetTextureStageState(0, D3DTSS_ALPHAOP, D3DTOP_SELECTARG1);
     dev->SetTextureStageState(0, D3DTSS_ALPHAARG1, D3DTA_TEXTURE);
 
-    dev->SetRenderState(D3DRS_ZENABLE, rbr::get_game_mode() == rbr::GameMode::MainMenu);
+    dev->SetRenderState(D3DRS_ZENABLE, depth_test);
 
     dev->SetTexture(0, tex);
 
@@ -301,7 +303,14 @@ void render_menu_quad(IDirect3DDevice9* dev, VRInterface* vr, IDirect3DTexture9*
     render_texture(dev, &mvpl, &mvpr, &g::identity_matrix, &g::identity_matrix, texture, g::quad_vertex_buf[render_target_2d == GameMenu ? 0 : 1]);
 }
 
+void render_2d_fullscreen(IDirect3DDevice9* dev, IDirect3DTexture9* texture)
+{
+    render_texture(dev, &g::identity_matrix, &g::identity_matrix, &g::identity_matrix, &g::identity_matrix, texture, g::companion_window_vertex_buf_menu, false);
+}
+
 void render_companion_window_from_render_target(IDirect3DDevice9* dev, VRInterface* vr, RenderTarget tgt)
 {
-    render_texture(dev, &g::identity_matrix, &g::identity_matrix, &g::identity_matrix, &g::identity_matrix, vr->get_texture(tgt), (tgt == GameMenu || tgt == Overlay) ? g::companion_window_vertex_buf_menu : g::companion_window_vertex_buf_3d);
+    // The dummy runtime renders the eye views in the companion window resolution, so they are shown as they are.
+    const auto show_whole_texture = tgt == GameMenu || tgt == Overlay || vr->get_runtime_type() == DUMMY;
+    render_texture(dev, &g::identity_matrix, &g::identity_matrix, &g::identity_matrix, &g::identity_matrix, vr->get_texture(tgt), show_whole_texture ? g::companion_window_vertex_buf_menu : g::companion_window_vertex_buf_3d);
 }
