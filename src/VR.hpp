@@ -28,6 +28,7 @@ enum HorizonLock : uint8_t {
 enum VRRuntime {
     OPENVR = 1,
     OPENXR = 2,
+    DUMMY = 3,
 };
 
 enum class Projection {

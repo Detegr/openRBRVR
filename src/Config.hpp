@@ -221,6 +221,16 @@ struct Config {
         if (!f.good()) {
             return false;
         }
+
+        std::string runtime_str;
+        if (runtime == OPENVR) {
+            runtime_str = "steamvr";
+        } else if (runtime == OPENXR) {
+            runtime_str = "openxr";
+        } else {
+            runtime_str = "dummy";
+        }
+
         toml::table out {
             { "menuSize", round(menu_size) },
             { "menuScene", menu_scene },
@@ -241,7 +251,7 @@ struct Config {
             { "renderPauseMenu3d", render_pausemenu_3d },
             { "renderPreStage3d", render_prestage_3d },
             { "renderReplays3d", render_replays_3d },
-            { "runtime", runtime == OPENVR ? "steamvr" : "openxr" },
+            { "runtime", runtime_str },
             { "desktopWindowOffsetX", companion_offset.x },
             { "desktopWindowOffsetY", companion_offset.y },
             { "desktopWindowSize", companion_size },
@@ -352,9 +362,11 @@ struct Config {
 
         const std::string& runtime = parsed["runtime"].value_or("steamvr");
         if (runtime == "openxr" || runtime == "openxr-wmr") {
-            cfg.runtime = OPENXR;
+            cfg.runtime = VRRuntime::OPENXR;
+        } else if (runtime == "openvr" || runtime == "steamvr") {
+            cfg.runtime = VRRuntime::OPENVR;
         } else {
-            cfg.runtime = OPENVR;
+            cfg.runtime = VRRuntime::DUMMY;
         }
 
         auto oxrnode = parsed["OpenXR"];

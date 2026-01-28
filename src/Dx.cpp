@@ -1065,7 +1065,7 @@ namespace dx {
             } catch (const std::runtime_error& e) {
                 MessageBoxA(nullptr, e.what(), "OpenXR init failed", MB_OK);
             }
-        } else {
+        } else if (g::cfg.runtime == OPENVR) {
             // OpenVR must be initialized before creating the d3d device
             // otherwise it cause a crash when the Reshade VK layer is used
             // while SteamVR is already running and vrclient.dll loaded
@@ -1074,6 +1074,8 @@ namespace dx {
             } catch (const std::runtime_error& e) {
                 MessageBoxA(nullptr, e.what(), "OpenVR init failed", MB_OK);
             }
+        } else {
+            g::vr = new DummyVR();
         }
 
         auto d3d = g::hooks::create.call(SDKVersion);
