@@ -25,6 +25,8 @@ namespace g {
     static bool is_rendering_car;
     static bool is_rendering_wet_windscreen;
     static M3* car_rotation_ptr;
+    static float* current_fov_ptr;
+    static float* z_near_ptr;
     static int session_recenter_frame_counter;
     static int stage_recenter_frame_counter = INT32_MAX;
     static bool allow_writetext = true;
@@ -115,6 +117,16 @@ namespace rbr {
     uint32_t get_current_stage_id()
     {
         return g::current_stage_id;
+    }
+
+    float get_fov()
+    {
+        return *g::current_fov_ptr / (4.0f / 3.0f);
+    }
+
+    float get_z_near()
+    {
+        return *g::z_near_ptr;
     }
 
     bool is_on_btb_stage()
@@ -420,6 +432,14 @@ namespace rbr {
             g::car_rotation_ptr = reinterpret_cast<M3*>((ptr + CAR_ROTATION_OFFSET));
         } else {
             update_horizon_lock_matrix();
+        }
+
+        if (!g::current_fov_ptr) [[unlikely]] {
+            g::current_fov_ptr = reinterpret_cast<float*>(ptr + 0x70 + 0x2c0);
+        }
+
+        if (!g::z_near_ptr) [[unlikely]] {
+            g::z_near_ptr = reinterpret_cast<float*>(ptr + 0x70 + 0x290);
         }
 
         // Cache the initial value of quad view rendering

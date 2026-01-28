@@ -1,4 +1,5 @@
 #include "Dx.hpp"
+#include "DummyVR.hpp"
 #include "Globals.hpp"
 #include "IPlugin.h"
 #include "OpenVR.hpp"
@@ -1030,8 +1031,10 @@ namespace dx {
 
                 if (g::vr->get_runtime_type() == OPENXR) {
                     reinterpret_cast<OpenXR*>(g::vr)->init(dev, &g::d3d_vr, companion_window_width, companion_window_height);
-                } else {
+                } else if (g::vr->get_runtime_type() == OPENVR) {
                     reinterpret_cast<OpenVR*>(g::vr)->init(dev, &g::d3d_vr, companion_window_width, companion_window_height);
+                } else if (g::vr->get_runtime_type() == DUMMY) {
+                    reinterpret_cast<DummyVR*>(g::vr)->init(dev, &g::d3d_vr, companion_window_width, companion_window_height);
                 }
             }
         } catch (const std::runtime_error& e) {
@@ -1065,7 +1068,7 @@ namespace dx {
             } catch (const std::runtime_error& e) {
                 MessageBoxA(nullptr, e.what(), "OpenXR init failed", MB_OK);
             }
-        } else {
+        } else if (g::cfg.runtime == OPENVR) {
             // OpenVR must be initialized before creating the d3d device
             // otherwise it cause a crash when the Reshade VK layer is used
             // while SteamVR is already running and vrclient.dll loaded
@@ -1074,6 +1077,8 @@ namespace dx {
             } catch (const std::runtime_error& e) {
                 MessageBoxA(nullptr, e.what(), "OpenVR init failed", MB_OK);
             }
+        } else {
+            g::vr = new DummyVR();
         }
 
         auto d3d = g::hooks::create.call(SDKVersion);

@@ -31,6 +31,7 @@ pub fn build(b: *std.Build) void {
     dll.linkLibC();
     dll.addCSourceFiles(.{ .files = &.{
         "src/API.cpp",
+        "src/DummyVR.cpp",
         "src/Dx.cpp",
         "src/Globals.cpp",
         "src/Menu.cpp",

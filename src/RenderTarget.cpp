@@ -20,6 +20,7 @@ bool is_using_texture_to_render(D3DMULTISAMPLE_TYPE msaa, RenderTarget t, bool m
         // and copy out the result anyway.
         return false;
     }
+
     if (g::vr && (g::vr->get_runtime_type() == OPENXR) && (t == LeftEye || t == RightEye)) {
         // Rendering directly to the texture causes flashing when using OpenXR in D3D11 mode.
         // It is likely that there's something wrong in the Vulkan/D3D11 synchronization, but
@@ -27,6 +28,7 @@ bool is_using_texture_to_render(D3DMULTISAMPLE_TYPE msaa, RenderTarget t, bool m
         // This demands a bit more performance but the difference is pretty minimal.
         return false;
     }
+
     return !is_aa_enabled_for_render_target(msaa, t);
 }
 

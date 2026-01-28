@@ -27,6 +27,8 @@ namespace rbr {
     std::array<uintptr_t, 4> get_render_particles_function_addrs();
     GameMode get_game_mode();
     uint32_t get_current_stage_id();
+    float get_fov();
+    float get_z_near();
 
     bool is_on_btb_stage();
     bool is_loading_btb_stage();

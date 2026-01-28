@@ -40,5 +40,5 @@ public:
     {
         return OPENVR;
     }
-    virtual void set_render_context(const std::string& name) override;
+    void set_render_context(const std::string& name) override;
 };
