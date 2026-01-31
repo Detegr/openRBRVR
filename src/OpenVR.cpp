@@ -3,6 +3,12 @@
 #include "Dx.hpp"
 #include "Globals.hpp"
 
+static bool is_wine() {
+    HMODULE ntdll = GetModuleHandleA("ntdll.dll");
+    if (!ntdll) return false;
+    return GetProcAddress(ntdll, "wine_get_version") != nullptr;
+}
+
 static constexpr std::string vr_compositor_error_str(vr::VRCompositorError e)
 {
     switch (e) {
@@ -112,6 +118,22 @@ OpenVR::OpenVR()
     : hmd(nullptr)
     , compositor(nullptr)
 {
+    if (is_wine()) {
+        // Init registry keys if running under wine/proton
+        if (HMODULE vrclient = LoadLibraryA("vrclient.dll")) {
+            using VRClientInitRegistry = BOOL(__cdecl*)(void);
+            auto init_registry = reinterpret_cast<VRClientInitRegistry>(
+                GetProcAddress(vrclient, "vrclient_init_registry")
+            );
+
+            if (init_registry) {
+                init_registry();
+            }
+
+            FreeLibrary(vrclient);
+        }
+    }
+
     if (!vr::VR_IsHmdPresent()) {
         throw std::runtime_error("HMD not present, not initializing OpenVR");
     }
