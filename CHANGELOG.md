@@ -1,3 +1,8 @@
+## 2.2.4
+
+- Fix SteamVR OpenXR initialization in DXVK
+- Update multiview patcher to SPIRV-Tools v2026.2
+
 ## 2.2.3
 
 - New experimental option `adjustDisplayTimeMs` adjusts `displayTime` variable
