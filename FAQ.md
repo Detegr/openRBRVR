@@ -73,7 +73,7 @@ setting is not required for these tracked finger joints.
 The hands use Valve's textured red/black glove meshes, animated by the tracked
 finger joints. They do not steer, grab or snap to the steering wheel.
 The single `[OpenXR] handTracking = true` setting enables gloves and a small
-placement/Close panel with separate start-engine and two-second help cubes
+placement/Close panel with separate start-engine and one-second help cubes
 operated by a left-hand gesture and either index fingertip, during focused
 cockpit driving. Locked cube placements save automatically in each car's
 `_personal.ini`. It defaults off. See the

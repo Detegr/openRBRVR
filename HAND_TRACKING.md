@@ -27,7 +27,7 @@ palm toward the headset for 250 ms, within 18–75 cm. A small circle containing
 three lines appears beside the palm, clear of extended fingers. The icon depends
 on the palm pose, not on curling fingers or releasing a pinch. A tilted open
 palm is accepted up to about 70 degrees from facing the headset. Release the
-thumb/index pinch first, then pinch to toggle the menu. With the panel open, move either index fingertip
+thumb/index pinch first, then hold the pinch for 0.5 seconds to toggle the menu. With the panel open, move either index fingertip
 from in front of a button into **Place start button**, **Close**, or **Place call for help**. Hover turns a button
 bright red; contact flashes the button and active fingertip indicator amber. Withdraw at least
 35 mm in front of the panel before another touch can activate. Sliding between
@@ -153,8 +153,8 @@ placement can follow the right finger at a time. Close cancels an unfinished
 placement. Both locked cubes are visible only while the menu is open and work
 while hidden. Both placements are automatically saved per car when locked.
 
-Withdraw after locking, then touch the help cube with either index for **two
-continuous seconds**. Its progress bar fills and it flashes amber when fired.
+Withdraw after locking, then touch the help cube with either index for **one
+continuous second**. Its progress bar fills and it flashes amber when fired.
 Lifting early cancels the countdown. Contact uses the same cube geometry and
 release hysteresis as the start button. Fingers cannot add their durations
 together. A held finger must withdraw before another countdown can start.
@@ -173,7 +173,7 @@ used. The active game's message handler must support that RBRControls protocol;
 other installations may not. Delivery/result diagnostics go to the hands log.
 Actual rescue behavior and compatibility with the user's game conditions need
 in-game validation. Trigger it while stuck and compare with the normal bound
-Call for Help button. Test early release, a full two-second hold, continued
+Call for Help button. Test early release, a full one-second hold, continued
 contact after activation, both fingers, tracking loss, and Close during a hold.
 
 Headset persistence checks: place and lock both cubes in car A, restart VR/RBR,
@@ -245,7 +245,7 @@ presses and reference-space rebasing after recenter. Start-button tests cover
 right-index following, left-only lock, lock/contact release, cube boundaries,
 hysteresis, held input, last-fingertip release, closed-menu use, tracking/mode
 recovery, recenter rebasing, held input renewal/frame-stall release, and native
-versus redirected ignition call targets. Help tests cover the two-second
+versus redirected ignition call targets. Help tests cover the one-second
 boundary, early release, frame stalls, invalid samples, either finger, lack of
 repeat while held, independent placement, left-only lock, tracking recovery,
 hidden-cube use, Close preserving the hold, and reference-space rebasing.

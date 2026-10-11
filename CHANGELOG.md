@@ -1,7 +1,8 @@
 ## 2.3.0-beta.2
 
 - Add a hand-operated menu: face the left palm toward the headset, do a "pistol", release then
-  pinch the thumb and index finger to open or close it.
+  hold a thumb/index pinch for 0.5 seconds to open or close it.
+- Reduce the Call for help touch hold from two seconds to one second.
 
 ## 2.3.0-beta.1
 
