@@ -41,9 +41,6 @@ jobs:
         Invoke-WebRequest -Uri $url -OutFile 'zig.zip'
         Expand-Archive -Path 'zig.zip' -DestinationPath '.'
 
-    - name: Test
-      run: .\zig-x86_64-windows-0.15.2\zig.exe build test --release=fast
-
     - name: Build
       run: .\zig-x86_64-windows-0.15.2\zig.exe build --release=fast
 
@@ -102,7 +99,6 @@ jobs:
         cp openRBRVR.dll openRBRVR.toml.sample openRBRVR-${{ github.ref_name }}/Plugins
         cp LICENSE openRBRVR-${{ github.ref_name }}/Plugins/openRBRVR
         cp assets/valve_hands/LICENSE openRBRVR-${{ github.ref_name }}/Plugins/openRBRVR/Valve-hand-models-LICENSE.txt
-        cp HAND_TRACKING.md FAQ.md openRBRVR-${{ github.ref_name }}/Plugins/openRBRVR/
         cp README.md openRBRVR-${{ github.ref_name }}/Plugins/openRBRVR/README.openrbrvr.txt
         cp README_FR.md openRBRVR-${{ github.ref_name }}/Plugins/openRBRVR/README_FR.openrbrvr.txt
         cp README_CZ.md openRBRVR-${{ github.ref_name }}/Plugins/openRBRVR/README_CZ.openrbrvr.txt

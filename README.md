@@ -52,16 +52,6 @@ handTracking = true
 With Virtual Desktop, enable **Settings -> Streaming -> Advanced Options ->
 Forward tracking data to PC** in the Quest app.
 
-The hand menu and placeable buttons require **2.3.0-beta.2** or later.
-
-- To open menu: face left palm, do a pistol grip, pinch thumb and index finger.
-- Place Start engine and Call for help buttons with the right index fingertip,
-  then lock each position using the left index. Touching Start holds ignition
-  until withdrawal; Call for help requires a continuous two-second touch.
-- Save locked button placements automatically per car and restore them in later
-  sessions. Buttons are visible while the menu is open and work while hidden.
-
-
 Hands appear while driving in the cockpit. The glove models and texture
 are embedded in the plugin DLL. **Show hands** (`handTracking = true`, default
 off) enables the gloves, menu/icon and placed buttons together. To open the panel, face the left
