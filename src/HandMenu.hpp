@@ -9,13 +9,12 @@ namespace HandMenuTuning {
     constexpr float min_distance = 0.18f, max_distance = 0.75f;
     constexpr float facing_cosine = 0.35f; // Allow a natural, tilted open palm (~70 degrees).
     constexpr double palm_stable = 0.25, cooldown = 0.55;
-    constexpr double menu_hold_seconds = 0.5;
     constexpr float pinch_on = 0.022f, pinch_off = 0.038f;
     constexpr float panel_width = 0.18f, panel_height = 0.174f;
     constexpr float button_half_width = 0.08f, button_half_height = 0.021f;
     constexpr float button_y = 0.027f;
     constexpr std::array<float, 3> button_centers { button_y, -button_y, -3 * button_y };
-    constexpr double help_hold_seconds = 1.0;
+    constexpr double help_hold_seconds = 2.0;
     constexpr double help_max_sample_gap = 0.25;
     constexpr float start_cube_half = 0.025f, start_cube_release = 0.032f;
     constexpr float press_depth = 0.008f, back_depth = -0.018f;
@@ -31,7 +30,6 @@ struct HandMenuPinch {
     bool armed = false;
     bool released = false, pinched = false;
     double facing_since = -1, next_activation = 0;
-    double pinch_since = -1;
 };
 
 struct HandMenuTouch {

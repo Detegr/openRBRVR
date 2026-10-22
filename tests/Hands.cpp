@@ -500,30 +500,24 @@ namespace {
         CHECK(!pinch.update(true, true, 0.01f, 0.4));
         CHECK(!pinch.update(true, true, 0.05f, 0.5));
         CHECK(pinch.armed);
-        CHECK(!pinch.update(true, true, 0.01f, 0.6));
-        CHECK(!pinch.update(true, true, 0.01f, 1.09));
-        CHECK(pinch.update(true, true, 0.01f, 1.1));
+        CHECK(pinch.update(true, true, 0.01f, 0.6));
         CHECK(!pinch.update(true, true, 0.01f, 3)); // Held beyond cooldown.
-        CHECK(!pinch.update(true, true, 0.04f, 3.1));
+        CHECK(!pinch.update(true, true, 0.03f, 3.1)); // Hysteresis band.
         CHECK(!pinch.update(true, true, 0.01f, 3.2));
-        CHECK(!pinch.update(true, true, 0.04f, 3.6)); // Early release cancels.
-        CHECK(!pinch.update(true, true, 0.01f, 3.7));
-        CHECK(!pinch.update(true, true, 0.03f, 4.1)); // Hysteresis preserves hold.
-        CHECK(pinch.update(true, true, 0.03f, 4.2));
-        CHECK(!pinch.update(true, true, 0.04f, 4.3));
-        CHECK(!pinch.update(true, true, 0.01f, 4.4)); // Cooldown consumes early pinch.
-        CHECK(!pinch.update(true, true, 0.01f, 5.0));
-        CHECK(!pinch.update(true, true, 0.04f, 5.1));
-        CHECK(!pinch.update(true, true, 0.01f, 5.2));
-        CHECK(!pinch.update(true, false, 0.01f, 5.5)); // Turning away cancels.
+        CHECK(!pinch.update(true, true, 0.04f, 3.3));
+        CHECK(pinch.update(true, true, 0.01f, 3.4));
+        CHECK(!pinch.update(true, true, 0.04f, 3.5));
+        CHECK(!pinch.update(true, true, 0.01f, 3.6)); // Cooldown consumes early pinch.
+        CHECK(!pinch.update(true, true, 0.01f, 4.1));
+        CHECK(!pinch.update(false, true, 0.01f, 4.2));
+        CHECK(!pinch.update(true, true, 0.01f, 4.3));
+        CHECK(!pinch.update(true, true, 0.01f, 5));
+        CHECK(!pinch.update(true, false, 0.05f, 5.1));
+        CHECK(!pinch.update(true, true, 0.01f, 5.2)); // Too soon after facing.
         CHECK(!pinch.update(true, true, 0.01f, 6));
-        CHECK(!pinch.update(true, true, 0.01f, 7)); // Must release again.
-        CHECK(!pinch.update(true, true, 0.04f, 7.1));
-        CHECK(!pinch.update(true, true, 0.01f, 7.2));
-        CHECK(!pinch.update(false, true, 0.01f, 7.5)); // Tracking loss cancels.
-        CHECK(!pinch.update(true, true, 0.01f, 8));
-        CHECK(!pinch.update(true, true, 0.01f, 9));
-        CHECK(!pinch.update(true, true, std::numeric_limits<float>::quiet_NaN(), 9.1));
+        CHECK(!pinch.update(true, true, 0.05f, 6.1));
+        CHECK(pinch.update(true, true, 0.01f, 6.2));
+        CHECK(!pinch.update(true, true, std::numeric_limits<float>::quiet_NaN(), 6.3));
         CHECK(!pinch.released && !pinch.armed);
     }
 
@@ -587,19 +581,17 @@ namespace {
             return menu.update(hands, head, eligible, now);
         };
         pinch(false);
-        update_menu(0.0);
+        update_menu(0);
         update_menu(0.3);
         HandMesh icon;
         menu.append_mesh(icon);
         CHECK(!icon.vertices.empty());
         pinch(true);
-        update_menu(0.4);
-        CHECK(!menu.is_open());
-        update_menu(0.9); // Local palm-facing pinch opens the menu.
+        update_menu(0.4); // Local palm-facing pinch opens the menu.
         CHECK(menu.is_open());
         const auto captured = menu.panel_pose();
         hands[0].joints[0].pose.position.x += 0.05f;
-        update_menu(1.0);
+        update_menu(0.5);
         CHECK(menu.panel_pose() == captured); // Fixed placement, independent of hand motion.
         HandMesh panel;
         menu.append_mesh(panel);
@@ -612,78 +604,74 @@ namespace {
             hands[1].joints[XR_HAND_JOINT_INDEX_TIP_EXT].pose.position = { p.x, p.y, p.z };
         };
         tip({ 0, HandMenuTuning::button_y, 0 });
-        CHECK(update_menu(6.0) == HandMenu::Action::None);
+        CHECK(update_menu(5.5) == HandMenu::Action::None);
         tip({ 0, HandMenuTuning::button_y, 0.04f });
-        update_menu(6.1);
+        update_menu(5.6);
         tip({ 0, HandMenuTuning::button_y, 0 });
-        CHECK(update_menu(6.2) == HandMenu::Action::None);
+        CHECK(update_menu(5.7) == HandMenu::Action::None);
         CHECK(menu.is_open());
         // Place start button stays armed for placement; held panel contact does not toggle it.
-        CHECK(update_menu(6.3) == HandMenu::Action::None && menu.is_open());
+        CHECK(update_menu(5.8) == HandMenu::Action::None && menu.is_open());
         CHECK(menu.start_button().state == HandPlacedButton::State::Placing);
         menu.reset(); // Lifecycle reset still closes it.
-        CHECK(update_menu(6.5) == HandMenu::Action::None && !menu.is_open());
+        CHECK(update_menu(6) == HandMenu::Action::None && !menu.is_open());
         pinch(false);
-        update_menu(6.6);
-        update_menu(6.9);
+        update_menu(6.1);
+        update_menu(6.4);
         pinch(true);
-        update_menu(7.0);
-        CHECK(!menu.is_open());
-        update_menu(7.5);
+        update_menu(6.5);
         CHECK(menu.is_open());
         hands[1].active = false;
         const auto retained_panel = menu.panel_pose();
-        update_menu(7.6);
+        update_menu(6.6);
         CHECK(menu.is_open() && !menu.is_active());
         CHECK(menu.panel_pose() == retained_panel);
         HandMesh suspended_panel;
         menu.append_mesh(suspended_panel);
         CHECK(!suspended_panel.vertices.empty());
         hands[0].active = false; // Neither tracked hand is needed to retain the panel.
-        update_menu(7.601);
+        update_menu(6.601);
         CHECK(menu.is_open());
         hands[0].active = true;
         hands[1].active = true;
-        update_menu(8.0);
-        update_menu(8.5);
+        update_menu(7);
+        update_menu(7.5);
         CHECK(menu.is_open()); // A held pinch on recovery cannot toggle.
         pinch(false);
-        update_menu(8.6);
+        update_menu(7.6);
         pinch(true);
-        update_menu(8.7);
-        CHECK(menu.is_open());
-        update_menu(9.2);
+        update_menu(7.7);
         CHECK(!menu.is_open()); // A fresh released pinch still toggles.
-        update_menu(9.3, false); // Mode/focus/config loss.
+        update_menu(7.8, false); // Mode/focus/config loss.
         CHECK(!menu.is_open());
         menu.reset();
         hands[0].joints[0].pose.orientation = { 0, 0, 0, 1 };
         pinch(false);
-        update_menu(9.5);
-        update_menu(9.8);
+        update_menu(8);
+        update_menu(8.3);
         pinch(true);
-        update_menu(9.9);
+        update_menu(8.4);
         CHECK(!menu.is_open()); // Back of hand is not palm-facing.
         menu.reset();
         hands[0].joints[0].pose.position.z = -2;
         pinch(false);
-        update_menu(11.5);
-        update_menu(11.8);
+        update_menu(10);
+        update_menu(10.3);
         pinch(true);
-        update_menu(11.9);
+        update_menu(10.4);
         CHECK(!menu.is_open()); // Out of range.
         menu.reset();
         hands[0].joints[0].pose.position.z = -0.4f;
         hands[0].joints[0].pose.orientation = { palm_rotation.x, palm_rotation.y, palm_rotation.z, palm_rotation.w };
         pinch(false);
-        update_menu(12.5);
+        update_menu(11);
         pinch(true);
-        update_menu(12.6); // Pinch before stable: no local activation.
+        update_menu(11.1); // Pinch before stable: no local activation.
         CHECK(!menu.is_open());
-        update_menu(12.7);
+        update_menu(11.2);
         CHECK(!menu.is_open()); // An early held pinch cannot activate later.
         head.orientation = {};
-        update_menu(12.8);
+        update_menu(11.3);
         CHECK(!menu.is_open());
         menu.reset();
         head.orientation.w = 1;
@@ -696,18 +684,16 @@ namespace {
         for (auto& hand : hands)
             for (auto& joint : hand.joints)
                 joint.pose = matrix_pose(correction * pose_matrix(joint.pose));
-        update_menu(13.5);
-        update_menu(13.8);
+        update_menu(12);
+        update_menu(12.3);
         const auto transformed_index = hands[0].joints[XR_HAND_JOINT_INDEX_TIP_EXT].pose.position;
         hands[0].joints[XR_HAND_JOINT_THUMB_TIP_EXT].pose.position = transformed_index;
-        update_menu(13.9);
-        CHECK(!menu.is_open());
-        update_menu(14.4);
+        update_menu(12.4);
         CHECK(menu.is_open());
         tip({ 0, -HandMenuTuning::button_y, 0.04f });
-        update_menu(14.5);
+        update_menu(12.5);
         tip({ 0, -HandMenuTuning::button_y, 0 });
-        CHECK(update_menu(14.6) == HandMenu::Action::Close);
+        CHECK(update_menu(12.6) == HandMenu::Action::Close);
     }
 
     void test_menu_open_palm_and_either_hand()
@@ -728,7 +714,7 @@ namespace {
             thumb.x += 0.10f;
             HandMenu menu;
             const auto update = [&](double now) { return menu.update(hands, head, true, now); };
-            update(0.0);
+            update(0);
             update(0.3);
             HandMesh icon;
             menu.append_mesh(icon);
@@ -738,8 +724,6 @@ namespace {
             CHECK(icon.vertices[0].position.x < palm_position.x - 0.05f);
             thumb.x -= 0.09f;
             update(0.4);
-            CHECK(!menu.is_open());
-            menu.update(hands, head, true, 0.9);
             CHECK(menu.is_open());
             thumb.x += 0.09f;
             const auto tip = [&](int hand, glm::vec3 local) {
@@ -747,11 +731,11 @@ namespace {
                 hands[hand].joints[XR_HAND_JOINT_INDEX_TIP_EXT].pose.position = { p.x, p.y, p.z };
             };
             tip(side, { 0, HandMenuTuning::button_y, 0.04f });
-            update(1.0);
+            update(0.5);
             tip(side, { 0, HandMenuTuning::button_y, 0 });
-            CHECK(update(1.1) == HandMenu::Action::None);
+            CHECK(update(0.6) == HandMenu::Action::None);
             CHECK(menu.is_open());
-            for (double now : { 1.2, 1.5, 2.0 })
+            for (double now : { 0.7, 1.0, 1.5 })
                 CHECK(update(now) == HandMenu::Action::None && menu.is_open());
 
             // Same physical head/hands/panel, expressed in recentered coordinates.
@@ -765,14 +749,14 @@ namespace {
             for (auto& hand : hands)
                 for (auto& joint : hand.joints)
                     joint.pose = matrix_pose(transform * pose_matrix(joint.pose));
-            for (double now : { 2.5, 3.0, 3.5 })
+            for (double now : { 2.0, 2.5, 3.0 })
                 CHECK(update(now) == HandMenu::Action::None && menu.is_open());
             tip(side, { 0, -HandMenuTuning::button_y, 0 });
-            CHECK(update(3.6) == HandMenu::Action::None); // Slide after a reference change cannot press.
+            CHECK(update(3.1) == HandMenu::Action::None); // Slide after a reference change cannot press.
             tip(side, { 0, -HandMenuTuning::button_y, 0.04f });
-            update(3.7);
+            update(3.2);
             tip(side, { 0, -HandMenuTuning::button_y, 0 });
-            CHECK(update(3.8) == HandMenu::Action::Close && !menu.is_open());
+            CHECK(update(3.3) == HandMenu::Action::Close && !menu.is_open());
         }
         std::array<HandTracking::Hand, 2> hands;
         for (int i = 0; i < 2; ++i) {
@@ -798,8 +782,6 @@ namespace {
         update(0.4);
         thumb.x -= 0.10f;
         update(0.5);
-        CHECK(!menu.is_open());
-        update(1.0);
         CHECK(menu.is_open());
         thumb.x += 0.10f;
         const auto both_tips = [&](float depth) {
@@ -808,9 +790,9 @@ namespace {
                 hand.joints[XR_HAND_JOINT_INDEX_TIP_EXT].pose.position = { p.x, p.y, p.z };
         };
         both_tips(0.04f);
-        update(1.1);
+        update(0.6);
         both_tips(0);
-        CHECK(update(1.2) == HandMenu::Action::None && menu.is_open());
+        CHECK(update(0.7) == HandMenu::Action::None && menu.is_open());
         CHECK(update(1.7) == HandMenu::Action::None && menu.is_open());
         menu.rebase_after_recenter(XrPosef {}); // Invalid transform never leaves stale geometry.
         CHECK(!menu.is_open());
@@ -820,12 +802,12 @@ namespace {
     {
         HandMenuHold hold;
         CHECK(!hold.update(true, 1));
-        for (int i = 1; i < 10; ++i)
-            CHECK(!hold.update(true, 1 + i * 0.1));
-        CHECK(hold.progress(1.5) > 0.49f && hold.progress(1.5) < 0.51f);
-        CHECK(hold.update(true, 2));
         for (int i = 1; i < 20; ++i)
-            CHECK(!hold.update(true, 2 + i * 0.1));
+            CHECK(!hold.update(true, 1 + i * 0.1));
+        CHECK(hold.progress(2) > 0.49f && hold.progress(2) < 0.51f);
+        CHECK(hold.update(true, 3));
+        for (int i = 1; i < 20; ++i)
+            CHECK(!hold.update(true, 3 + i * 0.1));
         CHECK(!hold.update(false, 6));
         CHECK(!hold.update(true, 7));
         CHECK(!hold.update(true, 7.1));
@@ -853,10 +835,8 @@ namespace {
         menu.update(hands, head, true, 0.3);
         thumb.x -= 0.09f;
         menu.update(hands, head, true, 0.4);
-        CHECK(!menu.is_open());
-        menu.update(hands, head, true, 0.9);
         CHECK(menu.is_open());
-        double now = 1.0;
+        double now = 0.5;
         const auto update = [&](double dt = 0.1, bool eligible = true) {
             thumb = hands[0].joints[XR_HAND_JOINT_INDEX_TIP_EXT].pose.position;
             thumb.x += 0.10f;
@@ -907,33 +887,33 @@ namespace {
         };
         wait(35); // Right index already inside at lock cannot activate.
         begin(1);
-        wait(9);
+        wait(19);
         CHECK(update(0.11) == HandMenu::Action::CallForHelp && menu.is_open());
         wait(50); // Holding after firing never repeats.
         begin(1);
-        wait(4);
+        wait(10);
         cube_tip(1, 0.04f); // Early withdrawal cancels elapsed time.
         CHECK(update() == HandMenu::Action::None);
         cube_tip(1, 0);
-        wait(4);
+        wait(10);
         hands[1].active = false;
         CHECK(update() == HandMenu::Action::None && menu.is_open() && !menu.is_active());
         hands[1].active = true;
         wait(40); // Reacquiring inside cannot start a new countdown.
         CHECK(menu.help_button().state == HandPlacedButton::State::Locked);
         begin(0); // Left index can hold the invisible cube too.
-        wait(9);
+        wait(19);
         CHECK(update(0.11) == HandMenu::Action::CallForHelp);
         cube_tip(0, 0.1f);
         update();
         // Close the retained panel partway through a right-hand hold.
         begin(1);
-        wait(4);
+        wait(10);
         tip(0, 1, 0.05f);
         CHECK(update() == HandMenu::Action::None);
         tip(0, 1, 0);
         CHECK(update() == HandMenu::Action::Close);
-        wait(3);
+        wait(7);
         CHECK(update(0.11) == HandMenu::Action::CallForHelp); // Closing only hides it.
         wait(35);
         CHECK(!menu.is_open());
@@ -1056,10 +1036,8 @@ namespace {
         menu.update(hands, head, true, 0.3);
         thumb.x -= 0.09f;
         menu.update(hands, head, true, 0.4);
-        CHECK(!menu.is_open());
-        menu.update(hands, head, true, 0.9);
         CHECK(menu.is_open());
-        double now = 1.0;
+        double now = 0.5;
         const auto update = [&](bool eligible = true) {
             thumb = hands[0].joints[XR_HAND_JOINT_INDEX_TIP_EXT].pose.position;
             thumb.x += 0.10f;
@@ -1113,9 +1091,6 @@ namespace {
         thumb = hands[0].joints[XR_HAND_JOINT_INDEX_TIP_EXT].pose.position;
         thumb.x += 0.01f;
         now += 0.7;
-        menu.update(hands, head, true, now);
-        CHECK(!menu.is_open() && menu.start_button().is_down());
-        now += 0.5;
         menu.update(hands, head, true, now);
         CHECK(menu.is_open() && menu.start_button().is_down()); // Visibility does not interrupt a hold.
         menu.append_mesh(mesh);
@@ -1612,5 +1587,5 @@ int main()
     test_hand_button_persistence();
     test_scene_ownership();
     test_hook_publication();
-    std::cout << "Hand tests passed: capabilities, lifecycle, visibility, automatic motion compensation, reference failures, local menu gesture, touch, placement/reset, start cube/held ignition input, one-second help hold, Valve skinning, texture uploads, configuration, per-car button persistence, hook publication/failures, D3D scene ownership\n";
+    std::cout << "Hand tests passed: capabilities, lifecycle, visibility, automatic motion compensation, reference failures, local menu gesture, touch, placement/reset, start cube/held ignition input, two-second help hold, Valve skinning, texture uploads, configuration, per-car button persistence, hook publication/failures, D3D scene ownership\n";
 }

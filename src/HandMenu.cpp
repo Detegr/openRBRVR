@@ -29,7 +29,7 @@ float HandMenuHold::progress(double now) const
 
 bool HandMenuPinch::update(bool valid, bool facing, float separation, double now)
 {
-    if (!valid || !std::isfinite(separation) || !std::isfinite(now)) {
+    if (!valid || !std::isfinite(separation)) {
         reset();
         return false;
     }
@@ -38,25 +38,19 @@ bool HandMenuPinch::update(bool valid, bool facing, float separation, double now
             facing_since = now;
     } else {
         facing_since = -1;
-        pinch_since = -1;
     }
     const bool stable = facing_since >= 0 && now - facing_since >= palm_stable;
     if (separation >= pinch_off) {
         pinched = false;
         released = true;
-        pinch_since = -1;
     }
     bool event = false;
     if (!pinched && separation <= pinch_on) {
         pinched = true;
-        if (stable && released && now >= next_activation)
-            pinch_since = now;
+        event = stable && released && now >= next_activation;
         released = false; // Also consume pinches made before arming or during cooldown.
-    }
-    if (pinch_since >= 0 && stable && now - pinch_since >= menu_hold_seconds) {
-        event = true;
-        pinch_since = -1;
-        next_activation = now + cooldown;
+        if (event)
+            next_activation = now + cooldown;
     }
     armed = stable && released && now >= next_activation;
     return event;
@@ -351,7 +345,7 @@ HandMenu::Action HandMenu::update(const std::array<HandTracking::Hand, 2>& hands
             help_button_.clear_contact(); // Held fingers must withdraw before another countdown.
             help_holds_ = {};
             help_progress_ = 1;
-            hand_log("Placed Call for help button: 1-second continuous touch");
+            hand_log("Placed Call for help button: 2-second continuous touch");
             return Action::CallForHelp;
         }
         help_progress_ = std::max(help_progress_, help_holds_[i].progress(now));
@@ -481,7 +475,7 @@ void HandMenu::append_mesh(HandMesh& mesh) const
         front[3] += pose[2] * h;
         label(mesh, front, help ? "HELP" : "START", help ? 0.006f : 0, 0.0014f);
         if (help) {
-            label(mesh, front, "HOLD 1S", -0.006f, 0.0009f);
+            label(mesh, front, "HOLD 2S", -0.006f, 0.0009f);
             quad(mesh, front, -0.02f, -0.019f, 0.04f, 0.003f, 0.003f, 0xff20242b);
             if (help_progress_ > 0)
                 quad(mesh, front, -0.02f, -0.019f, 0.04f * help_progress_, 0.003f, 0.004f, 0xff76e3ef);
