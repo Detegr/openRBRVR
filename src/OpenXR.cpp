@@ -5,8 +5,6 @@
 #include "Globals.hpp"
 #include "HandDiagnostics.hpp"
 #include "HandTexture.hpp"
-#include "HandButtonLayout.hpp"
-#include "IPlugin.h"
 #include "Util.hpp"
 #include <d3d9_interop.h>
 #include <gtx/quaternion.hpp>
@@ -439,7 +437,6 @@ OpenXR::OpenXR()
         throw std::runtime_error(std::format("Failed to initialize OpenXR: xrGetSystem {}", XrResultToString(instance, err)));
     }
 
-    hand_log("Hand menu gesture: local palm pinch only");
     hand_tracking.initialize(instance, system_id, hand_extension_enabled, hand_data_source_enabled);
 
     try {
@@ -765,7 +762,6 @@ void OpenXR::init(IDirect3DDevice9* dev, IDirect3DVR9** vrdev, uint32_t companio
         }
     }
 
-    xr_session_started = true;
     // In OpenXR we don't have separate matrices for eye positions
     // The eye position is taken account in the projection matrix already
     eye_pos[LeftEye] = glm::identity<glm::mat4x4>();
@@ -1212,61 +1208,8 @@ std::optional<XrViewState> OpenXR::update_views()
 
 bool OpenXR::update_vr_poses()
 {
-    if (g::cfg.openxr_hand_tracking) {
-        hand_tracking.hide();
-        hand_mesh.clear();
-        hand_menu_mesh.clear();
-    } else {
-        // Process a live disable even if waiting/beginning the VR frame fails.
-        update_visual_hands(false);
-    }
-    // Keep menu focus and reference-space lifetime explicit. Do not infer input
-    // focus from shouldRender (some runtimes return false while rendering).
-    XrEventDataBuffer event { XR_TYPE_EVENT_DATA_BUFFER };
-    while (xrPollEvent(instance, &event) == XR_SUCCESS) {
-        if (event.type == XR_TYPE_EVENT_DATA_SESSION_STATE_CHANGED) {
-            const auto& changed = reinterpret_cast<const XrEventDataSessionStateChanged&>(event);
-            if (changed.session != session) {
-                event = { XR_TYPE_EVENT_DATA_BUFFER };
-                continue;
-            }
-            hand_log(std::format("OpenXR session state={} (focused={}, running={})", static_cast<int>(changed.state),
-                changed.state == XR_SESSION_STATE_FOCUSED, xr_session_started));
-            hand_menu_focused = changed.state == XR_SESSION_STATE_FOCUSED;
-            if (!hand_menu_focused) {
-                hand_menu.reset();
-                rbr::cancel_ignition();
-            }
-            if (changed.state == XR_SESSION_STATE_STOPPING && xr_session_started) {
-                invalidate_hand_button_layout();
-                xrEndSession(session);
-                xr_session_started = false;
-            } else if (changed.state == XR_SESSION_STATE_READY && !xr_session_started) {
-                const XrSessionBeginInfo begin { XR_TYPE_SESSION_BEGIN_INFO, nullptr, primary_view_config_type };
-                xr_session_started = XR_SUCCEEDED(xrBeginSession(session, &begin));
-            } else if (changed.state == XR_SESSION_STATE_LOSS_PENDING || changed.state == XR_SESSION_STATE_EXITING) {
-                invalidate_hand_button_layout();
-                xr_session_started = false;
-            }
-        } else if (event.type == XR_TYPE_EVENT_DATA_REFERENCE_SPACE_CHANGE_PENDING) {
-            const auto& changed = reinterpret_cast<const XrEventDataReferenceSpaceChangePending&>(event);
-            if (changed.session == session) {
-                invalidate_hand_button_layout();
-                rbr::cancel_ignition();
-                hand_menu_reference_change = changed.changeTime;
-            }
-        } else if (event.type == XR_TYPE_EVENT_DATA_INSTANCE_LOSS_PENDING) {
-            hand_menu_focused = xr_session_started = false;
-            invalidate_hand_button_layout();
-            rbr::cancel_ignition();
-        }
-        event = { XR_TYPE_EVENT_DATA_BUFFER };
-    }
-    if (!xr_session_started) {
-        rbr::cancel_ignition();
-        invalidate_hand_button_layout();
-        return false;
-    }
+    hand_tracking.hide();
+    hand_mesh.clear();
     if (g::cfg.openxr_motion_compensation) {
         update_hand_poses();
     }
@@ -1276,19 +1219,9 @@ bool OpenXR::update_vr_poses()
         .next = nullptr,
     };
 
-    const auto wait_result = xrWaitFrame(session, nullptr, &frame_state);
-    if (wait_result != last_wait_frame_result) {
-        hand_log(std::format("xrWaitFrame result: {} ({})", xr_result_to_str(wait_result), static_cast<int>(wait_result)));
-        last_wait_frame_result = wait_result;
-    }
-    if (XR_FAILED(wait_result)) {
-        rbr::cancel_ignition();
-        hand_menu.reset();
+    if (auto res = xrWaitFrame(session, nullptr, &frame_state); res != XR_SUCCESS) {
+        dbg(std::format("xrWaitFrame: {}", XrResultToString(instance, res)));
         return false;
-    }
-    if (hand_menu_reference_change && frame_state.predictedDisplayTime >= hand_menu_reference_change) {
-        invalidate_hand_button_layout();
-        hand_menu_reference_change = 0;
     }
 
     if (g::cfg.prediction_dampening > 0 && xr_convert_win32_performance_counter_to_time) {
@@ -1320,25 +1253,11 @@ bool OpenXR::update_vr_poses()
         recenter_view();
     }
 
-    const auto begin_result = xrBeginFrame(session, nullptr);
-    if (begin_result != last_begin_frame_result) {
-        hand_log(std::format("xrBeginFrame result: {} ({}); success={}", xr_result_to_str(begin_result),
-            static_cast<int>(begin_result), XR_SUCCEEDED(begin_result)));
-        last_begin_frame_result = begin_result;
-    }
-    // XR_FRAME_DISCARDED means the previous frame was discarded and THIS frame
-    // began successfully. Complete its rendering/xrEndFrame normally, otherwise
-    // every subsequent begin can discard another unfinished frame forever.
-    // XR_SESSION_LOSS_PENDING is also a success code, not a failed frame begin.
-    if (XR_FAILED(begin_result)) {
-        rbr::cancel_ignition();
-        hand_menu.reset();
-        return false;
+    if (auto res = xrBeginFrame(session, nullptr); res != XR_SUCCESS) {
+        dbg(std::format("xrBeginFrame: {}", XrResultToString(instance, res)));
     }
 
-    const bool valid_poses = update_poses();
-    if (g::cfg.openxr_hand_tracking)
-        update_visual_hands(valid_poses);
+    update_visual_hands(update_poses());
 
     if (g::cfg.debug && perf_query_free_to_use) [[unlikely]] {
         gpu_disjoint_query->Issue(D3DISSUE_BEGIN);
@@ -1388,82 +1307,16 @@ bool OpenXR::update_poses()
     return (vs.viewStateFlags & valid) == valid;
 }
 
-void OpenXR::invalidate_hand_button_layout()
-{
-    hand_menu.reset(true);
-    hand_buttons_loaded = false;
-}
-
 void OpenXR::update_visual_hands(bool valid_views)
 {
-    if (!g::cfg.openxr_hand_tracking) {
-        if (hand_visuals_active) {
-            rbr::cancel_ignition();
-            hand_tracking.update(session, space, frame_state.predictedDisplayTime, false);
-            hand_menu.reset(); // Preserve locked placements, cancel all contacts/countdowns.
-            hand_mesh.clear();
-            hand_menu_mesh.clear();
-            hand_visuals_active = false;
-            hand_log("Hands disabled: trackers released and input cleared; skipping hand updates");
-        }
-        return;
-    }
-    hand_visuals_active = true;
     // The hand tracker converts head-relative joints into this rendering space
     // through the layer-provided head pose, including any motion compensation.
-    hand_tracking.update(session, space, frame_state.predictedDisplayTime, true);
+    hand_tracking.update(session, space, frame_state.predictedDisplayTime, g::cfg.openxr_hand_tracking);
     // Live tracked hands have no meaningful pose in replay, external cameras,
     // menus or 3DoF mode. Do not retain a previous frame's geometry there.
     const bool cockpit = rbr::is_using_cockpit_camera();
     const bool render_3d = rbr::is_rendering_3d();
     const bool eligible = valid_views && rbr::get_game_mode() == rbr::GameMode::Driving && cockpit && render_3d && !g::cfg.threedof;
-    const bool menu_eligible = eligible && hand_menu_focused && g::cfg.openxr_hand_tracking
-        && !hand_menu_reference_change;
-    // RBR can reuse a slot/stage for a different RSF car. Its selection
-    // generation advances even if VR frames were skipped during loading.
-    const auto car = rbr::get_current_car_id();
-    if (menu_eligible && car) {
-        const auto context = std::make_pair(*car, rbr::get_current_stage_id());
-        const auto selection = rbr::get_car_selection_generation();
-        if (hand_button_context != context || hand_button_selection_generation != selection) {
-            invalidate_hand_button_layout(); // Never carry another car's live buttons into this cockpit.
-            hand_button_context = context;
-            hand_button_selection_generation = selection;
-            hand_button_path = Config::resolve_personal_car_ini_path(*car);
-        }
-        if (!hand_buttons_loaded && rbr::hand_button_reference_ready()) {
-            const auto layout = hand_button_path ? HandButtonLayout::load(*hand_button_path) : std::nullopt;
-            if (layout)
-                hand_menu.restore_buttons(layout->poses);
-            hand_buttons_loaded = true; // Missing/invalid files do not cause per-frame I/O.
-            hand_log(std::format("Hand button layout car={}, path={}: {}; start={}, help={}", *car,
-                hand_button_path ? hand_button_path->string() : "unresolved",
-                layout ? "loaded (missing/invalid entries remain unplaced)" : "load failed; place buttons to save",
-                hand_menu.start_button().state == HandPlacedButton::State::Locked,
-                hand_menu.help_button().state == HandPlacedButton::State::Locked));
-        }
-    }
-    const double menu_now = std::chrono::duration<double>(std::chrono::steady_clock::now().time_since_epoch()).count();
-    const auto action = hand_menu.update(hand_tracking.hands(), hand_tracking.reference_pose(),
-        menu_eligible && car && hand_buttons_loaded && rbr::hand_button_reference_ready(),
-        menu_now);
-    if (const int locked = hand_menu.take_locked_button(); locked >= 0) {
-        const auto& cube = locked == 0 ? hand_menu.start_button() : hand_menu.help_button();
-        const bool saved = hand_button_path && HandButtonLayout::save(*hand_button_path, locked, cube.pose);
-        hand_log(std::format("Hand button {} save {}: {}", locked == 0 ? "Start" : "Call for help",
-            saved ? "OK" : "FAILED", hand_button_path ? hand_button_path->string() : "car path unresolved"));
-        if (g::game)
-            g::game->WriteGameMessage(saved ? "Hand button saved for this car." : "Failed to save hand button; see hands log.", 2.0, 100.0, 100.0);
-    }
-    const bool start_eligible = eligible && hand_menu_focused && g::cfg.openxr_hand_tracking
-        && !hand_menu_reference_change
-        && hand_menu.is_active();
-    if (start_eligible)
-        rbr::ensure_ignition_input();
-    rbr::set_ignition_down(start_eligible && hand_menu.start_button().is_down());
-    if (start_eligible && action == HandMenu::Action::CallForHelp)
-        rbr::call_for_help(); // Once per frame, through the existing game action handler.
-    hand_menu.append_mesh(hand_menu_mesh);
     if (eligible) {
         const auto& hands = hand_tracking.hands();
         for (size_t i = 0; i < hands.size(); ++i) {
@@ -1481,7 +1334,7 @@ void OpenXR::update_visual_hands(bool valid_views)
 
 void OpenXR::render_hands(IDirect3DDevice9* dev, RenderTarget target)
 {
-    if (!g::cfg.openxr_hand_tracking || (hand_mesh.indices.empty() && hand_menu_mesh.indices.empty()) || target > FocusRight
+    if (!g::cfg.openxr_hand_tracking || hand_mesh.indices.empty() || target > FocusRight
         || rbr::get_game_mode() != rbr::GameMode::Driving || !rbr::is_using_cockpit_camera() || g::cfg.threedof) {
         return;
     }
@@ -1494,7 +1347,7 @@ void OpenXR::render_hands(IDirect3DDevice9* dev, RenderTarget target)
                 static_cast<uint32_t>(result), static_cast<int>(target), hand_mesh.vertices.size()));
         }
     };
-    if (!glove_texture && !hand_mesh.indices.empty()) {
+    if (!glove_texture) {
         const auto now = std::chrono::steady_clock::now();
         if (now - last_glove_texture_attempt < std::chrono::seconds(5)) {
             return;
@@ -1607,21 +1460,11 @@ void OpenXR::render_hands(IDirect3DDevice9* dev, RenderTarget target)
     check(dev->SetSamplerState(0, D3DSAMP_MAXMIPLEVEL, 0));
     check(dev->SetSamplerState(0, D3DSAMP_SRGBTEXTURE, FALSE));
 
-    if (success && !hand_mesh.indices.empty()) {
+    if (success) {
         check(dev->DrawIndexedPrimitiveUP(D3DPT_TRIANGLELIST, 0, static_cast<UINT>(hand_mesh.vertices.size()),
                   static_cast<UINT>(hand_mesh.indices.size() / 3), hand_mesh.indices.data(), D3DFMT_INDEX16,
                   hand_mesh.vertices.data(), sizeof(HandVertex)),
             "DrawIndexedPrimitiveUP");
-    }
-    if (success && hand_menu_focused && !hand_menu_mesh.indices.empty()) {
-        // Same reference coordinates, depth policy and eye transforms as hands.
-        // Multiview draws both eyes; quad-view calls cover each supported pair.
-        check(dev->SetTexture(0, nullptr));
-        check(dev->SetTextureStageState(0, D3DTSS_COLOROP, D3DTOP_SELECTARG1));
-        check(dev->SetTextureStageState(0, D3DTSS_COLORARG1, D3DTA_DIFFUSE));
-        check(dev->DrawIndexedPrimitiveUP(D3DPT_TRIANGLELIST, 0, static_cast<UINT>(hand_menu_mesh.vertices.size()),
-            static_cast<UINT>(hand_menu_mesh.indices.size()/3), hand_menu_mesh.indices.data(), D3DFMT_INDEX16,
-            hand_menu_mesh.vertices.data(), sizeof(HandVertex)), "Draw hand menu");
     }
     check(scene.finish(), "EndScene");
     check(saved->Apply(), "RestoreState");
@@ -1678,8 +1521,6 @@ void OpenXR::reset_view()
 
 void OpenXR::recenter_view()
 {
-    rbr::cancel_ignition();
-    hand_menu_mesh.clear();
     XrSpaceLocation space_location = {
         .type = XR_TYPE_SPACE_LOCATION,
         .next = nullptr,
@@ -1741,20 +1582,8 @@ void OpenXR::recenter_view()
         return;
     }
 
-    if (hand_menu.has_placement()) {
-        XrSpaceLocation old_in_new { XR_TYPE_SPACE_LOCATION };
-        constexpr auto valid = XR_SPACE_LOCATION_POSITION_VALID_BIT | XR_SPACE_LOCATION_ORIENTATION_VALID_BIT;
-        if (XR_SUCCEEDED(xrLocateSpace(space, new_space, frame_state.predictedDisplayTime, &old_in_new))
-            && (old_in_new.locationFlags & valid) == valid)
-            hand_menu.rebase_after_recenter(old_in_new.pose);
-        else
-            invalidate_hand_button_layout();
-    }
-
     if (auto res = xrDestroySpace(space); res != XR_SUCCESS) {
         dbg(std::format("Failed to destroy old space: {}", XrResultToString(instance, res)));
-        invalidate_hand_button_layout();
-        xrDestroySpace(new_space);
         return;
     }
 
@@ -1764,14 +1593,6 @@ void OpenXR::recenter_view()
 
 void OpenXR::shutdown_vr()
 {
-    hand_visuals_active = false;
-    hand_button_context.reset();
-    hand_button_path.reset();
-    rbr::cancel_ignition();
-    invalidate_hand_button_layout();
-    hand_menu_mesh.clear();
-    hand_menu_focused = xr_session_started = false;
-    hand_menu_reference_change = 0;
     hand_tracking.shutdown();
     hand_mesh.clear();
     if (glove_texture) {

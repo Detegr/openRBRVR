@@ -27,9 +27,6 @@ namespace rbr {
     std::array<uintptr_t, 4> get_render_particles_function_addrs();
     GameMode get_game_mode();
     uint32_t get_current_stage_id();
-    std::optional<uint32_t> get_current_car_id();
-    bool hand_button_reference_ready();
-    uint64_t get_car_selection_generation();
 
     bool is_on_btb_stage();
     bool is_loading_btb_stage();
@@ -42,10 +39,6 @@ namespace rbr {
     const M4& get_horizon_lock_matrix();
     double calculate_lowpass_alpha();
     bool should_use_reverse_z_buffer();
-    bool ensure_ignition_input();
-    void set_ignition_down(bool down);
-    void cancel_ignition();
-    void call_for_help();
 
     // Hookable functions
     void __fastcall render(void* p);

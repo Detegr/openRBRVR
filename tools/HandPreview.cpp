@@ -1,6 +1,5 @@
 // Optional real D3D9 smoke test. Creates a hidden window, renders both embedded
 // glove assets with the plugin's skinning/texture upload code, then saves a BMP.
-#include "HandMenu.hpp"
 #include "HandMesh.hpp"
 #include "HandTexture.hpp"
 #include <ext/matrix_clip_space.hpp>
@@ -54,7 +53,6 @@ int main(int argc, char** argv)
 {
     try {
         const char* output = argc > 1 ? argv[1] : "zig-out/valve-gloves.bmp";
-        const bool menu_preview = argc > 2 && std::string_view(argv[2]) == "--menu";
         const auto window = CreateWindowExA(0, "STATIC", "Valve glove preview", WS_OVERLAPPEDWINDOW,
             0, 0, 1200, 800, nullptr, nullptr, GetModuleHandleA(nullptr), nullptr);
         if (!window)
@@ -84,76 +82,15 @@ int main(int argc, char** argv)
         check(upload_hand_texture(texture, texture_data), "UploadTexture");
 
         HandMesh mesh;
-        HandMesh menu_mesh;
-        if (menu_preview) {
-            std::array<HandTracking::Hand, 2> hands;
-            for (int i = 0; i < 2; ++i) {
-                const auto side = i == 0 ? XR_HAND_LEFT_EXT : XR_HAND_RIGHT_EXT;
-                auto world = glm::translate(M4(1), glm::vec3(i == 0 ? -0.11f : 0.14f, -0.10f, 0));
-                world *= glm::rotate(M4(1), glm::radians(-90.0f), glm::vec3(1, 0, 0));
-                hands[i] = pose(side, false, world);
-                for (auto& joint : hands[i].joints)
-                    joint.locationFlags = XR_SPACE_LOCATION_POSITION_VALID_BIT | XR_SPACE_LOCATION_ORIENTATION_VALID_BIT;
-                append_hand_mesh(hands[i], side, mesh);
+        for (int row = 0; row < 2; ++row) {
+            const auto side = row == 0 ? XR_HAND_LEFT_EXT : XR_HAND_RIGHT_EXT;
+            for (int column = 0; column < 3; ++column) {
+                auto world = glm::translate(M4(1), glm::vec3((column - 1) * 0.21f, row == 0 ? 0.095f : -0.105f, 0));
+                world *= glm::rotate(M4(1), glm::radians(column == 1 ? -90.0f : 90.0f), glm::vec3(1, 0, 0));
+                const auto hand = pose(side, column == 2, world);
+                append_hand_mesh(hand, side, mesh);
             }
-            const XrPosef head { { 0, 0, 0, 1 }, { 0, 0, 0.6f } };
-            auto& thumb = hands[0].joints[XR_HAND_JOINT_THUMB_TIP_EXT].pose.position;
-            thumb = hands[0].joints[XR_HAND_JOINT_INDEX_TIP_EXT].pose.position;
-            thumb.x += 0.06f;
-            HandMenu menu;
-            menu.update(hands, head, true, 0);
-            menu.update(hands, head, true, 0.3);
-            thumb.x -= 0.05f;
-            menu.update(hands, head, true, 0.4);
-            if (!menu.is_open())
-                throw std::runtime_error("Preview gesture did not open the menu");
-            const auto panel_tip = [&](int hand, int button, float depth) {
-                const auto p = glm::vec3(menu.panel_pose() * glm::vec4(0, HandMenuTuning::button_centers[button], depth, 1));
-                hands[hand].joints[XR_HAND_JOINT_INDEX_TIP_EXT].pose.position = { p.x, p.y, p.z };
-            };
-            panel_tip(1, 0, 0.05f);
-            menu.update(hands, head, true, 0.5);
-            panel_tip(1, 0, 0);
-            menu.update(hands, head, true, 0.6);
-            hands[1].joints[XR_HAND_JOINT_INDEX_TIP_EXT].pose.position = { 0.14f, 0.10f, 0.03f };
-            // Keep the gesture released while the left index operates the menu.
-            thumb = { -0.25f, 0, 0 };
-            panel_tip(0, 0, 0.05f);
-            menu.update(hands, head, true, 0.7);
-            panel_tip(0, 0, 0);
-            menu.update(hands, head, true, 0.8);
-            if (menu.start_button().state != HandPlacedButton::State::Locked)
-                throw std::runtime_error("Preview did not lock the start cube");
-            panel_tip(0, 1, 0.03f);
-            const auto tip = glm::vec3(menu.panel_pose() * glm::vec4(0, -HandMenuTuning::button_y, 0.03f, 1));
-            hands[1].joints[XR_HAND_JOINT_INDEX_TIP_EXT].pose.position = { tip.x, tip.y, tip.z };
-            menu.update(hands, head, true, 1.1);
-            panel_tip(1, 2, 0.05f);
-            menu.update(hands, head, true, 1.2);
-            panel_tip(1, 2, 0);
-            menu.update(hands, head, true, 1.3);
-            hands[1].joints[XR_HAND_JOINT_INDEX_TIP_EXT].pose.position = { 0.25f, 0.10f, 0.03f };
-            panel_tip(0, 2, 0.05f);
-            menu.update(hands, head, true, 1.4);
-            panel_tip(0, 2, 0);
-            menu.update(hands, head, true, 1.5);
-            hands[1].joints[XR_HAND_JOINT_INDEX_TIP_EXT].pose.position.x += 0.1f;
-            menu.update(hands, head, true, 1.6);
-            hands[1].joints[XR_HAND_JOINT_INDEX_TIP_EXT].pose.position.x -= 0.1f;
-            menu.update(hands, head, true, 1.7);
-            for (int i = 1; i <= 10; ++i)
-                menu.update(hands, head, true, 1.7 + 0.1 * i);
-            menu.append_mesh(menu_mesh);
-        } else
-            for (int row = 0; row < 2; ++row) {
-                const auto side = row == 0 ? XR_HAND_LEFT_EXT : XR_HAND_RIGHT_EXT;
-                for (int column = 0; column < 3; ++column) {
-                    auto world = glm::translate(M4(1), glm::vec3((column - 1) * 0.21f, row == 0 ? 0.095f : -0.105f, 0));
-                    world *= glm::rotate(M4(1), glm::radians(column == 1 ? -90.0f : 90.0f), glm::vec3(1, 0, 0));
-                    const auto hand = pose(side, column == 2, world);
-                    append_hand_mesh(hand, side, mesh);
-                }
-            }
+        }
         check(dev->Clear(0, nullptr, D3DCLEAR_TARGET | D3DCLEAR_ZBUFFER, D3DCOLOR_XRGB(44, 49, 58), 1.0f, 0), "Clear");
         check(dev->BeginScene(), "BeginScene");
         check(dev->SetFVF(D3DFVF_XYZ | D3DFVF_DIFFUSE | D3DFVF_TEX1), "SetFVF");
@@ -176,15 +113,6 @@ int main(int argc, char** argv)
         check(dev->DrawIndexedPrimitiveUP(D3DPT_TRIANGLELIST, 0, static_cast<UINT>(mesh.vertices.size()),
                   static_cast<UINT>(mesh.indices.size() / 3), mesh.indices.data(), D3DFMT_INDEX16, mesh.vertices.data(), sizeof(HandVertex)),
             "DrawIndexedPrimitiveUP");
-        if (!menu_mesh.indices.empty()) {
-            check(dev->SetTexture(0, nullptr), "MenuTexture");
-            check(dev->SetTextureStageState(0, D3DTSS_COLOROP, D3DTOP_SELECTARG1), "MenuColorOp");
-            check(dev->SetTextureStageState(0, D3DTSS_COLORARG1, D3DTA_DIFFUSE), "MenuDiffuse");
-            check(dev->DrawIndexedPrimitiveUP(D3DPT_TRIANGLELIST, 0, static_cast<UINT>(menu_mesh.vertices.size()),
-                      static_cast<UINT>(menu_mesh.indices.size() / 3), menu_mesh.indices.data(), D3DFMT_INDEX16,
-                      menu_mesh.vertices.data(), sizeof(HandVertex)),
-                "Draw menu");
-        }
         check(dev->EndScene(), "EndScene");
 
         IDirect3DSurface9* target = nullptr;
@@ -218,8 +146,7 @@ int main(int argc, char** argv)
         dev->Release();
         d3d->Release();
         DestroyWindow(window);
-        std::cout << "D3D9 smoke test passed; saved " << output
-                  << (menu_preview ? " (hand menu with independently placed start/help cubes and help hold progress).\n" : " (left above right; back, palm, curled).\n");
+        std::cout << "D3D9 glove smoke test passed; saved " << output << " (left above right; back, palm, curled).\n";
         return 0;
     } catch (const std::exception& e) {
         std::cerr << e.what() << '\n';

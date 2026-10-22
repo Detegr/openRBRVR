@@ -368,7 +368,6 @@ struct Config {
             cfg.peripheral_msaa = static_cast<D3DMULTISAMPLE_TYPE>(oxrnode["peripheralAntiAliasing"].value_or(0));
             cfg.openxr_motion_compensation = oxrnode["motionCompensation"].value_or(false);
             cfg.openxr_hand_tracking = oxrnode["handTracking"].value_or(false);
-
             cfg.prediction_dampening = oxrnode["predictionDampening"].value_or(0);
             cfg.prediction_dampening = std::clamp(cfg.prediction_dampening, 0LL, 100LL);
             cfg.enable_xr_api_path_modification = oxrnode["xrApiPathModification"].value_or(true);

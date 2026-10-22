@@ -11,7 +11,6 @@
 
 #include "Config.hpp"
 #include "HandMesh.hpp"
-#include "HandMenu.hpp"
 #include "VR.hpp"
 #include <array>
 #include <d3d9.h>
@@ -60,19 +59,7 @@ private:
     InputState input_state; // For sending poses to OpenXR-MotionCompensation https://github.com/BuzzteeBear/OpenXR-MotionCompensation
     bool reset_view_requested;
     HandTracking hand_tracking;
-    bool hand_visuals_active = false;
     HandMesh hand_mesh;
-    HandMenu hand_menu;
-    HandMesh hand_menu_mesh;
-    std::optional<std::pair<uint32_t, uint32_t>> hand_button_context;
-    std::optional<std::filesystem::path> hand_button_path;
-    bool hand_buttons_loaded = false;
-    uint64_t hand_button_selection_generation = 0;
-    bool hand_menu_focused = false;
-    bool xr_session_started = false;
-    XrTime hand_menu_reference_change = 0;
-    XrResult last_wait_frame_result = XR_SUCCESS;
-    XrResult last_begin_frame_result = XR_SUCCESS;
     IDirect3DTexture9* glove_texture = nullptr;
     std::chrono::steady_clock::time_point last_glove_texture_attempt {};
     std::chrono::steady_clock::time_point last_hand_frame_log {};
@@ -112,7 +99,6 @@ private:
     std::vector<XrInteractionProfileSuggestedBinding> get_supported_interaction_profiles(const std::array<XrActionSuggestedBinding, 2>& bindings);
     void update_hand_poses();
     void update_visual_hands(bool valid_views);
-    void invalidate_hand_button_layout();
 
 public:
     OpenXR();

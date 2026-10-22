@@ -10,7 +10,6 @@
 
 using MenuFn = std::function<void()>;
 
-
 struct MenuEntry {
     std::function<std::string()> text;
     std::vector<std::string> long_text;

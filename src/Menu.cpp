@@ -34,7 +34,7 @@ void LicenseMenu::select()
     select_menu(0);
 }
 
-static void recenter_vr()
+void recenter_vr()
 {
     g::vr->reset_view();
 }
@@ -378,14 +378,14 @@ static class Menu companion_menu = { "openRBRVR desktop window settings", {
 
 constexpr auto world_scale_step = 1;
 static class Menu openxr_menu = { "openRBRVR OpenXR settings", {
-  { .text = [] { return std::format("Show hands (experimental): {}{}", g::cfg.openxr_hand_tracking ? "ON" : "OFF",
+  { .text = [] { return std::format("Show tracked hands (experimental): {}{}", g::cfg.openxr_hand_tracking ? "ON" : "OFF",
         g::vr && g::vr->get_runtime_type() == OPENXR && !g::vr->supports_hand_tracking() ? " (UNAVAILABLE)" : ""); },
-    .long_text = { "Show tracked gloves with the hand menu and placed buttons.",
-        "Requires your 32-bit OpenXR runtime, cockpit driving and 6DoF.",
-        "Face left palm toward headset; release then pinch to toggle the menu.",
-        "Place either cube with the right index; lock with the left index.",
-        "Start holds ignition; Call for help requires a 2-second touch.",
-        "Locked placements save per car. Save plugin settings to keep this choice." },
+    .long_text = { "Show simple bare hands and fingers while driving in a cockpit view.",
+        "Requires hand tracking from your 32-bit OpenXR runtime.",
+        "Hands hide when tracking is lost, in menus, pauses and replays.",
+        "Visual only: no interaction or steering-wheel alignment.",
+        "Requires positional head tracking (disabled in 3DoF mode).",
+        "Save the plugin settings to keep this choice." },
     .menu_color = IRBRGame::EMenuColors::MENU_TEXT,
     .position = Menu::menu_items_start_pos,
     .left_action = [] { Toggle(g::cfg.openxr_hand_tracking); },

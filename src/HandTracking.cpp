@@ -47,7 +47,6 @@ void HandTracking::initialize(XrInstance instance, XrSystemId system, bool exten
 
 void HandTracking::hide()
 {
-    reference_pose_ = {}; // Never expose a stale head/reference pose after locate failure.
     reference_flags_ = 0;
     reference_result_ = XR_SUCCESS;
     for (auto& hand : hands_) {
@@ -150,7 +149,6 @@ void HandTracking::update(XrSession session, XrSpace reference_space, XrTime tim
         log_status();
         return;
     }
-    reference_pose_ = reference.pose;
     const auto& rq = reference.pose.orientation;
     const auto reference_rotation = glm::normalize(glm::quat(rq.w, rq.x, rq.y, rq.z));
     const glm::vec3 reference_position(reference.pose.position.x, reference.pose.position.y, reference.pose.position.z);

@@ -1,9 +1,7 @@
 #include "RBR.hpp"
 #include "Dx.hpp"
 #include "Globals.hpp"
-#include "HandDiagnostics.hpp"
 #include "IPlugin.h"
-#include "IgnitionButton.hpp"
 #include "Util.hpp"
 #include "VR.hpp"
 
@@ -20,7 +18,6 @@ namespace g {
     static rbr::GameMode previous_game_mode;
     static bool previously_on_btb_stage;
     static uint32_t current_stage_id;
-    static uint64_t car_selection_generation;
     static M4 horizon_lock_matrix = glm::identity<M4>();
     static glm::vec3 seat_translation;
     static bool is_driving;
@@ -38,119 +35,6 @@ namespace g {
 }
 
 namespace rbr {
-    using DigitalInputFn = int(__thiscall*)(void*, int);
-    static Hook<DigitalInputFn> digital_input_hook;
-    static IgnitionButton ignition_button;
-    static std::atomic<bool> ignition_sampled_down { false };
-
-    static int __fastcall digital_input(void* input, void*, int axis)
-    {
-        const int physical = digital_input_hook.call(input, axis);
-        if (axis == IgnitionButton::ignition_axis && (ignition_button.pending() || ignition_sampled_down.load())) {
-            if (get_game_mode() != GameMode::Driving || !is_using_cockpit_camera()
-                || !g::cfg.openxr_hand_tracking) {
-                cancel_ignition();
-            } else {
-                // Supply input only to the active game-controller table.
-                const auto game = *reinterpret_cast<uintptr_t*>(get_address(0x7EAC48));
-                const auto base = game ? *reinterpret_cast<uintptr_t*>(game + 0xCF8) : 0;
-                const auto controller = base ? *reinterpret_cast<uintptr_t*>(base + 4) : 0;
-                if (controller && reinterpret_cast<uintptr_t>(input) == controller + 0x24) {
-                    const bool down = ignition_button.is_down(axis, GetTickCount64());
-                    if (ignition_sampled_down.exchange(down) != down)
-                        hand_log(down ? "Start cube: ignition DOWN sampled by RBR input poll"
-                                      : "Start cube: ignition UP sampled by RBR input poll");
-                    // A level for the entire contact, not a queued tap consumed
-                    // by the first poll. Physical bindings remain independent.
-                    return physical || down;
-                }
-            }
-        }
-        return physical;
-    }
-
-    bool ensure_ignition_input()
-    {
-        static bool attempted = false;
-        if (attempted)
-            return digital_input_hook.call != nullptr;
-        attempted = true;
-        // RBR's controller axis table documents 12 as IGNITION:
-        // https://github.com/mika-n/NGPCarMenu/blob/master/src/RBRAPI.h
-        // Verified in RichardBurnsRally_SSE.exe: the controller update pushes
-        // 12 at 0x4CC3B4, calls a digital poll at 0x4CC3E5 and sets the
-        // ignition control bit. Other plugins may redirect that CALL. Resolve
-        // its current target after verifying its arguments and bool result use,
-        // so we preserve the installed ignition path rather than bypassing it.
-        const auto* argument = reinterpret_cast<const uint8_t*>(get_address(0x4CC3B4));
-        const auto* call = reinterpret_cast<const uint8_t*>(get_address(0x4CC3E5));
-        const auto target = resolve_ignition_call({ argument, 2 }, { call, 15 }, reinterpret_cast<uintptr_t>(call));
-        if (!target) {
-            char executable[MAX_PATH] {};
-            GetModuleFileNameA(nullptr, executable, sizeof(executable));
-            hand_log(std::format("Start cube unavailable: unsupported ignition call site in {}; argument={:02x} {:02x}, call={:02x} {:02x} {:02x} {:02x} {:02x}",
-                executable, argument[0], argument[1], call[0], call[1], call[2], call[3], call[4]));
-            return false;
-        }
-        MEMORY_BASIC_INFORMATION memory {};
-        if (!VirtualQuery(reinterpret_cast<void*>(target), &memory, sizeof(memory))
-            || memory.State != MEM_COMMIT || (memory.Protect & (PAGE_GUARD | PAGE_NOACCESS))
-            || !(memory.Protect & (PAGE_EXECUTE | PAGE_EXECUTE_READ | PAGE_EXECUTE_READWRITE | PAGE_EXECUTE_WRITECOPY))) {
-            hand_log("Start cube unavailable: ignition input target is not executable");
-            return false;
-        }
-        try {
-            // MinHook preserves the existing target, including an earlier
-            // plugin detour. Always call that chain before adding our press.
-            // NGP polls on its physics thread and can enter as soon as the
-            // patch is enabled. Publish the trampoline in this global object
-            // first; constructing an enabled temporary then moving it races.
-            digital_input_hook.install(reinterpret_cast<DigitalInputFn>(target),
-                reinterpret_cast<DigitalInputFn>(digital_input));
-            hand_log(std::format("Start cube: normal RBR ignition input hook ready (axis 12, target={:08x}, redirected={})",
-                target, target != get_address(0x4C25D0)));
-        } catch (const std::runtime_error& e) {
-            hand_log(std::format("Start cube input unavailable: {}", e.what()));
-        }
-        return digital_input_hook.call != nullptr;
-    }
-
-    void set_ignition_down(bool down)
-    {
-        if (down && !ensure_ignition_input())
-            return;
-        const auto now = GetTickCount64();
-        const bool was_down = ignition_button.is_down(IgnitionButton::ignition_axis, now);
-        ignition_button.set_down(down, now);
-        if (was_down != down)
-            hand_log(down ? "Start cube contact: ignition DOWN" : "Start cube contact: ignition UP");
-    }
-
-    void cancel_ignition() { set_ignition_down(false); }
-
-    void call_for_help()
-    {
-        if (get_game_mode() != GameMode::Driving || !is_using_cockpit_camera() || !g::d3d_dev)
-            return;
-        D3DDEVICE_CREATION_PARAMETERS parameters {};
-        if (FAILED(g::d3d_dev->GetCreationParameters(&parameters)) || !IsWindow(parameters.hFocusWindow)) {
-            hand_log("Call for help unavailable: game window not available");
-            return;
-        }
-        // Same action message as installed RBRControls' CALLFORHELP binding:
-        // its action 0x18 calls the message helper with (4, 0), selecting
-        // WM_COPYDATA with dwData 4, no payload and sender tag 0xDEAF01.
-        // Use the game handler, not a private
-        // plugin entry point or a guessed keyboard mapping.
-        COPYDATASTRUCT message { 4, 0, nullptr };
-        DWORD_PTR reply = 0;
-        if (SendMessageTimeoutA(parameters.hFocusWindow, WM_COPYDATA, 0xDEAF01,
-                reinterpret_cast<LPARAM>(&message), SMTO_ABORTIFHUNG | SMTO_BLOCK, 250, &reply))
-            hand_log(std::format("Call for help: game action 4 delivered (reply={})", reply));
-        else
-            hand_log(std::format("Call for help: game message delivery failed ({})", GetLastError()));
-    }
-
     static uintptr_t get_base_address()
     {
         // If ASLR is enabled, the base address is randomized
@@ -231,24 +115,6 @@ namespace rbr {
     uint32_t get_current_stage_id()
     {
         return g::current_stage_id;
-    }
-
-    std::optional<uint32_t> get_current_car_id()
-    {
-        return g::car_id_ptr ? std::optional(*g::car_id_ptr) : std::nullopt;
-    }
-
-    uint64_t get_car_selection_generation()
-    {
-        return g::car_selection_generation;
-    }
-
-    bool hand_button_reference_ready()
-    {
-        // The final scheduled recenter request is consumed before hand updates.
-        return g::game_mode == GameMode::Driving && g::seat_position_loaded
-            && (!g::cfg.recenter_at_session_start || g::session_recenter_frame_counter >= 150)
-            && (!g::cfg.recenter_at_stage_start || g::stage_recenter_frame_counter >= 150);
     }
 
     bool is_on_btb_stage()
@@ -527,8 +393,6 @@ namespace rbr {
         if (game_mode != g::game_mode) [[unlikely]] {
             g::previous_game_mode = g::game_mode;
             g::game_mode = game_mode;
-            if (game_mode == GameMode::Loading || game_mode == GameMode::PreStage || game_mode == GameMode::MainMenu)
-                ++g::car_selection_generation;
         }
 
         if (g::previous_game_mode != g::game_mode && (g::game_mode == GameMode::PreStage || g::game_mode == GameMode::Pause)) {

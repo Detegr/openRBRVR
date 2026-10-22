@@ -49,7 +49,7 @@ edit `openRBRVR.toml` to contain `runtime = 'openxr'`.
 ## Can I see my tracked hands in the cockpit?
 
 Visual hand tracking is available in OpenXR mode. Enable
-`Options -> Plugins -> openRBRVR -> OpenXR settings -> Show hands`
+`Options -> Plugins -> openRBRVR -> OpenXR settings -> Show tracked hands`
 and save the plugin settings, or set:
 
 ```toml
@@ -71,14 +71,8 @@ the hands use the layer's corrected head pose. Its `compensate_controllers`
 setting is not required for these tracked finger joints.
 
 The hands use Valve's textured red/black glove meshes, animated by the tracked
-finger joints. They do not steer, grab or snap to the steering wheel.
-The single `[OpenXR] handTracking = true` setting enables gloves and a small
-placement/Close panel with separate start-engine and two-second help cubes
-operated by a left-hand gesture and either index fingertip, during focused
-cockpit driving. Locked cube placements save automatically in each car's
-`_personal.ini`. It defaults off. See the
-[settings and headset checklist](HAND_TRACKING.md#small-hand-menu). Only the
-local palm-facing pinch is supported; Quest system UI conflicts need headset testing.
+finger joints. These are visual only: they do not steer, grab, operate menus or
+snap to the steering wheel.
 Hands may intersect the wheel/dashboard or float away from the in-game wheel.
 No extra hand model or texture installation is required.
 The embedded glove assets are copyright Valve Corporation; see their

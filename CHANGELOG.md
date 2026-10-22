@@ -1,13 +1,6 @@
-## 2.3.0-beta.2
-
-- New  menu to place ignition start + CFH buttons in cars. Do pistol and pinch thumb+index 
-  finger to open the menu.  
-
 ## 2.3.0-beta.1
 
-- Hand tracking support (experimental, beta). Please report any issues you encounter. 
-  Currently only Quest3 is verified to work (no other headsets tested yet). See the 
-  README for more information.
+- Hand tracking support (experimental, beta). Please report any issues you encounter. Currently only Quest3 is verified to work (no other headsets tested yet). See the README for more information.
 
 ## 2.2.4
 

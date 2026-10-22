@@ -52,25 +52,9 @@ handTracking = true
 With Virtual Desktop, enable **Settings -> Streaming -> Advanced Options ->
 Forward tracking data to PC** in the Quest app.
 
-Hands appear while driving in the cockpit. The glove models and texture
-are embedded in the plugin DLL. **Show hands** (`handTracking = true`, default
-off) enables the gloves, menu/icon and placed buttons together. To open the panel, face the left
-palm toward the headset, release then pinch thumb/index to open, and touch a
-button with either index fingertip. **Place start button** positions a cube on
-the right index; touch the item again with the left index to lock it, then
-withdraw and touch the cube to hold ignition down. Removing the fingertip
-releases ignition. The cube is visible only with the menu open and works while
-hidden too. Both button placements save automatically per car when locked and
-restore in later sessions. Close or another
-left-hand gesture dismisses the panel.
-**Place call for help** places a separate cube the same way. Touch that cube
-with either index for two seconds to trigger help once; lifting early cancels
-the countdown. It also works while hidden. A progress bar shows the hold duration.
-This requires focused cockpit driving and valid tracking of both hands.
-Only the local palm-facing pinch is supported; no extra menu settings are needed.
-If it conflicts with Quest system UI, turn off Show hands; system gestures
-cannot be intercepted or suppressed.
-See [hand menu settings and the headset checklist](HAND_TRACKING.md#small-hand-menu).
+Hands appear while driving in the cockpit. This feature displays hands;
+it does not provide gestures or gameplay controls. The glove models and texture
+are embedded in the plugin DLL.
 
 ## Frequently asked questions
 

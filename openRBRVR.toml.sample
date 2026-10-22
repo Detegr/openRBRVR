@@ -25,8 +25,7 @@ renderReplays3d = true
 runtime = 'steamvr'
 
 [OpenXR]
-# Show hands, local palm-pinch menu, and per-car Start/Call for help buttons.
-# Requires runtime hand tracking, focused cockpit driving and 6DoF.
+# Experimental visual hands, cockpit driving only. Requires runtime hand tracking.
 handTracking = false
 motionCompensation = false
 peripheralAntiAliasing = 0
