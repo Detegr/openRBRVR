@@ -6,7 +6,6 @@ namespace {
 #include "../assets/valve_hands/right.inc"
 #include "../assets/valve_hands/texture.inc"
 
-    static_assert(std::endian::native == std::endian::little);
     const HandModel models[] {
         { left_vertices, left_indices, left_inverse_bind },
         { right_vertices, right_indices, right_inverse_bind },

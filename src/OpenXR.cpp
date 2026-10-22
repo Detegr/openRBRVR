@@ -1314,9 +1314,8 @@ void OpenXR::update_visual_hands(bool valid_views)
     hand_tracking.update(session, space, frame_state.predictedDisplayTime, g::cfg.openxr_hand_tracking);
     // Live tracked hands have no meaningful pose in replay, external cameras,
     // menus or 3DoF mode. Do not retain a previous frame's geometry there.
-    const bool cockpit = rbr::is_using_cockpit_camera();
-    const bool render_3d = rbr::is_rendering_3d();
-    const bool eligible = valid_views && rbr::get_game_mode() == rbr::GameMode::Driving && cockpit && render_3d && !g::cfg.threedof;
+    const bool eligible = valid_views && rbr::get_game_mode() == rbr::GameMode::Driving
+        && rbr::is_using_cockpit_camera() && rbr::is_rendering_3d() && !g::cfg.threedof;
     if (eligible) {
         const auto& hands = hand_tracking.hands();
         for (size_t i = 0; i < hands.size(); ++i) {
@@ -1327,7 +1326,7 @@ void OpenXR::update_visual_hands(bool valid_views)
     if (g::cfg.openxr_hand_tracking && now - last_hand_frame_log >= std::chrono::seconds(5)) {
         last_hand_frame_log = now;
         hand_log(std::format("Hand frame: {}; mode={}, cockpit={}, render3d={}, 3dof={}, viewFlags={}, eligible={}, vertices={}, quadViews={}, multiview={}",
-            hand_tracking.status(), static_cast<int>(rbr::get_game_mode()), cockpit, render_3d, g::cfg.threedof,
+            hand_tracking.status(), static_cast<int>(rbr::get_game_mode()), rbr::is_using_cockpit_camera(), rbr::is_rendering_3d(), g::cfg.threedof,
             hand_view_flags, eligible, hand_mesh.vertices.size(), is_using_quad_view_rendering(), dx::multiview_rendering_enabled()));
     }
 }

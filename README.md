@@ -36,25 +36,12 @@ to `Plugins/openRBRVR.toml` via the menu.
 
 ### Experimental hand tracking
 
-Available from 2.3.0-beta.1. Requires OpenXR and a runtime that supports hand
-tracking. Currently tested with Quest 3; other headsets have not been tested.
+Requires OpenXR and a runtime that supports hand tracking. 
 
 Enable hand tracking through the OpenXR plugin menu and save the settings,
 or edit the existing entries in `Plugins/openRBRVR.toml`:
 
-```toml
-runtime = 'openxr'
-
-[OpenXR]
-handTracking = true
-```
-
-With Virtual Desktop, enable **Settings -> Streaming -> Advanced Options ->
-Forward tracking data to PC** in the Quest app.
-
-Hands appear while driving in the cockpit. This feature displays hands;
-it does not provide gestures or gameplay controls. The glove models and texture
-are embedded in the plugin DLL.
+ How to enable handtracking on your headset see the [FAQ](https://github.com/Detegr/openRBRVR/blob/master/FAQ.md).
 
 ## Frequently asked questions
 

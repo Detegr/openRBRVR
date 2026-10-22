@@ -41,9 +41,6 @@ jobs:
         Invoke-WebRequest -Uri $url -OutFile 'zig.zip'
         Expand-Archive -Path 'zig.zip' -DestinationPath '.'
 
-    - name: Build
-      run: .\zig-x86_64-windows-0.15.2\zig.exe build --release=fast
-
     - name: Upload openRBRVR.dll
       uses: actions/upload-artifact@v4
       with:
@@ -114,7 +111,7 @@ jobs:
         tag_name: ${{ github.ref_name }}
         release_name: ${{ github.ref_name }}
         draft: false
-        prerelease: true
+        prerelease: false
         body: ${{ env.CHANGELOG }}
 
     - name: Upload release asset

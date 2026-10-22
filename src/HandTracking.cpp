@@ -4,15 +4,13 @@
 #include <algorithm>
 #include <cmath>
 
-namespace {
-    bool valid_pose(const XrPosef& pose)
-    {
-        const auto& p = pose.position;
-        const auto& q = pose.orientation;
-        const float norm = q.x * q.x + q.y * q.y + q.z * q.z + q.w * q.w;
-        return std::isfinite(p.x) && std::isfinite(p.y) && std::isfinite(p.z)
-            && std::isfinite(norm) && norm > 0.5f && norm < 1.5f;
-    }
+static bool valid_pose(const XrPosef& pose)
+{
+    const auto& p = pose.position;
+    const auto& q = pose.orientation;
+    const float norm = q.x * q.x + q.y * q.y + q.z * q.z + q.w * q.w;
+    return std::isfinite(p.x) && std::isfinite(p.y) && std::isfinite(p.z)
+        && std::isfinite(norm) && norm > 0.5f && norm < 1.5f;
 }
 
 void HandTracking::initialize(XrInstance instance, XrSystemId system, bool extension_enabled, bool data_source_enabled)
@@ -34,22 +32,22 @@ void HandTracking::initialize(XrInstance instance, XrSystemId system, bool exten
     const auto load = [instance](const char* name, auto& fn) {
         return XR_SUCCEEDED(xrGetInstanceProcAddr(instance, name, reinterpret_cast<PFN_xrVoidFunction*>(&fn))) && fn;
     };
-    if (!load("xrCreateHandTrackerEXT", create_) || !load("xrDestroyHandTrackerEXT", destroy_) || !load("xrLocateHandJointsEXT", locate_)
-        || !load("xrCreateReferenceSpace", create_space_) || !load("xrDestroySpace", destroy_space_) || !load("xrLocateSpace", locate_space_)) {
+    if (!load("xrCreateHandTrackerEXT", create) || !load("xrDestroyHandTrackerEXT", destroy) || !load("xrLocateHandJointsEXT", locate)
+        || !load("xrCreateReferenceSpace", create_space) || !load("xrDestroySpace", destroy_space) || !load("xrLocateSpace", locate_space)) {
         hand_log("Hand tracking unavailable: required extension functions could not be loaded");
         return;
     }
 
-    supported_ = true;
-    data_source_enabled_ = data_source_enabled;
-    hand_log(std::format("Hand tracking supported; data source selection={}", data_source_enabled_));
+    tracking_supported = true;
+    this->data_source_enabled = data_source_enabled;
+    hand_log(std::format("Hand tracking supported; data source selection={}", data_source_enabled));
 }
 
 void HandTracking::hide()
 {
-    reference_flags_ = 0;
-    reference_result_ = XR_SUCCESS;
-    for (auto& hand : hands_) {
+    reference_flags = 0;
+    reference_result = XR_SUCCESS;
+    for (auto& hand : hand_states) {
         hand.active = false;
         hand.joints = {};
         hand.status = Status::NotLocated;
@@ -60,30 +58,30 @@ void HandTracking::hide()
 void HandTracking::destroy_trackers()
 {
     hide();
-    for (auto& hand : hands_) {
-        if (hand.tracker && destroy_) {
-            destroy_(hand.tracker);
+    for (auto& hand : hand_states) {
+        if (hand.tracker && destroy) {
+            destroy(hand.tracker);
         }
         hand = {};
     }
-    if (view_space_ && destroy_space_) {
-        destroy_space_(view_space_);
+    if (view_space && destroy_space) {
+        destroy_space(view_space);
     }
-    view_space_ = XR_NULL_HANDLE;
+    view_space = XR_NULL_HANDLE;
 }
 
 void HandTracking::shutdown()
 {
     destroy_trackers();
-    supported_ = false;
-    creation_attempted_ = false;
-    data_source_enabled_ = false;
-    create_ = nullptr;
-    destroy_ = nullptr;
-    locate_ = nullptr;
-    create_space_ = nullptr;
-    destroy_space_ = nullptr;
-    locate_space_ = nullptr;
+    tracking_supported = false;
+    creation_attempted = false;
+    data_source_enabled = false;
+    create = nullptr;
+    destroy = nullptr;
+    locate = nullptr;
+    create_space = nullptr;
+    destroy_space = nullptr;
+    locate_space = nullptr;
 }
 
 void HandTracking::update(XrSession session, XrSpace reference_space, XrTime time, bool enabled)
@@ -91,41 +89,41 @@ void HandTracking::update(XrSession session, XrSpace reference_space, XrTime tim
     hide();
     if (!enabled) {
         destroy_trackers();
-        creation_attempted_ = false;
+        creation_attempted = false;
         return;
     }
-    if (!supported_ || !session || !reference_space || time <= 0) {
+    if (!tracking_supported || !session || !reference_space || time <= 0) {
         return;
     }
 
-    if (!creation_attempted_) {
-        creation_attempted_ = true;
+    if (!creation_attempted) {
+        creation_attempted = true;
         const XrReferenceSpaceCreateInfo view_info {
             XR_TYPE_REFERENCE_SPACE_CREATE_INFO, nullptr, XR_REFERENCE_SPACE_TYPE_VIEW,
             { { 0, 0, 0, 1 }, { 0, 0, 0 } }
         };
-        if (const auto result = create_space_(session, &view_info, &view_space_); XR_FAILED(result)) {
-            view_space_ = XR_NULL_HANDLE;
+        if (const auto result = create_space(session, &view_info, &view_space); XR_FAILED(result)) {
+            view_space = XR_NULL_HANDLE;
             hand_log(std::format("Hand VIEW space creation failed ({}); hands hidden until toggled or restarted", static_cast<int>(result)));
             return;
         }
         XrHandTrackingDataSourceEXT source = XR_HAND_TRACKING_DATA_SOURCE_UNOBSTRUCTED_EXT;
         XrHandTrackingDataSourceInfoEXT source_info { XR_TYPE_HAND_TRACKING_DATA_SOURCE_INFO_EXT, nullptr, 1, &source };
-        for (size_t i = 0; i < hands_.size(); ++i) {
+        for (size_t i = 0; i < hand_states.size(); ++i) {
             const XrHandTrackerCreateInfoEXT info {
                 XR_TYPE_HAND_TRACKER_CREATE_INFO_EXT,
-                data_source_enabled_ ? &source_info : nullptr,
+                data_source_enabled ? &source_info : nullptr,
                 i == 0 ? XR_HAND_LEFT_EXT : XR_HAND_RIGHT_EXT,
                 XR_HAND_JOINT_SET_DEFAULT_EXT,
             };
             XrHandTrackerEXT tracker = XR_NULL_HANDLE;
-            const auto result = create_(session, &info, &tracker);
+            const auto result = create(session, &info, &tracker);
             if (XR_FAILED(result)) {
                 hand_log(std::format("Hand tracker creation failed ({}); hands hidden until toggled or restarted", static_cast<int>(result)));
                 destroy_trackers();
                 return;
             }
-            hands_[i].tracker = tracker;
+            hand_states[i].tracker = tracker;
         }
         hand_log("Left and right hand trackers created; joints use VIEW -> rendering reference conversion (automatic motion compensation)");
     }
@@ -140,11 +138,11 @@ void HandTracking::update(XrSession session, XrSpace reference_space, XrTime tim
     // Use an identity VIEW space, independent of seat/recenter offsets, and
     // the exact same time for this pose and both hands' joint queries.
     XrSpaceLocation reference { XR_TYPE_SPACE_LOCATION };
-    reference_result_ = locate_space_(view_space_, reference_space, time, &reference);
-    reference_flags_ = reference.locationFlags;
+    reference_result = locate_space(view_space, reference_space, time, &reference);
+    reference_flags = reference.locationFlags;
     constexpr auto valid = XR_SPACE_LOCATION_POSITION_VALID_BIT | XR_SPACE_LOCATION_ORIENTATION_VALID_BIT;
-    if (XR_FAILED(reference_result_) || (reference_flags_ & valid) != valid || !valid_pose(reference.pose)) {
-        for (auto& hand : hands_)
+    if (XR_FAILED(reference_result) || (reference_flags & valid) != valid || !valid_pose(reference.pose)) {
+        for (auto& hand : hand_states)
             hand.status = Status::InvalidReference;
         log_status();
         return;
@@ -152,17 +150,17 @@ void HandTracking::update(XrSession session, XrSpace reference_space, XrTime tim
     const auto& rq = reference.pose.orientation;
     const auto reference_rotation = glm::normalize(glm::quat(rq.w, rq.x, rq.y, rq.z));
     const glm::vec3 reference_position(reference.pose.position.x, reference.pose.position.y, reference.pose.position.z);
-    const XrHandJointsLocateInfoEXT info { XR_TYPE_HAND_JOINTS_LOCATE_INFO_EXT, nullptr, view_space_, time };
-    for (auto& hand : hands_) {
+    const XrHandJointsLocateInfoEXT info { XR_TYPE_HAND_JOINTS_LOCATE_INFO_EXT, nullptr, view_space, time };
+    for (auto& hand : hand_states) {
         XrHandTrackingDataSourceStateEXT source { XR_TYPE_HAND_TRACKING_DATA_SOURCE_STATE_EXT };
         XrHandJointLocationsEXT locations {
             XR_TYPE_HAND_JOINT_LOCATIONS_EXT,
-            data_source_enabled_ ? &source : nullptr,
+            data_source_enabled ? &source : nullptr,
             XR_FALSE,
             XR_HAND_JOINT_COUNT_EXT,
             hand.joints.data(),
         };
-        const auto result = locate_(hand.tracker, &info, &locations);
+        const auto result = locate(hand.tracker, &info, &locations);
         hand.locate_result = result;
         if (XR_FAILED(result)) {
             hand.status = Status::LocateFailed;
@@ -172,11 +170,11 @@ void HandTracking::update(XrSession session, XrSpace reference_space, XrTime tim
             }
             continue;
         }
-        if (!locations.isActive || (data_source_enabled_ && !source.isActive)) {
+        if (!locations.isActive || (data_source_enabled && !source.isActive)) {
             hand.status = Status::Inactive;
             continue;
         }
-        if (data_source_enabled_ && source.dataSource != XR_HAND_TRACKING_DATA_SOURCE_UNOBSTRUCTED_EXT) {
+        if (data_source_enabled && source.dataSource != XR_HAND_TRACKING_DATA_SOURCE_UNOBSTRUCTED_EXT) {
             hand.status = Status::ControllerSource;
             continue;
         }
@@ -213,10 +211,10 @@ void HandTracking::update(XrSession session, XrSpace reference_space, XrTime tim
 
 std::string HandTracking::status() const
 {
-    if (!supported_)
+    if (!tracking_supported)
         return "Unavailable";
     if (!enabled())
-        return creation_attempted_ ? "Tracker creation failed" : "Trackers off";
+        return creation_attempted ? "Tracker creation failed" : "Trackers off";
     const auto name = [](Status status) -> const char* {
         switch (status) {
             case Status::NotLocated: return "not located";
@@ -229,20 +227,20 @@ std::string HandTracking::status() const
         }
         return "unknown";
     };
-    return std::format("L: {}, R: {}", name(hands_[0].status), name(hands_[1].status));
+    return std::format("L: {}, R: {}", name(hand_states[0].status), name(hand_states[1].status));
 }
 
 void HandTracking::log_status()
 {
     const auto now = std::chrono::steady_clock::now();
-    if (now - last_status_log_ < std::chrono::seconds(5))
+    if (now - last_status_log < std::chrono::seconds(5))
         return;
-    last_status_log_ = now;
+    last_status_log = now;
     hand_log(std::format("Hand joints: {}; locate results L={}, R={}; coordinates=VIEW -> LOCAL, headLocateResult={}, headFlags={}",
-        status(), static_cast<int>(hands_[0].locate_result), static_cast<int>(hands_[1].locate_result),
-        static_cast<int>(reference_result_), reference_flags_));
-    for (size_t i = 0; i < hands_.size(); ++i) {
-        const auto& hand = hands_[i];
+        status(), static_cast<int>(hand_states[0].locate_result), static_cast<int>(hand_states[1].locate_result),
+        static_cast<int>(reference_result), reference_flags));
+    for (size_t i = 0; i < hand_states.size(); ++i) {
+        const auto& hand = hand_states[i];
         if (hand.invalid_joint >= 0) {
             const auto& joint = hand.joints[hand.invalid_joint];
             const auto& q = joint.pose.orientation;

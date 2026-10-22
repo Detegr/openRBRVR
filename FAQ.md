@@ -59,28 +59,6 @@ runtime = 'openxr'
 handTracking = true
 ```
 
-Hands appear only while driving with a cockpit camera and positional head
-tracking. They hide in menus, pauses, replays, external cameras and 3DoF mode,
-or whenever their tracking becomes inactive or invalid. Each hand hides and
-recovers independently. The toggle takes effect without restarting the game.
-
-Motion compensation is followed automatically when hands are enabled; there is
-no separate hand-compensation setting. Without a compensation layer, ordinary
-hand and head movement is preserved. With OpenXR Motion Compensation active,
-the hands use the layer's corrected head pose. Its `compensate_controllers`
-setting is not required for these tracked finger joints.
-
-The hands use Valve's textured red/black glove meshes, animated by the tracked
-finger joints. These are visual only: they do not steer, grab, operate menus or
-snap to the steering wheel.
-Hands may intersect the wheel/dashboard or float away from the in-game wheel.
-No extra hand model or texture installation is required.
-The embedded glove assets are copyright Valve Corporation; see their
-[license and conversion notes](assets/valve_hands/README.md).
-
-See [hand-tracking implementation and validation notes](HAND_TRACKING.md) for
-runtime checks and the remaining headset tests.
-
 ### Required settings for Quest 3
 
 Enable hand tracking in Quest3 

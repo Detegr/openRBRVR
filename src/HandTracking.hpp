@@ -31,26 +31,26 @@ public:
     void update(XrSession session, XrSpace reference_space, XrTime time, bool enabled);
     void hide();
     void shutdown();
-    bool supported() const { return supported_; }
-    bool enabled() const { return view_space_ && hands_[0].tracker && hands_[1].tracker; }
-    const std::array<Hand, 2>& hands() const { return hands_; }
+    bool supported() const { return tracking_supported; }
+    bool enabled() const { return view_space && hand_states[0].tracker && hand_states[1].tracker; }
+    const std::array<Hand, 2>& hands() const { return hand_states; }
     std::string status() const;
 
 private:
     void destroy_trackers();
     void log_status();
-    std::chrono::steady_clock::time_point last_status_log_ {};
-    bool supported_ = false;
-    bool data_source_enabled_ = false;
-    bool creation_attempted_ = false;
-    XrSpace view_space_ = XR_NULL_HANDLE;
-    XrResult reference_result_ = XR_SUCCESS;
-    XrSpaceLocationFlags reference_flags_ = 0;
-    std::array<Hand, 2> hands_ {};
-    PFN_xrCreateHandTrackerEXT create_ = nullptr;
-    PFN_xrDestroyHandTrackerEXT destroy_ = nullptr;
-    PFN_xrLocateHandJointsEXT locate_ = nullptr;
-    PFN_xrCreateReferenceSpace create_space_ = nullptr;
-    PFN_xrDestroySpace destroy_space_ = nullptr;
-    PFN_xrLocateSpace locate_space_ = nullptr;
+    std::chrono::steady_clock::time_point last_status_log {};
+    bool tracking_supported = false;
+    bool data_source_enabled = false;
+    bool creation_attempted = false;
+    XrSpace view_space = XR_NULL_HANDLE;
+    XrResult reference_result = XR_SUCCESS;
+    XrSpaceLocationFlags reference_flags = 0;
+    std::array<Hand, 2> hand_states {};
+    PFN_xrCreateHandTrackerEXT create = nullptr;
+    PFN_xrDestroyHandTrackerEXT destroy = nullptr;
+    PFN_xrLocateHandJointsEXT locate = nullptr;
+    PFN_xrCreateReferenceSpace create_space = nullptr;
+    PFN_xrDestroySpace destroy_space = nullptr;
+    PFN_xrLocateSpace locate_space = nullptr;
 };
