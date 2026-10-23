@@ -1,7 +1,3 @@
-## 2.3.0-beta.1
-
-- Hand tracking support (experimental, beta). Please report any issues you encounter. Currently only Quest3 is verified to work (no other headsets tested yet). See the README for more information.
-
 ## 2.2.4
 
 - Fix SteamVR OpenXR initialization in DXVK
