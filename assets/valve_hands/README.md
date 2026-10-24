@@ -5,4 +5,3 @@ converted for openRBRVR's D3D9 hand renderer.
 The meshes and reduced-size texture are compiled into the DLL, so no external assets are needed at runtime.
 
 Copyright Valve Corporation; see the [asset license](LICENSE), which must accompany redistribution.
-To regenerate the assets, use `tools/import_valve_hands.py`.
