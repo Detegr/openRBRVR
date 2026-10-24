@@ -10,6 +10,7 @@
 #include <optional>
 
 #include "Config.hpp"
+#include "HandMesh.hpp"
 #include "VR.hpp"
 #include <array>
 #include <d3d9.h>
@@ -57,6 +58,13 @@ private:
     XrViewConfigurationType primary_view_config_type;
     InputState input_state; // For sending poses to OpenXR-MotionCompensation https://github.com/BuzzteeBear/OpenXR-MotionCompensation
     bool reset_view_requested;
+    HandTracking hand_tracking;
+    HandMesh hand_mesh;
+    IDirect3DTexture9* glove_texture = nullptr;
+    std::chrono::steady_clock::time_point last_glove_texture_attempt {};
+    std::chrono::steady_clock::time_point last_hand_frame_log {};
+    std::array<std::chrono::steady_clock::time_point, 4> last_hand_draw_log {};
+    XrViewStateFlags hand_view_flags = 0;
 
     PFN_xrConvertWin32PerformanceCounterToTimeKHR xr_convert_win32_performance_counter_to_time;
 
@@ -77,7 +85,7 @@ private:
 
     XrSwapchainImageD3D11KHR& acquire_swapchain_image(RenderTarget tgt);
     std::optional<XrViewState> update_views();
-    void update_poses();
+    bool update_poses();
     bool get_projection_matrix(XrViewState view_state);
     void recenter_view();
     void synchronize_graphics_apis(bool wait_for_cpu = false);
@@ -90,6 +98,7 @@ private:
     bool set_interaction_profile_bindings();
     std::vector<XrInteractionProfileSuggestedBinding> get_supported_interaction_profiles(const std::array<XrActionSuggestedBinding, 2>& bindings);
     void update_hand_poses();
+    void update_visual_hands(bool valid_views);
 
 public:
     OpenXR();
@@ -111,6 +120,9 @@ public:
     void prepare_frames_for_hmd(IDirect3DDevice9* dev) override;
     void submit_frames_to_hmd(IDirect3DDevice9* dev) override;
     void reset_view() override;
+    void render_hands(IDirect3DDevice9* dev, RenderTarget target) override;
+    bool supports_hand_tracking() const override { return hand_tracking.supported(); }
+    std::string get_hand_tracking_status() const override { return hand_tracking.status(); }
     FrameTimingInfo get_frame_timing() override;
     VRRuntime get_runtime_type() const override { return OPENXR; }
 

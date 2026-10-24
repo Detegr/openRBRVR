@@ -25,6 +25,7 @@ renderReplays3d = true
 runtime = 'steamvr'
 
 [OpenXR]
+handTracking = false
 motionCompensation = false
 peripheralAntiAliasing = 0
 predictionDampening = 0

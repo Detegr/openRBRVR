@@ -80,6 +80,7 @@ namespace dx {
         g::vr_render_target = eye;
         if (g::vr->prepare_vr_rendering(g::d3d_dev, eye, clear)) {
             g::hooks::render.call(p);
+            g::vr->render_hands(g::d3d_dev, eye);
             g::vr->finish_vr_rendering(g::d3d_dev, eye);
         } else {
             dbg("Failed to set 3D render target");
