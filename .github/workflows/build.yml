@@ -77,13 +77,12 @@ jobs:
     - name: Create changelog
       id: changelog
       run: |
-        echo 'CHANGELOG<<EOF' >> "$GITHUB_ENV"
-        awk -v tag="$GITHUB_REF_NAME" '
-          $0 == "## " tag { found=1; next }
-          found && /^## / { exit }
-          found { print }
-        ' CHANGELOG.md >> "$GITHUB_ENV"
-        echo 'EOF' >> "$GITHUB_ENV"
+        changes=$(awk -v tag=$(git tag --sort=-creatordate | sed -n '2p') '$0 ~ "## " tag {exit} {print}' CHANGELOG.md | sed -e '1,2d')
+        echo "CHANGELOG<<EOF" >> $GITHUB_ENV
+        while IFS= read -r line; do
+          echo $line >> $GITHUB_ENV
+        done <<< "$changes"
+        echo EOF >> $GITHUB_ENV
 
     - name: Create release zip
       id: release-zip
