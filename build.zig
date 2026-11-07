@@ -33,6 +33,9 @@ pub fn build(b: *std.Build) void {
         "src/API.cpp",
         "src/Dx.cpp",
         "src/Globals.cpp",
+        "src/HandAssets.cpp",
+        "src/HandMesh.cpp",
+        "src/HandTracking.cpp",
         "src/Menu.cpp",
         "src/OpenVR.cpp",
         "src/OpenXR.cpp",
@@ -87,6 +90,7 @@ pub fn build(b: *std.Build) void {
     dll.linkSystemLibrary("version");
 
     b.installArtifact(dll);
+    b.installFile("assets/valve_hands/LICENSE", "bin/Valve-hand-models-LICENSE.txt");
 
     // For compile_commands.json
     var targets: std.ArrayListUnmanaged(*std.Build.Step.Compile) = .empty;

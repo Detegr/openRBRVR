@@ -48,7 +48,9 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: openRBRVR.dll
-        path: zig-out\bin\openRBRVR.dll
+        path: |
+          zig-out\bin\openRBRVR.dll
+          zig-out\bin\Valve-hand-models-LICENSE.txt
 
     - name: Upload openRBRVR.pdb
       uses: actions/upload-artifact@v4
@@ -93,6 +95,7 @@ jobs:
         cp -r thirdparty/obsmirror openRBRVR-${{ github.ref_name }}/Plugins/openRBRVR
         cp openRBRVR.dll openRBRVR.toml.sample openRBRVR-${{ github.ref_name }}/Plugins
         cp LICENSE openRBRVR-${{ github.ref_name }}/Plugins/openRBRVR
+        cp assets/valve_hands/LICENSE openRBRVR-${{ github.ref_name }}/Plugins/openRBRVR/Valve-hand-models-LICENSE.txt
         cp README.md openRBRVR-${{ github.ref_name }}/Plugins/openRBRVR/README.openrbrvr.txt
         cp README_FR.md openRBRVR-${{ github.ref_name }}/Plugins/openRBRVR/README_FR.openrbrvr.txt
         cp README_CZ.md openRBRVR-${{ github.ref_name }}/Plugins/openRBRVR/README_CZ.openrbrvr.txt

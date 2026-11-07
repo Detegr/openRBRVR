@@ -112,6 +112,7 @@ struct Config {
     bool wanted_quad_view_rendering = false;
     D3DMULTISAMPLE_TYPE peripheral_msaa = D3DMULTISAMPLE_NONE;
     bool openxr_motion_compensation = false; // OpenXR-MotionCompensation support https://github.com/BuzzteeBear/OpenXR-MotionCompensation
+    bool openxr_hand_tracking = false;
     bool render_particles = true;
     bool always_render_particles_in_replay = false;
     int64_t prediction_dampening = 0;
@@ -158,6 +159,7 @@ struct Config {
         wanted_quad_view_rendering = rhs.wanted_quad_view_rendering;
         peripheral_msaa = rhs.peripheral_msaa;
         openxr_motion_compensation = rhs.openxr_motion_compensation;
+        openxr_hand_tracking = rhs.openxr_hand_tracking;
         render_particles = rhs.render_particles;
         always_render_particles_in_replay = rhs.always_render_particles_in_replay;
         prediction_dampening = rhs.prediction_dampening;
@@ -200,6 +202,7 @@ struct Config {
             && wanted_quad_view_rendering == rhs.wanted_quad_view_rendering
             && peripheral_msaa == rhs.peripheral_msaa
             && openxr_motion_compensation == rhs.openxr_motion_compensation
+            && openxr_hand_tracking == rhs.openxr_hand_tracking
             && render_particles == rhs.render_particles
             && always_render_particles_in_replay == rhs.always_render_particles_in_replay
             && prediction_dampening == rhs.prediction_dampening
@@ -280,6 +283,7 @@ struct Config {
         openxr.insert("quadViewRendering", wanted_quad_view_rendering);
         openxr.insert("peripheralAntiAliasing", peripheral_msaa);
         openxr.insert("motionCompensation", openxr_motion_compensation);
+        openxr.insert("handTracking", openxr_hand_tracking);
         openxr.insert("predictionDampening", prediction_dampening);
         if (!enable_xr_api_path_modification) {
             openxr.insert("xrApiPathModification", false);
@@ -363,6 +367,7 @@ struct Config {
             cfg.quad_view_rendering = cfg.wanted_quad_view_rendering = oxrnode["quadViewRendering"].value_or(false);
             cfg.peripheral_msaa = static_cast<D3DMULTISAMPLE_TYPE>(oxrnode["peripheralAntiAliasing"].value_or(0));
             cfg.openxr_motion_compensation = oxrnode["motionCompensation"].value_or(false);
+            cfg.openxr_hand_tracking = oxrnode["handTracking"].value_or(false);
             cfg.prediction_dampening = oxrnode["predictionDampening"].value_or(0);
             cfg.prediction_dampening = std::clamp(cfg.prediction_dampening, 0LL, 100LL);
             cfg.enable_xr_api_path_modification = oxrnode["xrApiPathModification"].value_or(true);

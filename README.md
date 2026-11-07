@@ -34,6 +34,15 @@ the plugin.
 Plugin settings can be changed from `Options -> Plugins -> openRBRVR` and saved
 to `Plugins/openRBRVR.toml` via the menu.
 
+### Experimental hand tracking
+
+Requires OpenXR and a runtime that supports hand tracking. 
+
+Enable hand tracking through the OpenXR plugin menu and save the settings,
+or edit the existing entries in `Plugins/openRBRVR.toml`:
+
+ How to enable handtracking on your headset see the [FAQ](https://github.com/Detegr/openRBRVR/blob/master/FAQ.md).
+
 ## Frequently asked questions
 
 - See the [FAQ](https://github.com/Detegr/openRBRVR/blob/master/FAQ.md).
@@ -42,7 +51,7 @@ to `Plugins/openRBRVR.toml` via the menu.
 
 The project uses [Zig](https://ziglang.org/) as the build system. To build the
 project, download the [Zig compiler version
-0.14.0](https://ziglang.org/download/0.14.0/zig-windows-x86_64-0.14.0.zip),
+0.15.2](https://ziglang.org/download/0.15.2/zig-x86_64-windows-0.15.2.zip),
 extract it to a path of your liking and invoke `zig build`.
 
 For a release build, use `zig build --release=fast`. To build directly to RBR

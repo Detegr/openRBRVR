@@ -46,6 +46,30 @@ Please refer to the following table to check if your device is supported:
 Enable OpenXR runtime from `Options -> Plugins -> openRBRVR -> VR runtime` or
 edit `openRBRVR.toml` to contain `runtime = 'openxr'`.
 
+## Can I see my tracked hands in the cockpit?
+
+Visual hand tracking is available in OpenXR mode. Enable
+`Options -> Plugins -> openRBRVR -> OpenXR settings -> Show tracked hands`
+and save the plugin settings, or set:
+
+```toml
+runtime = 'openxr'
+
+[OpenXR]
+handTracking = true
+```
+
+### Required settings for Quest 3
+
+Enable hand tracking in Quest3 
+ * Enable **Settings -> Hands & Body -> Hands and body tracking**
+
+In Virtual Desktop / VDXR 
+* Enable **Forward tracking data to PC** in the 
+Quest Virtual Desktop app under **Settings -> Streaming -> Advanced Options**. 
+* Enable **Settings -> Input -> Hand Tracking**
+
+
 ## OpenComposite error: unsupported apptype
 
 openRBRVR has a native OpenXR implementation, so OpenComposite is not required.

@@ -39,6 +39,7 @@
 .envrc
 build/
 .vs/
+.idea/
 CMakeSettings.json
 
 .cache
