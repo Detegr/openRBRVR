@@ -30,7 +30,7 @@ void VRInterface::set_render_context(const std::string& name)
     // Per-stage setting of multiview rendering
     if (dx::multiview_rendering_enabled() != g::vr->get_current_render_context()->multiview_rendering) {
         g::cfg.multiview = g::vr->get_current_render_context()->multiview_rendering;
-        g::d3d_vr->EnableMultiView(dx::multiview_rendering_enabled());
+        // g::d3d_vr->EnableMultiView(dx::multiview_rendering_enabled());
     }
 }
 

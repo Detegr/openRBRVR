@@ -12,7 +12,7 @@ namespace g {
     IDirect3DDevice9* d3d_dev;
     ID3D11Device5* d3d11_dev = nullptr;
     ID3D11DeviceContext4* d3d11_ctx = nullptr;
-    IDirect3DVR9* d3d_vr;
+    IDirect3DExtensions9* d3d_vr;
     uint32_t base_shader_data_end_register;
     std::unordered_map<std::string, IDirect3DTexture9*> car_textures;
     std::optional<RenderTarget> vr_render_target;

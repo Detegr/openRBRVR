@@ -12,9 +12,6 @@
 #include <array>
 #include <gtx/matrix_decompose.hpp>
 
-using MultiViewAddFn = int (*)(uint32_t*, uint32_t, uint32_t*, uint32_t*);
-using MultiViewPatchFn = int (*)(uint32_t*, uint32_t, uint32_t*, uint32_t*, uint32_t, uint32_t, int8_t);
-
 // Compilation unit global variables
 namespace g {
     static std::chrono::steady_clock::time_point second_start;
@@ -25,7 +22,6 @@ namespace g {
     static std::vector<IDirect3DVertexShader9*> base_game_multiview_shaders;
     static std::vector<IDirect3DVertexShader9*> external_shaders;
     static std::vector<IDirect3DVertexShader9*> external_multiview_shaders;
-    static MultiViewPatchFn spirv_change_multiview_access;
     static std::unordered_map<uint32_t, std::array<float, 16>> deferred_shader_constants;
     static int failed_multiview_base_game_shaders;
     static int failed_multiview_external_shaders;
@@ -62,105 +58,22 @@ namespace dx {
         g::vr_render_target = std::nullopt;
     }
 
-    static bool patch_spirv_shader(IDirect3DVertexShader9* s, uint32_t f_idx, uint32_t data_start_register, bool optimize)
-    {
-        uint32_t spirv_size;
-        g::d3d_vr->GetSPIRVShaderCode(s, nullptr, &spirv_size);
-
-        std::vector<uint32_t> spirv;
-        spirv.resize(spirv_size);
-        g::d3d_vr->GetSPIRVShaderCode(s, spirv.data(), &spirv_size);
-
-        uint32_t patched_spirv_size;
-        if (g::spirv_change_multiview_access(spirv.data(), spirv.size(), nullptr, &patched_spirv_size, f_idx, data_start_register, optimize) != 0) {
-            return false;
-        }
-
-        std::vector<uint32_t> patched_spirv;
-        patched_spirv.resize(patched_spirv_size);
-        if (g::spirv_change_multiview_access(spirv.data(), spirv.size(), patched_spirv.data(), &patched_spirv_size, f_idx, data_start_register, optimize) != 0) {
-            return false;
-        }
-
-        g::d3d_vr->PatchSPIRVToVertexShader(s, patched_spirv.data(), patched_spirv_size);
-
-        return true;
-    }
-
     static bool patch_spirv_shader_registers(IDirect3DVertexShader9* s)
     {
-        // Make room for the extra data
-        g::d3d_vr->SetShaderConstantCount(s, g::base_shader_data_end_register * 2);
-
-        // MVP matrix
-        if (!patch_spirv_shader(s, 0, g::base_shader_data_end_register, false)) {
-            char hash[64] = { 0 };
-            g::d3d_vr->GetShaderHash(s, (char**)&hash);
-            dbg(std::format("Error patching a shader: {}", hash));
-            return false;
-        }
-
-        // Skybox/fog
-        if (!patch_spirv_shader(s, 20, g::base_shader_data_end_register, true)) {
-            char hash[64] = { 0 };
-            g::d3d_vr->GetShaderHash(s, (char**)&hash);
-            dbg(std::format("Error patching a shader: {}", hash));
-            return false;
-        }
-
+        g::d3d_vr->SetMultiViewConstantRemap(s, 0, 4, g::base_shader_data_end_register);
+        g::d3d_vr->SetMultiViewConstantRemap(s, 20, 4, g::base_shader_data_end_register + 20);
         return true;
     }
 
     bool add_vertex_shader(IDirect3DVertexShader9* shader)
     {
-        UINT fn_size;
-
-        if (shader->GetFunction(nullptr, &fn_size) != D3D_OK) {
-            dbg("Failed to get vertex shader function");
-            return false;
-        }
-
-        std::vector<DWORD> bytecode(fn_size / sizeof(DWORD));
-        if (shader->GetFunction(bytecode.data(), &fn_size) != D3D_OK) {
-            dbg("Failed to get vertex shader function");
-            return false;
-        }
-
-        // Pop one off the end as we're adding more bytecode
-        bytecode.pop_back();
-
-        // Add a zero-length comment opcode in the shader code to make DXVK
-        // handle this as a new shader and not reuse the one we just created
-        bytecode.push_back(65534);
-        bytecode.push_back(65535);
-
-        // Treat shaders from other plugins as base game shaders
-        g::base_game_shaders.push_back(shader);
-
-        if (!g::cfg.experimental.disable_multiview) {
-            IDirect3DVertexShader9* modified_shader;
-            const auto ret = g::hooks::create_vertex_shader.call(g::d3d_dev, bytecode.data(), &modified_shader);
-            if (patch_spirv_shader_registers(modified_shader)) {
-                g::base_game_multiview_shaders.push_back(modified_shader);
-            } else {
-                // If the patching fails, just use the original shader
-                // This will probably cause rendering glitches but should not crash the game
-                g::base_game_multiview_shaders.push_back(shader);
-                g::failed_multiview_external_shaders++;
-            }
-        }
-
+        patch_spirv_shader_registers(shader);
+        g::base_game_multiview_shaders.push_back(shader);
         return true;
     }
 
     HRESULT __stdcall CreateVertexShader(IDirect3DDevice9* This, const DWORD* pFunction, IDirect3DVertexShader9** ppShader)
     {
-        if (!g::spirv_change_multiview_access) {
-            if (auto patcher = LoadLibrary("Plugins/openRBRVR/multiviewpatcher.dll"); patcher) {
-                g::spirv_change_multiview_access = reinterpret_cast<MultiViewPatchFn>(GetProcAddress(patcher, "ChangeSPIRVMultiViewDataAccessLocation"));
-            }
-        }
-
         static int i = 0;
 
         auto ret = g::hooks::create_vertex_shader.call(g::d3d_dev, pFunction, ppShader);
@@ -512,7 +425,7 @@ namespace dx {
                     // MVP[VRRenderTarget] = P[VRRenderTarget] * MV
                     const auto mv = shader::current_projection_matrix_inverse * orig;
                     const auto mvp = glm::transpose(projection * eyepos * pose * g::flip_z_matrix * rbr::get_horizon_lock_matrix() * mv);
-                    auto ret = g::hooks::set_vertex_shader_constant_f.call(g::d3d_dev, reg, glm::value_ptr(mvp), Vector4fCount);
+                    auto ret = g::hooks::set_vertex_shader_constant_f.call(g::d3d_dev, StartRegister, glm::value_ptr(mvp), Vector4fCount);
 
                     if (multiview_rendering_enabled()) {
                         const auto right = render_target_counterpart(target);
@@ -520,7 +433,7 @@ namespace dx {
                         const auto& eyepos = g::vr->get_eye_pos(right);
                         const auto& pose = g::vr->get_pose(right);
                         const auto mvp = glm::transpose(projection * eyepos * pose * g::flip_z_matrix * rbr::get_horizon_lock_matrix() * mv);
-                        ret |= g::hooks::set_vertex_shader_constant_f.call(g::d3d_dev, reg + 4, glm::value_ptr(mvp), Vector4fCount);
+                        ret |= g::hooks::set_vertex_shader_constant_f.call(g::d3d_dev, reg, glm::value_ptr(mvp), Vector4fCount);
                     }
                     return ret;
                 } else if (StartRegister == 20) {
@@ -540,17 +453,17 @@ namespace dx {
                     glm::decompose(g::vr->get_pose(LeftEye), scale, orientation, translation, skew, perspective);
                     const auto m = glm::transpose(glm::mat4_cast(glm::conjugate(orientation)) * orig);
 
-                    auto ret = g::hooks::set_vertex_shader_constant_f.call(g::d3d_dev, reg, glm::value_ptr(m), Vector4fCount);
+                    auto ret = g::hooks::set_vertex_shader_constant_f.call(g::d3d_dev, StartRegister, glm::value_ptr(m), Vector4fCount);
                     if (multiview_rendering_enabled()) {
-                        ret |= g::hooks::set_vertex_shader_constant_f.call(g::d3d_dev, reg + 4, glm::value_ptr(m), Vector4fCount);
+                        ret |= g::hooks::set_vertex_shader_constant_f.call(g::d3d_dev, reg, glm::value_ptr(m), Vector4fCount);
                     }
 
                     return ret;
                 }
             } else if (multiview_rendering_enabled() && (StartRegister == 0 || StartRegister == 20)) {
                 // Place the data in the multiview locations also when rendering the main menu (g::vr_render_target is not set)
-                g::hooks::set_vertex_shader_constant_f.call(g::d3d_dev, reg, pConstantData, Vector4fCount);
-                return g::hooks::set_vertex_shader_constant_f.call(g::d3d_dev, reg + 4, pConstantData, Vector4fCount);
+                g::hooks::set_vertex_shader_constant_f.call(g::d3d_dev, StartRegister, pConstantData, Vector4fCount);
+                return g::hooks::set_vertex_shader_constant_f.call(g::d3d_dev, reg, pConstantData, Vector4fCount);
             }
         }
 
@@ -727,15 +640,13 @@ namespace dx {
         pPresentationParameters->PresentationInterval = D3DPRESENT_INTERVAL_IMMEDIATE;
 
         if (multiview_rendering_enabled()) {
-            // Unused BehaviorFlag in D3D9 used here to indicate that multiview support for fixed-function pipeline should be enabled
-            BehaviorFlags |= 0x10000;
+            // Unused BehaviorFlags in D3D9 is used to enable multiview in DXVK
+            // The view count goes to bits 17-20
+            constexpr DWORD multiview_view_count = 2;
+            BehaviorFlags |= D3DCREATE_DXVK_MULTIVIEW | (multiview_view_count << 17);
         }
 
         auto ret = g::hooks::create_device.call(This, Adapter, DeviceType, hFocusWindow, BehaviorFlags, pPresentationParameters, &dev);
-
-        if (multiview_rendering_enabled()) {
-            BehaviorFlags &= ~0x10000;
-        }
 
         if (FAILED(ret)) {
             dbg("D3D initialization failed: CreateDevice");
@@ -750,7 +661,7 @@ namespace dx {
         }
 
         *ppReturnedDeviceInterface = dev;
-        Direct3DCreateVR(dev, &g::d3d_vr);
+        Direct3DCreateExtensions(dev, &g::d3d_vr);
 
         dev->SetRenderState(D3DRS_MULTISAMPLEANTIALIAS, 1);
         for (auto i = D3DVERTEXTEXTURESAMPLER0; i <= D3DVERTEXTEXTURESAMPLER3; ++i) {
