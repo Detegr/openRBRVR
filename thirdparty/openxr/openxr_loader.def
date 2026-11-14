@@ -1,0 +1,42 @@
+; Import definitions for openxr_loader.dll on x86 (stdcall-decorated).
+; Used to generate a MinGW import library with 'zig dlltool -k'.
+; Add new OpenXR functions here when they're called directly.
+LIBRARY openxr_loader.dll
+EXPORTS
+    xrAcquireSwapchainImage@16
+    xrAttachSessionActionSets@12
+    xrBeginFrame@12
+    xrBeginSession@12
+    xrCreateAction@16
+    xrCreateActionSet@16
+    xrCreateActionSpace@16
+    xrCreateInstance@8
+    xrCreateReferenceSpace@16
+    xrCreateSession@16
+    xrCreateSwapchain@16
+    xrDestroyActionSet@8
+    xrDestroyInstance@8
+    xrDestroySession@8
+    xrDestroySpace@8
+    xrDestroySwapchain@8
+    xrEndFrame@12
+    xrEnumerateApiLayerProperties@12
+    xrEnumerateInstanceExtensionProperties@16
+    xrEnumerateSwapchainFormats@20
+    xrEnumerateSwapchainImages@20
+    xrEnumerateViewConfigurationViews@32
+    xrEnumerateViewConfigurations@28
+    xrGetActionStatePose@16
+    xrGetInstanceProcAddr@16
+    xrGetSystem@16
+    xrGetSystemProperties@20
+    xrLocateSpace@28
+    xrLocateViews@28
+    xrPollEvent@12
+    xrReleaseSwapchainImage@12
+    xrResultToString@16
+    xrStringToPath@16
+    xrSuggestInteractionProfileBindings@12
+    xrSyncActions@12
+    xrWaitFrame@16
+    xrWaitSwapchainImage@12
