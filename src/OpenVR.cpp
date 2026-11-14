@@ -65,7 +65,7 @@ constexpr static M4 m4_from_steamvr_matrix(const vr::HmdMatrix34_t& m)
         { m.m[0][3], m.m[1][3], m.m[2][3], 1.0f });
 }
 
-void OpenVR::init(IDirect3DDevice9* dev, IDirect3DVR9** vrdev, uint32_t companionWindowWidth, uint32_t companionWindowHeight)
+void OpenVR::init(IDirect3DDevice9* dev, IDirect3DExtensions9** vrdev, uint32_t companionWindowWidth, uint32_t companionWindowHeight)
 {
     // WaitGetPoses might access the Vulkan queue so we need to lock it
     g::d3d_vr->LockSubmissionQueue();

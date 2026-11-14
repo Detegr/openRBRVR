@@ -4,8 +4,16 @@
     .paths = .{"src"},
     .dependencies = .{
         .compile_commands = .{
-            .url = "https://github.com/the-argus/zig-compile-commands/archive/70fb439897e12cae896c071717d7c9c382918689.tar.gz",
-            .hash = "zig_compile_commands-0.0.1-OZg5-ULBAABTh3NXO3WXoSUX1474ez0EouuoT2yDANhz",
+            .url = "https://github.com/the-argus/zig-compile-commands/archive/9400cd1963ea6bb58fe47ba7d9700075b808cdd2.tar.gz",
+            .hash = "zig_compile_commands-0.0.1-OZg5-e_JAAAGg1WHAePtq4l4Uvjs34BexnFFCZk63EaG",
+        },
+        .minhook = .{
+            .url = "https://codeberg.org/openRBRPlugins/minhook/archive/master.tar.gz",
+            .hash = "minhook-1.3.4-MP301TB1AQAT9qTEXmnvj_mZgxFNFNbzriEMsi_-NEij",
+        },
+        .dxvk = .{
+            .url = "https://codeberg.org/openRBRPlugins/dxvk/archive/3.1.1.tar.gz",
+            .hash = "dxvk-3.1.1-DMArsQe0RwAsSa4js3RF8J24eXMjHiwd9I9NhQg31LWm",
         },
     },
     .fingerprint = 0x5781faea52030520,

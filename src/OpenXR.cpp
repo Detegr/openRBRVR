@@ -5,9 +5,9 @@
 #include "Globals.hpp"
 #include "HandTexture.hpp"
 #include "Util.hpp"
-#include <d3d9_interop.h>
 #include <gtx/quaternion.hpp>
 #include <ranges>
+#include <thread>
 
 #include <d3d11.h>
 #include <d3d11_1.h>
@@ -145,7 +145,7 @@ T get_extension(XrInstance instance, const std::string& fnName)
 {
     T fn = nullptr;
     if (auto err = xrGetInstanceProcAddr(instance, fnName.c_str(), reinterpret_cast<PFN_xrVoidFunction*>(&fn)); err != XR_SUCCESS) {
-        throw std::runtime_error(std::format("Failed to initialize OpenXR: xrGetInstanceProcAddr {}", XrResultToString(instance, err)));
+        throw std::runtime_error(std::format("Failed to initialize OpenXR: xrGetInstanceProcAddr {}", OpenXR::XrResultToString(instance, err)));
     }
     if (!fn) {
         throw std::runtime_error(std::format("Failed to initialize OpenXR: Could not get extension function {}", fnName));
@@ -289,7 +289,7 @@ OpenXR::OpenXR()
         .applicationVersion = 1,
         .engineName = "",
         .engineVersion = 0,
-        .apiVersion = XR_CURRENT_API_VERSION,
+        .apiVersion = XR_API_VERSION_1_0,
     };
 
     auto extensions = std::vector { "XR_KHR_D3D11_enable" };
@@ -433,7 +433,7 @@ OpenXR::OpenXR()
         if (err == XR_ERROR_FORM_FACTOR_UNAVAILABLE) {
             throw std::runtime_error(std::format("The OpenXR runtime did not detect the VR headset. Make sure it is plugged in and powered on."));
         }
-        throw std::runtime_error(std::format("Failed to initialize OpenXR: xrGetSystem {}", XrResultToString(instance, err)));
+        throw std::runtime_error(std::format("Failed to initialize OpenXR: xrGetSystem {}", OpenXR::XrResultToString(instance, err)));
     }
 
     hand_tracking.initialize(instance, system_id, hand_extension_enabled, hand_data_source_enabled);
@@ -446,7 +446,7 @@ OpenXR::OpenXR()
     }
 }
 
-void OpenXR::init(IDirect3DDevice9* dev, IDirect3DVR9** vrdev, uint32_t companion_window_width, uint32_t companion_window_height, std::optional<XrPosef> old_view_pose)
+void OpenXR::init(IDirect3DDevice9* dev, IDirect3DExtensions9** vrdev, uint32_t companion_window_width, uint32_t companion_window_height, std::optional<XrPosef> old_view_pose)
 {
     if (dev->CreateQuery(D3DQUERYTYPE_TIMESTAMP, &gpu_start_query) != D3D_OK) {
         throw std::runtime_error("VR initialization failed: CreateQuery");
@@ -464,7 +464,7 @@ void OpenXR::init(IDirect3DDevice9* dev, IDirect3DVR9** vrdev, uint32_t companio
     XrGraphicsRequirementsD3D11KHR gfx_requirements = { .type = XR_TYPE_GRAPHICS_REQUIREMENTS_D3D11_KHR };
     auto xrGetD3D11GraphicsRequirementsKHR = get_extension<PFN_xrGetD3D11GraphicsRequirementsKHR>(instance, "xrGetD3D11GraphicsRequirementsKHR");
     if (auto err = xrGetD3D11GraphicsRequirementsKHR(instance, system_id, &gfx_requirements); err != XR_SUCCESS) {
-        throw std::runtime_error(std::format("Failed to initialize OpenXR: xrGetVulkanGraphicsRequirementsKHR {}", XrResultToString(instance, err)));
+        throw std::runtime_error(std::format("Failed to initialize OpenXR: xrGetVulkanGraphicsRequirementsKHR {}", OpenXR::XrResultToString(instance, err)));
     }
 
     dbg(std::format("OpenXR D3D11 feature level {:x}", (int)gfx_requirements.minFeatureLevel));
@@ -529,7 +529,7 @@ void OpenXR::init(IDirect3DDevice9* dev, IDirect3DVR9** vrdev, uint32_t companio
     };
 
     if (auto err = xrCreateSession(instance, &sessionCreateInfo, &session); err != XR_SUCCESS) {
-        throw std::runtime_error(std::format("Failed to initialize OpenXR: xrCreateSession {}", XrResultToString(instance, err)));
+        throw std::runtime_error(std::format("Failed to initialize OpenXR: xrCreateSession {}", OpenXR::XrResultToString(instance, err)));
     }
 
     uint32_t view_config_count;
@@ -657,7 +657,7 @@ void OpenXR::init(IDirect3DDevice9* dev, IDirect3DVR9** vrdev, uint32_t companio
                 .MipLevels = 1,
                 .ArraySize = 1,
                 .Format = static_cast<DXGI_FORMAT>(swapchain_format),
-                .SampleDesc = 1,
+                .SampleDesc = { .Count = 1 },
                 .Usage = D3D11_USAGE_DEFAULT,
                 .BindFlags = D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE,
                 .CPUAccessFlags = 0,
@@ -723,7 +723,7 @@ void OpenXR::init(IDirect3DDevice9* dev, IDirect3DVR9** vrdev, uint32_t companio
     };
 
     if (auto res = xrCreateReferenceSpace(session, &view_space_create_info, &view_space); res != XR_SUCCESS) {
-        dbg(std::format("Failed to recenter VR view: {}", XrResultToString(instance, res)));
+        dbg(std::format("Failed to recenter VR view: {}", OpenXR::XrResultToString(instance, res)));
         return;
     }
 
@@ -733,7 +733,7 @@ void OpenXR::init(IDirect3DDevice9* dev, IDirect3DVR9** vrdev, uint32_t companio
         .poseInReferenceSpace = view_pose,
     };
     if (auto err = xrCreateReferenceSpace(session, &space_create_info, &space); err != XR_SUCCESS) {
-        throw std::runtime_error(std::format("Failed to initialize OpenXR. xrCreateReferenceSpace {}", XrResultToString(instance, err)));
+        throw std::runtime_error(std::format("Failed to initialize OpenXR. xrCreateReferenceSpace {}", OpenXR::XrResultToString(instance, err)));
     }
     bool session_running = false;
     auto retries = 10;
@@ -754,7 +754,7 @@ void OpenXR::init(IDirect3DDevice9* dev, IDirect3DVR9** vrdev, uint32_t companio
                         .primaryViewConfigurationType = primary_view_config_type,
                     };
                     if (auto res = xrBeginSession(session, &sessionBeginInfo); res != XR_SUCCESS) {
-                        throw std::runtime_error(std::format("Failed to initialize OpenXR. xrBeginSession: {}", XrResultToString(instance, res)));
+                        throw std::runtime_error(std::format("Failed to initialize OpenXR. xrBeginSession: {}", OpenXR::XrResultToString(instance, res)));
                     }
 
                     session_running = true;
@@ -773,7 +773,7 @@ void OpenXR::init(IDirect3DDevice9* dev, IDirect3DVR9** vrdev, uint32_t companio
             .primaryViewConfigurationType = primary_view_config_type,
         };
         if (auto res = xrBeginSession(session, &sessionBeginInfo); res != XR_SUCCESS) {
-            throw std::runtime_error(std::format("Failed to initialize OpenXR. xrBeginSession: {}", XrResultToString(instance, res)));
+            throw std::runtime_error(std::format("Failed to initialize OpenXR. xrBeginSession: {}", OpenXR::XrResultToString(instance, res)));
         }
     }
 
@@ -1647,7 +1647,7 @@ void OpenXR::shutdown_vr()
             if (ctx.dx_depth_stencil_surface[i]) {
                 ctx.dx_depth_stencil_surface[i]->Release();
             }
-            if (i < 4 && ctx.dx_shared_handle[i] != nullptr && ctx.dx_shared_handle != INVALID_HANDLE_VALUE) {
+            if (i < 4 && ctx.dx_shared_handle[i] != nullptr && ctx.dx_shared_handle[i] != INVALID_HANDLE_VALUE) {
                 CloseHandle(ctx.dx_shared_handle[i]);
             }
         }
