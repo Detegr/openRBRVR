@@ -3,7 +3,7 @@
 #include "RenderTarget.hpp"
 #include "Util.hpp"
 
-#include <d3d9_vr.h>
+#include <d3d9_extensions.h>
 
 #include <d3d9.h>
 #include <openvr.h>

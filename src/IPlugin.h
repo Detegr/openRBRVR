@@ -125,7 +125,9 @@ struct IRBRGameVtbl {
 
 class IPlugin {
 public:
-    virtual ~IPlugin() { }
+    // MinGW needs this to compile a correct vtable for IPlugin
+    // A virtual destructor does not compile a vtable that matches the MSVC compilation
+    virtual void _placeholder(unsigned int flags) = 0;
     virtual const char* GetName() = 0;
     virtual void DrawFrontEndPage() = 0;
     virtual void DrawResultsUI() = 0;

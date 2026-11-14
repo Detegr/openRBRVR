@@ -55,7 +55,7 @@ namespace g {
     extern ID3D11DeviceContext4* d3d11_ctx;
 
     // D3D VR interface. Used to invoke VR specific operations on the D3D device.
-    extern IDirect3DVR9* d3d_vr;
+    extern IDirect3DExtensions9* d3d_vr;
 
     // The register after which we can supply extra data to the vertex shaders
     extern uint32_t base_shader_data_end_register;

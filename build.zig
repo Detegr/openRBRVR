@@ -3,16 +3,16 @@ const version = @import("build.zig.zon").version;
 const zcc = @import("compile_commands");
 
 const OPENRBRVR_VERSION = .{
-    .openRBRVR_Major = "2",
-    .openRBRVR_Minor = "2",
-    .openRBRVR_Patch = "4",
+    .openRBRVR_Major = "3",
+    .openRBRVR_Minor = "0",
+    .openRBRVR_Patch = "0",
     .openRBRVR_Tweak = "0",
-    .openRBRVR_TweakStr = "",
+    .openRBRVR_TweakStr = "-beta1",
 };
 
 pub fn build(b: *std.Build) void {
     const supported_targets = &.{
-        std.Target.Query{ .cpu_arch = .x86, .os_tag = .windows, .abi = .msvc },
+        std.Target.Query{ .cpu_arch = .x86, .os_tag = .windows, .abi = .gnu },
     };
     const target = b.standardTargetOptions(.{
         .default_target = supported_targets[0],
@@ -20,16 +20,31 @@ pub fn build(b: *std.Build) void {
     });
     const optimize = b.standardOptimizeOption(.{});
 
-    const dll = b.addLibrary(.{
-        .name = "openRBRVR",
-        .linkage = .dynamic,
-        .root_module = b.createModule(.{
-            .target = target,
-            .optimize = optimize,
-        }),
+    const minhook = b.dependency("minhook", .{
+        .target = target,
+        .optimize = .ReleaseFast,
+    }).module("minhook");
+
+    const dxvk = b.dependency("dxvk", .{
+        .target = target,
+        .optimize = optimize,
     });
-    dll.linkLibC();
-    dll.addCSourceFiles(.{ .files = &.{
+    const d3d9 = dxvk.artifact("d3d9");
+
+    var mod = b.createModule(.{
+        .target = target,
+        .optimize = optimize,
+        .link_libc = true,
+        .link_libcpp = true,
+        .sanitize_c = .off,
+    });
+
+    mod.addImport("minhook", minhook);
+    for (minhook.include_dirs.items) |dir| {
+        mod.addIncludePath(dir.path);
+    }
+
+    mod.addCSourceFiles(.{ .files = &.{
         "src/API.cpp",
         "src/DummyVR.cpp",
         "src/Dx.cpp",
@@ -51,15 +66,17 @@ pub fn build(b: *std.Build) void {
         "--std=c++23",
     } });
 
-    dll.addLibraryPath(.{ .cwd_relative = "thirdparty/lib" });
+    mod.addIncludePath(.{ .cwd_relative = "thirdparty" });
+    mod.addIncludePath(.{ .cwd_relative = "thirdparty/glm" });
+    mod.addIncludePath(.{ .cwd_relative = "thirdparty/openvr" });
+    mod.addIncludePath(.{ .cwd_relative = "thirdparty/openxr" });
+    mod.addIncludePath(.{ .dependency = .{ .dependency = dxvk, .sub_path = "include" } });
 
-    dll.addIncludePath(.{ .cwd_relative = "thirdparty" });
-    dll.addIncludePath(.{ .cwd_relative = "thirdparty/dxvk/include/vulkan/include" });
-    dll.addIncludePath(.{ .cwd_relative = "thirdparty/dxvk/src/d3d9" });
-    dll.addIncludePath(.{ .cwd_relative = "thirdparty/glm" });
-    dll.addIncludePath(.{ .cwd_relative = "thirdparty/minhook/include" });
-    dll.addIncludePath(.{ .cwd_relative = "thirdparty/openvr" });
-    dll.addIncludePath(.{ .cwd_relative = "thirdparty/openxr" });
+    const dll = b.addLibrary(.{
+        .name = "openRBRVR",
+        .linkage = .dynamic,
+        .root_module = mod,
+    });
 
     const versionHeader = b.addConfigHeader(
         .{
@@ -77,24 +94,46 @@ pub fn build(b: *std.Build) void {
         OPENRBRVR_VERSION,
     );
 
-    dll.addConfigHeader(versionHeader);
-    dll.addWin32ResourceFile(.{ .file = resourceFile.getOutput() });
+    mod.addLibraryPath(b.path("thirdparty/dll"));
 
-    dll.linkSystemLibrary("advapi32");
-    dll.linkSystemLibrary("d3d11");
-    dll.linkSystemLibrary("d3d9");
-    dll.linkSystemLibrary("dxgi");
-    dll.linkSystemLibrary("libminhook.x86");
-    dll.linkSystemLibrary("openvr_api");
-    dll.linkSystemLibrary("openxr_loader");
-    dll.linkSystemLibrary("user32");
-    dll.linkSystemLibrary("version");
+    mod.addConfigHeader(versionHeader);
+    mod.addWin32ResourceFile(.{ .file = resourceFile.getOutputFile() });
+    mod.linkLibrary(d3d9);
 
-    b.installArtifact(dll);
-    b.installFile("assets/valve_hands/LICENSE", "bin/Valve-hand-models-LICENSE.txt");
+    mod.linkSystemLibrary("advapi32", .{});
+    mod.linkSystemLibrary("d3d11", .{});
+    mod.linkSystemLibrary("d3d9", .{});
+    mod.linkSystemLibrary("dxgi", .{});
+    mod.linkSystemLibrary("openvr_api", .{});
+    mod.addObjectFile(b.path("thirdparty/lib/openxr_loader.lib"));
+    mod.linkSystemLibrary("user32", .{});
+    mod.linkSystemLibrary("version", .{});
+
+    b.installFile("assets/valve_hands/LICENSE", "Plugins/openRBRVR/Valve-hand-models-LICENSE.txt");
+    b.installFile("LICENSE", "Plugins/openRBRVR/LICENSE");
+    b.installFile("README.md", "Plugins/openRBRVR/README.openrbrvr.txt");
+    b.installFile("README_FR.md", "Plugins/openRBRVR/README_FR.openrbrvr.txt");
+    b.installFile("README_CZ.md", "Plugins/openRBRVR/README_CZ.openrbrvr.txt");
+    b.installFile("thirdparty/dll/openvr_api.dll", "openvr_api.dll");
+    b.installFile("thirdparty/dll/openxr_loader.dll", "openxr_loader.dll");
+    b.installDirectory(.{ .source_dir = b.path("thirdparty/quad-views-foveated"), .install_dir = .prefix, .install_subdir = "Plugins/openRBRVR/quad-views-foveated" });
+    b.installDirectory(.{ .source_dir = b.path("thirdparty/obsmirror"), .install_dir = .prefix, .install_subdir = "Plugins/openRBRVR/obsmirror" });
+
+    b.getInstallStep().dependOn(&b.addInstallArtifact(dll, .{
+        .dest_dir = .{ .override = .{ .custom = "Plugins" } },
+        .implib_dir = .disabled,
+        .pdb_dir = .{ .override = .{ .custom = "Plugins" } },
+    }).step);
+
+    b.getInstallStep().dependOn(&b.addInstallArtifact(d3d9, .{
+        .dest_dir = .{ .override = .{ .custom = "." } },
+        .h_dir = .disabled,
+        .implib_dir = .disabled,
+    }).step);
 
     // For compile_commands.json
     var targets: std.ArrayListUnmanaged(*std.Build.Step.Compile) = .empty;
     targets.append(b.allocator, dll) catch @panic("OOM");
-    _ = zcc.createStep(b, "cdb", targets.toOwnedSlice(b.allocator) catch @panic("OOM"));
+    var cdb_step = zcc.createStep(b, "cdb", targets.toOwnedSlice(b.allocator) catch @panic("OOM"));
+    cdb_step.dependOn(&d3d9.step);
 }

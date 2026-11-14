@@ -1,9 +1,9 @@
 #pragma once
 
 #include <d3d9.h>
-#include <d3d9_vr.h>
+#include <d3d9_extensions.h>
 
-extern "C" HRESULT __stdcall Direct3DCreateVR(IDirect3DDevice9* pDevice, IDirect3DVR9** pInterface);
+extern "C" HRESULT __stdcall Direct3DCreateExtensions(IDirect3DDevice9* pDevice, IDirect3DExtensions9** pInterface);
 
 // The vtable definitions are from Mesa(https://www.mesa3d.org) under following license:
 /*

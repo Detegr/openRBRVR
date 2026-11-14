@@ -5,6 +5,7 @@
 
 #define XR_USE_GRAPHICS_API_D3D11
 #define XR_USE_PLATFORM_WIN32
+#include <openxr.h>
 #include <openxr_platform.h>
 #include <openxr_reflection.h>
 #include <optional>
@@ -107,7 +108,7 @@ public:
 
     bool native_quad_views;
 
-    void init(IDirect3DDevice9* dev, IDirect3DVR9** vrdev, uint32_t companionWindowWidth, uint32_t companionWindowHeight, std::optional<XrPosef> old_view_pose = std::nullopt);
+    void init(IDirect3DDevice9* dev, IDirect3DExtensions9** vrdev, uint32_t companionWindowWidth, uint32_t companionWindowHeight, std::optional<XrPosef> old_view_pose = std::nullopt);
     virtual ~OpenXR()
     {
         shutdown_vr();

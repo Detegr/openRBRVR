@@ -9,10 +9,11 @@ class openRBRVR : public IPlugin {
 
 public:
     openRBRVR(IRBRGame* g);
-    virtual ~openRBRVR(void);
+    ~openRBRVR(void);
+    virtual void _placeholder(unsigned int flags) override { }
     virtual const char* GetName(void) { return "openRBRVR"; }
     virtual void DrawFrontEndPage(void);
-    virtual void DrawResultsUI(void) {};
+    virtual void DrawResultsUI(void) { };
     virtual void HandleFrontEndEvents(char txtKeyboard, bool bUp, bool bDown, bool bLeft, bool bRight, bool bSelect);
     virtual void TickFrontEndPage(float fTimeDelta) { }
     virtual void StageStarted(int iMap, const char* ptxtPlayerName, bool bWasFalseStart) { }
