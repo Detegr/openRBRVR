@@ -45,4 +45,5 @@ CMakeSettings.json
 .cache
 .zig-cache
 zig-out
+zig-pkg
 compile_commands.json
