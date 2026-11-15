@@ -49,5 +49,6 @@ namespace g {
         Hook<decltype(&rbr::render_particles_4)> render_particles_4;
         Hook<decltype(&rbr::render_windscreen_effects)> render_windscreen_effects;
         Hook<decltype(&rbr::set_camera_target)> set_camera_target;
+        Hook<decltype(&rbr::render_cube_map)> render_cube_map;
     }
 }

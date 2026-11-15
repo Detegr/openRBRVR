@@ -128,5 +128,6 @@ namespace g {
         extern Hook<decltype(&rbr::render_particles_4)> render_particles_4;
         extern Hook<decltype(&rbr::render_windscreen_effects)> render_windscreen_effects;
         extern Hook<decltype(&rbr::set_camera_target)> set_camera_target;
+        extern Hook<decltype(&rbr::render_cube_map)> render_cube_map;
     }
 }
