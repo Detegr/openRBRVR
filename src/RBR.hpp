@@ -32,6 +32,7 @@ namespace rbr {
     bool is_using_cockpit_camera();
     bool is_car_texture(IDirect3DBaseTexture9* tex);
     bool is_rendering_wet_windscreen();
+    bool is_rendering_cube_map();
 
     void change_camera(void* p, uint32_t cameraType);
     const M4& get_horizon_lock_matrix();
@@ -46,6 +47,7 @@ namespace rbr {
     void __fastcall render_particles_3(void* This);
     void __fastcall render_particles_4(void* This);
     void __fastcall render_windscreen_effects(void* a);
+    void __attribute__((regparm(1))) render_cube_map(void* world);
     void* set_camera_target(void* a, float* cam_pos, float* cam_target);
 }
 
