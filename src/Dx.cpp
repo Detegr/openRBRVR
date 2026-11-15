@@ -411,6 +411,15 @@ namespace dx {
         } else if (shader && Vector4fCount == 4) {
             shader->Release();
 
+            if (rbr::is_rendering_cube_map()) {
+                // The environment cube map faces must be rendered with the game's own matrices
+                auto ret = g::hooks::set_vertex_shader_constant_f.call(g::d3d_dev, StartRegister, pConstantData, Vector4fCount);
+                if (multiview_rendering_enabled() && (StartRegister == 0 || StartRegister == 20)) {
+                    ret |= g::hooks::set_vertex_shader_constant_f.call(g::d3d_dev, reg, pConstantData, Vector4fCount);
+                }
+                return ret;
+            }
+
             if (g::vr_render_target) {
                 const auto target = g::vr_render_target.value();
                 if (StartRegister == 0) {
@@ -471,6 +480,11 @@ namespace dx {
 
     HRESULT __stdcall SetTransform(IDirect3DDevice9* This, D3DTRANSFORMSTATETYPE State, const D3DMATRIX* pMatrix)
     {
+        if (rbr::is_rendering_cube_map()) {
+            // Use the game's own matrices for the environment cube map faces, see SetVertexShaderConstantF
+            return g::hooks::set_transform.call(g::d3d_dev, State, pMatrix);
+        }
+
         if (g::vr_render_target) {
             const auto target = g::vr_render_target.value();
 

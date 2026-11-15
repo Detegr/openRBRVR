@@ -31,6 +31,8 @@ namespace g {
     static double previous_frame_pitch;
     static double previous_frame_roll;
     static double previous_frame_yaw;
+    static bool skip_cube_map;
+    static bool is_rendering_cube_map;
 }
 
 namespace rbr {
@@ -82,7 +84,11 @@ namespace rbr {
     static uintptr_t RENDER_PARTICLES_FUNCTION_ADDR_2 = get_address(0x5efed0);
     static uintptr_t RENDER_PARTICLES_FUNCTION_ADDR_3 = get_address(0x5effd0);
     static uintptr_t RENDER_PARTICLES_FUNCTION_ADDR_4 = get_address(0x5eca60);
-    static uintptr_t PARTICLE_HANDLING_CHECK_ADDR = 0x10076672; // From hedgehog3d.dll. We can't resolve the real address here.
+
+    // From hedgehog3d.dll. We can't resolve the real addresses here.
+    static uintptr_t PARTICLE_HANDLING_CHECK_ADDR = 0x10076672;
+    static constexpr uintptr_t RENDER_CUBE_MAP_ADDR = 0x10069cf0;
+
     static uintptr_t CAR_INFO_ADDR = get_address(0x165FC68);
     static uintptr_t* GAME_MODE_EXT_2_PTR = reinterpret_cast<uintptr_t*>(get_address(0x7EA678));
     static auto CAR_ROTATION_OFFSET = 0x16C;
@@ -160,6 +166,22 @@ namespace rbr {
     bool is_rendering_wet_windscreen()
     {
         return g::is_rendering_wet_windscreen;
+    }
+
+    bool is_rendering_cube_map()
+    {
+        return g::is_rendering_cube_map;
+    }
+
+    void __attribute__((regparm(1))) render_cube_map(void* world)
+    {
+        if (g::skip_cube_map) {
+            return;
+        }
+
+        g::is_rendering_cube_map = true;
+        g::hooks::render_cube_map.call(world);
+        g::is_rendering_cube_map = false;
     }
 
     static uintptr_t get_camera_info_ptr()
@@ -358,6 +380,7 @@ namespace rbr {
             } else {
                 if (!g::hooks::load_texture.call) {
                     g::hooks::load_texture = Hook(*reinterpret_cast<decltype(load_texture)*>(handle + 0xAEC15), load_texture);
+                    g::hooks::render_cube_map = Hook(reinterpret_cast<decltype(render_cube_map)*>(get_hedgehog_address(RENDER_CUBE_MAP_ADDR)), &render_cube_map);
                 }
             }
         }
@@ -524,6 +547,9 @@ namespace rbr {
     {
         auto do_rendering = init_or_update_game_data(reinterpret_cast<uintptr_t>(p));
 
+        // The environment cube map is rendered during the first 3D scene render of the frame only
+        g::skip_cube_map = false;
+
         if (g::d3d_dev->GetRenderTarget(0, &g::original_render_target) != D3D_OK) [[unlikely]] {
             dbg("Could not get render original target");
         }
@@ -598,6 +624,8 @@ namespace rbr {
                 }
 
                 dx::render_vr_eye(p, LeftEye);
+                g::skip_cube_map = true;
+
                 if (!dx::multiview_rendering_enabled()) {
                     dx::render_vr_eye(p, RightEye);
                 }
