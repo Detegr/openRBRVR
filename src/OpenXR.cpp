@@ -1096,6 +1096,7 @@ void OpenXR::prepare_frames_for_hmd(IDirect3DDevice9* dev)
 
     if (g::cfg.debug && perf_query_free_to_use) [[unlikely]] {
         gpu_end_query->Issue(D3DISSUE_END);
+        gpu_freq_query->Issue(D3DISSUE_END);
         gpu_disjoint_query->Issue(D3DISSUE_END);
     }
 }
@@ -1510,20 +1511,26 @@ FrameTimingInfo OpenXR::get_frame_timing()
     FrameTimingInfo ret = { 0 };
 
     BOOL disjoint;
-    uint64_t gpu_start, gpu_end;
-    if (gpu_disjoint_query->GetData(&disjoint, sizeof(disjoint), 0) == D3D_OK && !disjoint) {
-        gpu_start_query->GetData(&gpu_start, sizeof(gpu_start), 0);
-        gpu_end_query->GetData(&gpu_end, sizeof(gpu_end), 0);
-
-        uint64_t freq;
-        gpu_freq_query->Issue(D3DISSUE_END);
-        gpu_freq_query->GetData(&freq, sizeof(freq), 0);
-
-        ret.gpu_total = float(gpu_end - gpu_start) / float(freq);
-
-        perf_query_free_to_use = true;
-    } else {
+    const auto hr = gpu_disjoint_query->GetData(&disjoint, sizeof(disjoint), 0);
+    if (hr == S_FALSE) {
+        // Queries still in flight, don't reissue them yet
         perf_query_free_to_use = false;
+        return ret;
+    }
+
+    // The queries have completed (or failed), so they can be reissued next frame.
+    perf_query_free_to_use = true;
+
+    if (hr != D3D_OK || disjoint) {
+        return ret;
+    }
+
+    uint64_t gpu_start, gpu_end, freq;
+    if (gpu_start_query->GetData(&gpu_start, sizeof(gpu_start), 0) == D3D_OK
+        && gpu_end_query->GetData(&gpu_end, sizeof(gpu_end), 0) == D3D_OK
+        && gpu_freq_query->GetData(&freq, sizeof(freq), 0) == D3D_OK
+        && freq > 0 && gpu_end > gpu_start) {
+        ret.gpu_total = float(gpu_end - gpu_start) / float(freq);
     }
 
     return ret;
