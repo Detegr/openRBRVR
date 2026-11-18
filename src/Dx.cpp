@@ -17,7 +17,6 @@ namespace g {
     static std::chrono::steady_clock::time_point second_start;
     static int fps;
     static int current_frames;
-    static bool applying_state_block;
     static std::vector<IDirect3DVertexShader9*> base_game_shaders;
     static std::vector<IDirect3DVertexShader9*> base_game_multiview_shaders;
     static std::vector<IDirect3DVertexShader9*> external_shaders;
@@ -561,71 +560,6 @@ namespace dx {
         return g::hooks::draw_indexed_primitive.call(g::d3d_dev, PrimitiveType, BaseVertexIndex, MinVertexIndex, NumVertices, startIndex, primCount);
     }
 
-    HRESULT __stdcall EndStateBlock(IDirect3DDevice9* This, IDirect3DStateBlock9** ppSB)
-    {
-        const auto ret = g::hooks::end_state_block.call(This, ppSB);
-
-        auto vtbl = get_vtable<IDirect3DStateBlock9Vtbl>(*ppSB);
-        g::hooks::apply_state_block = Hook(vtbl->Apply, ApplyStateBlock);
-
-        // Remove the hook as IDirect3DStateBlock9::Apply is hooked
-        g::hooks::end_state_block.~Hook();
-
-        return ret;
-    }
-
-    HRESULT __stdcall ApplyStateBlock(IDirect3DStateBlock9* This)
-    {
-        g::applying_state_block = true;
-        const auto ret = g::hooks::apply_state_block.call(This);
-        g::applying_state_block = false;
-        return ret;
-    }
-
-    HRESULT __stdcall SetRenderState(IDirect3DDevice9* This, D3DRENDERSTATETYPE State, DWORD Value)
-    {
-        DWORD val = Value;
-
-        if (rbr::should_use_reverse_z_buffer() && !g::applying_state_block) [[likely]] {
-            if (State == D3DRS_ZFUNC) {
-                // Invert the function if reverse Z buffer is in use
-                switch (Value) {
-                    case D3DCMP_LESSEQUAL:
-                        val = D3DCMP_GREATEREQUAL;
-                        break;
-                    case D3DCMP_LESS:
-                        val = D3DCMP_GREATER;
-                        break;
-                    case D3DCMP_GREATEREQUAL:
-                        val = D3DCMP_LESSEQUAL;
-                        break;
-                    case D3DCMP_GREATER:
-                        val = D3DCMP_LESS;
-                        break;
-                    default:
-                        val = Value;
-                }
-            } else if (State == D3DRS_DEPTHBIAS) {
-                // Invert depth bias if reversed Z buffer is in use
-                float fval = -*reinterpret_cast<float*>(&Value);
-                val = *reinterpret_cast<DWORD*>(&fval);
-            }
-        }
-
-        return g::hooks::set_render_state.call(This, State, val);
-    }
-
-    HRESULT __stdcall Clear(IDirect3DDevice9* This, DWORD Count, const D3DRECT* pRects, DWORD Flags, D3DCOLOR Color, float Z, DWORD Stencil)
-    {
-        // Invert the Z value if reverse Z buffer is in use
-
-        if (rbr::should_use_reverse_z_buffer()) [[likely]] {
-            return g::hooks::clear.call(This, Count, pRects, Flags, Color, 1.0f - Z, Stencil);
-        } else {
-            return g::hooks::clear.call(This, Count, pRects, Flags, Color, Z, Stencil);
-        }
-    }
-
     HRESULT __stdcall CreateDevice(
         IDirect3D9* This,
         UINT Adapter,
@@ -677,9 +611,6 @@ namespace dx {
             g::hooks::get_vertex_shader = Hook(devvtbl->GetVertexShader, GetVertexShader);
             g::hooks::set_vertex_shader = Hook(devvtbl->SetVertexShader, SetVertexShader);
             g::hooks::draw_indexed_primitive = Hook(devvtbl->DrawIndexedPrimitive, DrawIndexedPrimitive);
-            g::hooks::set_render_state = Hook(devvtbl->SetRenderState, SetRenderState);
-            g::hooks::clear = Hook(devvtbl->Clear, Clear);
-            g::hooks::end_state_block = Hook(devvtbl->EndStateBlock, EndStateBlock);
         } catch (const std::runtime_error& e) {
             dbg(e.what());
             MessageBoxA(hFocusWindow, e.what(), "Hooking failed", MB_OK);

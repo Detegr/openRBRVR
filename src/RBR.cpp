@@ -183,11 +183,6 @@ namespace rbr {
         return g::horizon_lock_matrix;
     }
 
-    bool should_use_reverse_z_buffer()
-    {
-        return g::is_rendering_3d && g::game_mode != GameMode::MainMenu;
-    }
-
     static constexpr double unwrap_angle(double angle, double reference)
     {
         constexpr auto pi = glm::pi<double>();

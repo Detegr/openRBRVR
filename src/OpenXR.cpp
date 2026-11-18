@@ -1288,7 +1288,7 @@ bool OpenXR::get_projection_matrix(XrViewState view_state)
 {
     const auto view_count = xr_context()->views.size();
     for (size_t i = 0; i < view_count; ++i) {
-        projection[i] = create_projection_matrix(xr_context()->views[i].fov, z_near, z_far, rbr::should_use_reverse_z_buffer());
+        projection[i] = create_projection_matrix(xr_context()->views[i].fov, z_near, z_far, g::reverse_z);
     }
     return true;
 }
@@ -1417,7 +1417,7 @@ void OpenXR::render_hands(IDirect3DDevice9* dev, RenderTarget target)
         check(g::hooks::set_transform.call(dev, state, &value));
     };
     const auto state = [&](D3DRENDERSTATETYPE type, DWORD value) {
-        check(g::hooks::set_render_state.call(dev, type, value));
+        check(dev->SetRenderState(type, value));
     };
 
     check(dev->SetVertexShader(nullptr));
@@ -1449,8 +1449,7 @@ void OpenXR::render_hands(IDirect3DDevice9* dev, RenderTarget target)
     state(D3DRS_INDEXEDVERTEXBLENDENABLE, FALSE);
     state(D3DRS_ZENABLE, D3DZB_TRUE);
     state(D3DRS_ZWRITEENABLE, TRUE);
-    // Pass the actual comparison to the original API: the hook would invert it.
-    state(D3DRS_ZFUNC, rbr::should_use_reverse_z_buffer() ? D3DCMP_GREATEREQUAL : D3DCMP_LESSEQUAL);
+    state(D3DRS_ZFUNC, D3DCMP_LESSEQUAL);
     state(D3DRS_DEPTHBIAS, 0);
     state(D3DRS_SLOPESCALEDEPTHBIAS, 0);
     state(D3DRS_COLORWRITEENABLE, D3DCOLORWRITEENABLE_RED | D3DCOLORWRITEENABLE_GREEN | D3DCOLORWRITEENABLE_BLUE | D3DCOLORWRITEENABLE_ALPHA);

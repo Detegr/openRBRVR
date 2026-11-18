@@ -25,10 +25,15 @@ extern "C" __declspec(dllexport) IPlugin* RBR_CreatePlugin(IRBRGame* game)
 
 extern "C" __declspec(dllexport) int64_t openRBRVR_Exec(ApiOperation ops, uint64_t value)
 {
+    if (ops == SET_REVERSE_Z) {
+        g::reverse_z = value != 0;
+        return 0;
+    }
+
     dbg(std::format("Exec: {} {}", (uint64_t)ops, (uint64_t)value));
 
     if (ops == API_VERSION) {
-        return 4;
+        return 5;
     }
     if (ops & NOTIFY_VERTEX_SHADER) {
         auto shader = reinterpret_cast<IDirect3DVertexShader9*>(value);
