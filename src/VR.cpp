@@ -15,6 +15,7 @@ namespace g {
     static constexpr D3DMATRIX identity_matrix = d3d_from_m4(glm::identity<glm::mat4x4>());
     static IDirect3DVertexBuffer9* quad_vertex_buf[2];
     static IDirect3DVertexBuffer9* overlay_border_quad;
+    static IDirect3DVertexBuffer9* companion_window_vertex_buf_focus;
 }
 
 bool VRInterface::is_using_quad_view_rendering() const
@@ -308,9 +309,83 @@ void render_2d_fullscreen(IDirect3DDevice9* dev, IDirect3DTexture9* texture)
     render_texture(dev, &g::identity_matrix, &g::identity_matrix, &g::identity_matrix, &g::identity_matrix, texture, g::companion_window_vertex_buf_menu, false);
 }
 
+// Maps a point of the focus view in normalized device coordinates to the
+// companion window normalized device coordinates through the peripheral view.
+static glm::vec2 focus_point_to_companion_window(VRInterface* vr, RenderTarget peripheral, RenderTarget focus, glm::vec2 focus_ndc)
+{
+    const auto& focus_proj = vr->get_projection(focus);
+    const auto& peripheral_proj = vr->get_projection(peripheral);
+
+    // Ray through the NDC point in the focus view space (right handed, looking towards -z)
+    const glm::vec3 focus_dir = {
+        (focus_ndc.x + focus_proj[2][0]) / focus_proj[0][0],
+        (focus_ndc.y + focus_proj[2][1]) / focus_proj[1][1],
+        -1.0f,
+    };
+
+    const auto focus_view = glm::mat3(vr->get_eye_pos(focus) * vr->get_pose(focus));
+    const auto peripheral_view = glm::mat3(vr->get_eye_pos(peripheral) * vr->get_pose(peripheral));
+    const auto dir = peripheral_view * glm::inverse(focus_view) * focus_dir;
+
+    const auto x = (peripheral_proj[0][0] * dir.x + peripheral_proj[2][0] * dir.z) / -dir.z;
+    const auto y = (peripheral_proj[1][1] * dir.y + peripheral_proj[2][1] * dir.z) / -dir.z;
+    const auto u = (x + 1.0f) / 2.0f;
+    const auto v = (1.0f - y) / 2.0f;
+
+    // Apply the same crop that companion_window_vertex_buf_3d does to the peripheral view
+    const auto size = g::cfg.companion_size / 100.0f;
+    const auto offset_x = g::cfg.companion_offset.x / 100.0f;
+    const auto offset_y = g::cfg.companion_offset.y / 100.0f;
+    const auto aspect = static_cast<float>(vr->companion_window_aspect_ratio);
+
+    return {
+        (u - offset_x) / size * 2.0f - 1.0f,
+        1.0f - (v - offset_y) / (size / aspect) * 2.0f,
+    };
+}
+
+static void render_companion_window_focus_view(IDirect3DDevice9* dev, VRInterface* vr, RenderTarget peripheral)
+{
+    const auto focus = static_cast<RenderTarget>(peripheral + 2);
+
+    const auto tl = focus_point_to_companion_window(vr, peripheral, focus, { -1.0f, 1.0f });
+    const auto tr = focus_point_to_companion_window(vr, peripheral, focus, { 1.0f, 1.0f });
+    const auto bl = focus_point_to_companion_window(vr, peripheral, focus, { -1.0f, -1.0f });
+    const auto br = focus_point_to_companion_window(vr, peripheral, focus, { 1.0f, -1.0f });
+
+    // clang-format off
+    Vertex quad[] = {
+        { tl.x, tl.y, 1, 0, 0, }, // Top-left
+        { tr.x, tr.y, 1, 1, 0, }, // Top-right
+        { bl.x, bl.y, 1, 0, 1 }, // Bottom-left
+        { br.x, br.y, 1, 1, 1 } // Bottom-right
+    };
+    // clang-format on
+
+    if (!g::companion_window_vertex_buf_focus) {
+        if (!create_vertex_buffer(dev, quad, 4, &g::companion_window_vertex_buf_focus)) {
+            dbg("Could not create vertex buffer for companion window focus view");
+            return;
+        }
+    } else {
+        void* bufmem;
+        if (FAILED(g::companion_window_vertex_buf_focus->Lock(0, sizeof(quad), &bufmem, 0))) {
+            return;
+        }
+        memcpy(bufmem, quad, sizeof(quad));
+        g::companion_window_vertex_buf_focus->Unlock();
+    }
+
+    render_texture(dev, &g::identity_matrix, &g::identity_matrix, &g::identity_matrix, &g::identity_matrix, vr->get_texture(focus), g::companion_window_vertex_buf_focus, false);
+}
+
 void render_companion_window_from_render_target(IDirect3DDevice9* dev, VRInterface* vr, RenderTarget tgt)
 {
     // The dummy runtime renders the eye views in the companion window resolution, so they are shown as they are.
     const auto show_whole_texture = tgt == GameMenu || tgt == Overlay || vr->get_runtime_type() == DUMMY;
     render_texture(dev, &g::identity_matrix, &g::identity_matrix, &g::identity_matrix, &g::identity_matrix, vr->get_texture(tgt), show_whole_texture ? g::companion_window_vertex_buf_menu : g::companion_window_vertex_buf_3d);
+
+    if ((tgt == LeftEye || tgt == RightEye) && vr->is_using_quad_view_rendering()) {
+        render_companion_window_focus_view(dev, vr, tgt);
+    }
 }
