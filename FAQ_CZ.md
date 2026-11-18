@@ -106,7 +106,7 @@ s tímto nastavením v RSF launcheru:
 ## Jak nastavím anti-aliasing pro jednotlivé tratě?
 
 - Nejlepší je nastavit základní vyhlazování v RSF launcheru na 2x SRS nebo 4x SRS
-a potom v sekci `[gfx]` snížit tuto hodnotu (například u BTB tratí) nastavením na 0.
+a potom v sekci `[gfx]` snížit tuto hodnotu (například u náročných tratí) nastavením na 0.
 Příklad neleznete v souboru `openRBRVR.toml.sample`.
 
 ## Podporuje openRBRVR foveated rendering?

@@ -28,8 +28,6 @@ namespace rbr {
     GameMode get_game_mode();
     uint32_t get_current_stage_id();
 
-    bool is_on_btb_stage();
-    bool is_loading_btb_stage();
     bool is_rendering_3d();
     bool is_using_cockpit_camera();
     bool is_car_texture(IDirect3DBaseTexture9* tex);
@@ -50,12 +48,6 @@ namespace rbr {
     void __fastcall render_particles_4(void* This);
     void __fastcall render_windscreen_effects(void* a);
     void* set_camera_target(void* a, float* cam_pos, float* cam_target);
-}
-
-namespace rbr_rx {
-    constexpr uintptr_t DEVICE_VTABLE_OFFSET = 0x4f56c;
-    constexpr uintptr_t TRACK_STATUS_OFFSET = 0x608d0;
-    bool is_loaded();
 }
 
 namespace rbrhud {

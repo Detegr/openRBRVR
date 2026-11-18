@@ -136,8 +136,8 @@ changed by modifying `dxvk.conf` by hand:
 
 - Per-stage anti-aliasing is best used in a way that the base anti-aliasing is
   set to 2x SRS or 4x SRS in the RSF launcher, and the `[gfx]` sections reduce
-  the default multisampling for example disabling for BTB stages it by setting
-  it 0. See openRBRVR.toml.sample for example.
+  the default multisampling, for example disabling it for demanding stages by
+  setting it 0. See openRBRVR.toml.sample for example.
 
 ## Does openRBRVR support foveated rendering?
 

@@ -81,9 +81,6 @@ namespace g {
     // Original RBR screen depth/stencil target
     extern IDirect3DSurface9* original_depth_stencil_target;
 
-    // Pointer to BTB track status information. Non-zero if a BTB stage is loaded.
-    extern uint8_t* btb_track_status_ptr;
-
     // Matrix to flip Z axis around. Because RBR uses left-handed matrices and the OpenVR runtime
     // returns right-handed projection matrices, we need to flip the Z-axis around
     constexpr M4 flip_z_matrix = {
@@ -116,9 +113,7 @@ namespace g {
         extern Hook<decltype(IDirect3DDevice9Vtbl::CreateVertexShader)> create_vertex_shader;
         extern Hook<decltype(IDirect3DDevice9Vtbl::GetVertexShader)> get_vertex_shader;
         extern Hook<decltype(IDirect3DDevice9Vtbl::SetVertexShader)> set_vertex_shader;
-        extern Hook<decltype(IDirect3DDevice9Vtbl::SetRenderTarget)> btb_set_render_target;
         extern Hook<decltype(IDirect3DDevice9Vtbl::DrawIndexedPrimitive)> draw_indexed_primitive;
-        extern Hook<decltype(IDirect3DDevice9Vtbl::DrawPrimitive)> draw_primitive;
         extern Hook<decltype(IDirect3DDevice9Vtbl::SetRenderState)> set_render_state;
         extern Hook<decltype(IDirect3DDevice9Vtbl::Clear)> clear;
         extern Hook<decltype(IDirect3DDevice9Vtbl::EndStateBlock)> end_state_block;

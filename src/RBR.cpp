@@ -16,7 +16,6 @@ namespace g {
 
     static rbr::GameMode game_mode;
     static rbr::GameMode previous_game_mode;
-    static bool previously_on_btb_stage;
     static uint32_t current_stage_id;
     static M4 horizon_lock_matrix = glm::identity<M4>();
     static glm::vec3 seat_translation;
@@ -115,16 +114,6 @@ namespace rbr {
     uint32_t get_current_stage_id()
     {
         return g::current_stage_id;
-    }
-
-    bool is_on_btb_stage()
-    {
-        return g::btb_track_status_ptr && *g::btb_track_status_ptr == 1;
-    }
-
-    bool is_loading_btb_stage()
-    {
-        return is_on_btb_stage() && g::game_mode == GameMode::Loading;
     }
 
     bool is_rendering_3d()
@@ -426,24 +415,9 @@ namespace rbr {
         static bool quad_view_rendering_in_use = g::vr && g::vr->is_using_quad_view_rendering();
 
         if (quad_view_rendering_in_use) {
-            bool restart_session = false;
-            const auto on_btb_without_multiview = (!dx::multiview_rendering_enabled()) && is_on_btb_stage();
-
-            if (!g::previously_on_btb_stage && on_btb_without_multiview && g::game_mode == PreStage) {
-                // BTB rendering does not play along well with quad view rendering so revert back to stereo rendering for BTB stages
-                g::previously_on_btb_stage = true;
-                g::cfg.quad_view_rendering = false;
-                restart_session = true;
-            } else if (g::previously_on_btb_stage && !is_on_btb_stage() && g::game_mode == MainMenu) {
-                // Turn quad view rendering back on if we were using it previously
-                g::previously_on_btb_stage = false;
-                g::cfg.quad_view_rendering = true;
-                restart_session = true;
-            } else if (!g::previously_on_btb_stage && !on_btb_without_multiview) {
-                bool wanted_quad_view_mode = g::vr->get_current_render_context()->quad_view_rendering;
-                restart_session = g::cfg.quad_view_rendering != wanted_quad_view_mode;
-                g::cfg.quad_view_rendering = wanted_quad_view_mode;
-            }
+            const bool wanted_quad_view_mode = g::vr->get_current_render_context()->quad_view_rendering;
+            const bool restart_session = g::cfg.quad_view_rendering != wanted_quad_view_mode;
+            g::cfg.quad_view_rendering = wanted_quad_view_mode;
 
             if (restart_session) {
                 dbg("Restarting OpenXR session");
@@ -468,7 +442,6 @@ namespace rbr {
             // Not sure if this is needed, but better be safe than sorry,
             // the car textures will be reloaded when loading the stage.
             g::car_textures.clear();
-            dx::free_btb_shaders();
         }
 
         if (!g::stage_id_ptr) [[unlikely]] {
@@ -690,17 +663,14 @@ namespace rbr {
             } else {
                 // We are not driving, render the scene into a plane
                 g::vr_render_target = std::nullopt;
-                auto should_swap_render_target = !(is_loading_btb_stage() && !g::cfg.draw_loading_screen);
-                if (should_swap_render_target) {
-                    if (g::vr->prepare_vr_rendering(g::d3d_dev, GameMenu)) {
-                        g::current_2d_render_target = GameMenu;
-                    } else {
-                        dbg("Failed to set 2D render target");
-                        g::current_2d_render_target = std::nullopt;
-                        g::d3d_dev->SetRenderTarget(0, g::original_render_target);
-                        g::d3d_dev->SetDepthStencilSurface(g::original_depth_stencil_target);
-                        return;
-                    }
+                if (g::vr->prepare_vr_rendering(g::d3d_dev, GameMenu)) {
+                    g::current_2d_render_target = GameMenu;
+                } else {
+                    dbg("Failed to set 2D render target");
+                    g::current_2d_render_target = std::nullopt;
+                    g::d3d_dev->SetRenderTarget(0, g::original_render_target);
+                    g::d3d_dev->SetDepthStencilSurface(g::original_depth_stencil_target);
+                    return;
                 }
 
                 auto should_render = !(g::game_mode == GameMode::Loading && !g::cfg.draw_loading_screen);
@@ -759,13 +729,6 @@ namespace rbr {
         g::is_rendering_wet_windscreen = true;
         g::hooks::render_windscreen_effects.call(a);
         g::is_rendering_wet_windscreen = false;
-    }
-}
-
-namespace rbr_rx {
-    bool is_loaded()
-    {
-        return reinterpret_cast<uintptr_t>(g::btb_track_status_ptr) != TRACK_STATUS_OFFSET;
     }
 }
 
