@@ -21,7 +21,6 @@ namespace g {
     std::optional<RenderTarget> current_2d_render_target;
     IDirect3DSurface9* original_render_target;
     IDirect3DSurface9* original_depth_stencil_target;
-    uint8_t* btb_track_status_ptr;
     SeatMovement seat_movement_request;
     bool seat_position_loaded;
     std::string dxvk_version = "Unknown";
@@ -37,9 +36,7 @@ namespace g {
         Hook<decltype(IDirect3DDevice9Vtbl::CreateVertexShader)> create_vertex_shader;
         Hook<decltype(IDirect3DDevice9Vtbl::GetVertexShader)> get_vertex_shader;
         Hook<decltype(IDirect3DDevice9Vtbl::SetVertexShader)> set_vertex_shader;
-        Hook<decltype(IDirect3DDevice9Vtbl::SetRenderTarget)> btb_set_render_target;
         Hook<decltype(IDirect3DDevice9Vtbl::DrawIndexedPrimitive)> draw_indexed_primitive;
-        Hook<decltype(IDirect3DDevice9Vtbl::DrawPrimitive)> draw_primitive;
         Hook<decltype(IDirect3DDevice9Vtbl::SetRenderState)> set_render_state;
         Hook<decltype(IDirect3DDevice9Vtbl::Clear)> clear;
         Hook<decltype(IDirect3DDevice9Vtbl::EndStateBlock)> end_state_block;

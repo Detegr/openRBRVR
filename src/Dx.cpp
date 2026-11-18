@@ -11,11 +11,9 @@
 #include <algorithm>
 #include <array>
 #include <gtx/matrix_decompose.hpp>
-#include <unordered_set>
 
 using MultiViewAddFn = int (*)(uint32_t*, uint32_t, uint32_t*, uint32_t*);
 using MultiViewPatchFn = int (*)(uint32_t*, uint32_t, uint32_t*, uint32_t*, uint32_t, uint32_t, int8_t);
-using MultiViewOptimizeFn = int (*)(uint32_t*, uint32_t, uint32_t*, uint32_t*);
 
 // Compilation unit global variables
 namespace g {
@@ -28,16 +26,9 @@ namespace g {
     static std::vector<IDirect3DVertexShader9*> external_shaders;
     static std::vector<IDirect3DVertexShader9*> external_multiview_shaders;
     static MultiViewPatchFn spirv_change_multiview_access;
-    static MultiViewOptimizeFn spirv_optimize_multiview;
-    static std::vector<IDirect3DVertexShader9*> original_btb_shaders;
-    static std::vector<IDirect3DVertexShader9*> multiview_btb_shaders;
-    static std::unordered_map<IDirect3DVertexShader9*, std::vector<uint32_t>> patched_btb_shaders;
-    static std::unordered_set<IDirect3DVertexShader9*> optimized_btb_shaders;
     static std::unordered_map<uint32_t, std::array<float, 16>> deferred_shader_constants;
     static int failed_multiview_base_game_shaders;
     static int failed_multiview_external_shaders;
-    static int failed_multiview_btb_shaders;
-    static int failed_multiview_btb_shader_optimizations;
 }
 
 namespace dx {
@@ -49,29 +40,9 @@ namespace dx {
     namespace fixedfunction {
         static D3DMATRIX current_projection_matrix[4];
         static D3DMATRIX current_view_matrix[4];
-        static D3DMATRIX current_world_matrix;
-        static D3DMATRIX current_projview_matrix[4];
-        static D3DMATRIX current_viewproj_matrix[4];
-        static D3DMATRIX current_worldview_matrix[4];
-        static D3DMATRIX current_worldviewproj_matrix[4];
     }
 
     using rbr::GameMode;
-
-    void free_btb_shaders()
-    {
-        for (auto& s : g::original_btb_shaders) {
-            s->Release();
-        }
-        for (auto& s : g::multiview_btb_shaders) {
-            s->Release();
-        }
-
-        g::original_btb_shaders.clear();
-        g::multiview_btb_shaders.clear();
-        g::optimized_btb_shaders.clear();
-        g::patched_btb_shaders.clear();
-    }
 
     // Call the RBR render function with a texture as the render target
     // Even though the render pipeline changes the render target while rendering,
@@ -89,31 +60,6 @@ namespace dx {
             g::d3d_dev->SetDepthStencilSurface(g::original_depth_stencil_target);
         }
         g::vr_render_target = std::nullopt;
-    }
-
-    static bool optimize_spirv_shader(IDirect3DVertexShader9* s)
-    {
-        uint32_t spirv_size;
-        g::d3d_vr->GetSPIRVShaderCode(s, nullptr, &spirv_size);
-
-        std::vector<uint32_t> spirv;
-        spirv.resize(spirv_size);
-        g::d3d_vr->GetSPIRVShaderCode(s, spirv.data(), &spirv_size);
-
-        uint32_t patched_spirv_size;
-        if (g::spirv_optimize_multiview(spirv.data(), spirv.size(), nullptr, &patched_spirv_size) != 0) {
-            return false;
-        }
-
-        std::vector<uint32_t> patched_spirv;
-        patched_spirv.resize(patched_spirv_size);
-        if (g::spirv_optimize_multiview(spirv.data(), spirv.size(), patched_spirv.data(), &patched_spirv_size) != 0) {
-            return false;
-        }
-
-        g::d3d_vr->PatchSPIRVToVertexShader(s, patched_spirv.data(), patched_spirv_size);
-
-        return true;
     }
 
     static bool patch_spirv_shader(IDirect3DVertexShader9* s, uint32_t f_idx, uint32_t data_start_register, bool optimize)
@@ -189,7 +135,6 @@ namespace dx {
         bytecode.push_back(65535);
 
         // Treat shaders from other plugins as base game shaders
-        // Nobody will want to edit BTB shaders :D
         g::base_game_shaders.push_back(shader);
 
         if (!g::cfg.experimental.disable_multiview) {
@@ -210,10 +155,9 @@ namespace dx {
 
     HRESULT __stdcall CreateVertexShader(IDirect3DDevice9* This, const DWORD* pFunction, IDirect3DVertexShader9** ppShader)
     {
-        if (!g::spirv_change_multiview_access || !g::spirv_optimize_multiview) {
+        if (!g::spirv_change_multiview_access) {
             if (auto patcher = LoadLibrary("Plugins/openRBRVR/multiviewpatcher.dll"); patcher) {
                 g::spirv_change_multiview_access = reinterpret_cast<MultiViewPatchFn>(GetProcAddress(patcher, "ChangeSPIRVMultiViewDataAccessLocation"));
-                g::spirv_optimize_multiview = reinterpret_cast<MultiViewOptimizeFn>(GetProcAddress(patcher, "OptimizeSPIRV"));
             }
         }
 
@@ -224,32 +168,23 @@ namespace dx {
             // These are the base game shaders for RBR that need
             // to be patched with the VR projection.
             g::base_game_shaders.push_back(*ppShader);
-        } else {
-            // Same for BTB shaders that are loaded during the stage load
-            g::original_btb_shaders.push_back(*ppShader);
-            (*ppShader)->AddRef();
-        }
 
-        if (!g::cfg.experimental.disable_multiview) {
-            // Determine shader bytecode length. Valid shaders end at double word with value 65535.
-            const DWORD* pp;
-            for (pp = pFunction; *pp != 65535; ++pp) { }
+            if (!g::cfg.experimental.disable_multiview) {
+                // Determine shader bytecode length. Valid shaders end at double word with value 65535.
+                const DWORD* pp;
+                for (pp = pFunction; *pp != 65535; ++pp) { }
 
-            std::vector<DWORD> bytecode(pFunction, pp);
+                std::vector<DWORD> bytecode(pFunction, pp);
 
-            // Add a zero-length comment opcode in the shader code to make DXVK
-            // handle this as a new shader and not reuse the one we just created
-            bytecode.push_back(65534);
-            bytecode.push_back(65535);
+                // Add a zero-length comment opcode in the shader code to make DXVK
+                // handle this as a new shader and not reuse the one we just created
+                bytecode.push_back(65534);
+                bytecode.push_back(65535);
 
-            // Create the same shader again for multiview patching
-            IDirect3DVertexShader9* multiview_shader;
-            ret |= g::hooks::create_vertex_shader.call(g::d3d_dev, bytecode.data(), &multiview_shader);
-
-            if (i < 40) {
+                // Create the same shader again for multiview patching
+                IDirect3DVertexShader9* multiview_shader;
+                ret |= g::hooks::create_vertex_shader.call(g::d3d_dev, bytecode.data(), &multiview_shader);
                 g::base_game_multiview_shaders.push_back(multiview_shader);
-            } else {
-                g::multiview_btb_shaders.push_back(multiview_shader);
             }
         }
 
@@ -258,8 +193,7 @@ namespace dx {
             // Base game shaders are loaded, patch them for multiview and run the SPIR-V optimizer
 
             // Maximum number of float constants that is discovered to be present in a shader.
-            // Base game shaders have maximum of 90-something constants and those could be calculated,
-            // but BTB stage shaders aren't loaded at startup, so we're making an educated guess here.
+            // Base game shaders have maximum of 90-something constants, leave some room for shaders from other plugins.
             g::base_shader_data_end_register = 110;
 
             for (auto j = 0; j < i; ++j) {
@@ -289,17 +223,6 @@ namespace dx {
                 shader->AddRef();
                 (*pShader)->Release();
                 *pShader = shader;
-                return ret;
-            }
-
-            shader_it = std::find(g::original_btb_shaders.cbegin(), g::original_btb_shaders.cend(), *pShader);
-            if (shader_it != g::original_btb_shaders.cend()) {
-                const auto index = std::distance(g::original_btb_shaders.cbegin(), shader_it);
-                auto shader = g::multiview_btb_shaders[index];
-                shader->AddRef();
-                (*pShader)->Release();
-                *pShader = shader;
-                return ret;
             }
         }
         return ret;
@@ -313,12 +236,6 @@ namespace dx {
             if (shader_it != g::base_game_shaders.cend()) {
                 const auto index = std::distance(g::base_game_shaders.cbegin(), shader_it);
                 shader = g::base_game_multiview_shaders[index];
-            } else {
-                shader_it = std::find(g::original_btb_shaders.cbegin(), g::original_btb_shaders.cend(), pShader);
-                if (shader_it != g::original_btb_shaders.cend()) {
-                    const auto index = std::distance(g::original_btb_shaders.cbegin(), shader_it);
-                    shader = g::multiview_btb_shaders[index];
-                }
             }
         }
 
@@ -331,7 +248,7 @@ namespace dx {
         if (pShader && !g::deferred_shader_constants.empty()) {
             for (const auto& it : g::deferred_shader_constants) {
                 // We can just call our patched SetVertexShaderConstantF function
-                // It will handle patching the (BTB) shader etc. correctly
+                // It will handle supplying the data for multiview correctly
                 SetVertexShaderConstantF(This, it.first, it.second.data(), 4);
             }
             g::deferred_shader_constants.clear();
@@ -397,7 +314,7 @@ namespace dx {
                 g::game->WriteText(0, 18 * ++i, std::format("GPU: render time: {:.2f}ms", gpu_total).c_str());
             }
 
-            g::game->WriteText(0, 18 * ++i, std::format("Mods: {} {}", rbr_rx::is_loaded() ? "RBRRX" : "", rbrhud::is_loaded() ? "RBRHUD" : "").c_str());
+            g::game->WriteText(0, 18 * ++i, std::format("Mods: {}", rbrhud::is_loaded() ? "RBRHUD" : "").c_str());
             g::game->WriteText(0, 18 * ++i, std::format("Render context: {}", g::vr->get_current_render_context_name()).c_str());
             const auto& [lw, lh] = g::vr->get_render_resolution(LeftEye);
             const auto& [rw, rh] = g::vr->get_render_resolution(RightEye);
@@ -420,10 +337,6 @@ namespace dx {
                     g::game->WriteText(0, 18 * ++i, std::format("  Failed base game shaders: {}", g::failed_multiview_base_game_shaders).c_str());
                 if (g::failed_multiview_external_shaders > 0)
                     g::game->WriteText(0, 18 * ++i, std::format("  Failed external shaders: {}", g::failed_multiview_external_shaders).c_str());
-                if (g::failed_multiview_btb_shaders > 0)
-                    g::game->WriteText(0, 18 * ++i, std::format("  Failed BTB shaders: {}", g::failed_multiview_btb_shaders).c_str());
-                if (g::failed_multiview_btb_shader_optimizations > 0)
-                    g::game->WriteText(0, 18 * ++i, std::format("  Failed BTB shader optimizations: {}", g::failed_multiview_btb_shader_optimizations).c_str());
             }
             g::game->WriteText(0, 18 * ++i, std::format("Anisotropic filtering: {}x", g::cfg.anisotropy).c_str());
             g::game->WriteText(0, 18 * ++i, std::format("Current stage ID: {}", rbr::get_current_stage_id()).c_str());
@@ -504,8 +417,7 @@ namespace dx {
     HRESULT __stdcall Present(IDirect3DDevice9* This, const RECT* pSourceRect, const RECT* pDestRect, HWND hDestWindowOverride, const RGNDATA* pDirtyRegion)
     {
         if (g::vr && !g::vr_error) [[likely]] {
-            auto shouldRender = g::current_2d_render_target && !(rbr::is_loading_btb_stage() && !g::cfg.draw_loading_screen);
-            if (shouldRender) {
+            if (g::current_2d_render_target) {
                 if (g::draw_overlay_border) {
                     render_overlay_border(g::d3d_dev, g::vr->get_current_render_context()->overlay_border);
                 }
@@ -546,15 +458,6 @@ namespace dx {
         ret = g::hooks::present.call(g::d3d_dev, pSourceRect, pDestRect, hDestWindowOverride, pDirtyRegion);
         g::current_frames++;
 
-        for (auto& it : g::patched_btb_shaders) {
-            if (!optimize_spirv_shader(it.first)) {
-                dbg("Shader optimization failed!");
-                g::failed_multiview_btb_shader_optimizations++;
-            }
-            g::optimized_btb_shaders.insert(it.first);
-        }
-        g::patched_btb_shaders.clear();
-
         if (g::vr && !g::vr_error) {
             g::vr->submit_frames_to_hmd(g::d3d_dev);
 
@@ -577,35 +480,12 @@ namespace dx {
         return ret;
     }
 
-    static bool set_btb_vertex_shader_constant(IDirect3DDevice9* This, UINT StartRegister, uint32_t start_index, const D3DMATRIX* matrices, const float* pConstantData, UINT Vector4fCount)
-    {
-        const auto left = g::vr_render_target.value_or(LeftEye);
-        const auto right = render_target_counterpart(left);
-        if (memcmp(pConstantData, &matrices[left], sizeof(D3DMATRIX)) == 0) {
-            g::hooks::set_vertex_shader_constant_f.call(g::d3d_dev, StartRegister + start_index, reinterpret_cast<const float*>(matrices[left].m), Vector4fCount);
-            g::hooks::set_vertex_shader_constant_f.call(g::d3d_dev, StartRegister + start_index + 4, reinterpret_cast<const float*>(matrices[right].m), Vector4fCount);
-            if (Vector4fCount > 4) {
-                // There's this one weird shader that has the camera position as fifth Vector4f element after the matrix.
-                // Copy the original data in the original location as the fifth element can be same for each view as it's moving the skybox along the camera.
-                g::hooks::set_vertex_shader_constant_f.call(g::d3d_dev, StartRegister, pConstantData, Vector4fCount);
-            }
-            return true;
-        }
-        return false;
-    }
-
     HRESULT __stdcall SetVertexShaderConstantF(IDirect3DDevice9* This, UINT StartRegister, const float* pConstantData, UINT Vector4fCount)
     {
         IDirect3DVertexShader9* shader;
         if (auto ret = g::d3d_dev->GetVertexShader(&shader); ret != D3D_OK) {
             dbg("Could not get vertex shader");
             return ret;
-        }
-
-        auto is_base_shader = true;
-        if (rbr::is_on_btb_stage()) {
-            const auto& shaders = multiview_rendering_enabled() ? g::base_game_multiview_shaders : g::base_game_shaders;
-            is_base_shader = std::find(shaders.cbegin(), shaders.cend(), shader) != shaders.end();
         }
 
         auto reg = multiview_rendering_enabled() ? StartRegister + g::base_shader_data_end_register : StartRegister;
@@ -616,7 +496,7 @@ namespace dx {
             std::array<float, 16> m;
             std::copy_n(pConstantData, 16, m.begin());
             g::deferred_shader_constants.insert_or_assign(StartRegister, m);
-        } else if (shader && is_base_shader && Vector4fCount == 4) {
+        } else if (shader && Vector4fCount == 4) {
             shader->Release();
 
             if (g::vr_render_target) {
@@ -672,87 +552,9 @@ namespace dx {
                 g::hooks::set_vertex_shader_constant_f.call(g::d3d_dev, reg, pConstantData, Vector4fCount);
                 return g::hooks::set_vertex_shader_constant_f.call(g::d3d_dev, reg + 4, pConstantData, Vector4fCount);
             }
-        } else if (multiview_rendering_enabled() && shader && !is_base_shader && (Vector4fCount == 4 || Vector4fCount == 5)) {
-            // Multiview BTB shader data passing
-            // Without multiview the matrices used are from the fixed function pipeline, so there's nothing to do.
-            // However, with multiview we need again to first patch the shaders that were loaded after the game was
-            // loaded, and afterwards we need to supply the data into the correct location.
-
-            if (memcmp(pConstantData, &fixedfunction::current_world_matrix, sizeof(D3DMATRIX)) == 0) {
-                // World matrix is the same for both perspectives, no need to do anything
-                return g::hooks::set_vertex_shader_constant_f.call(g::d3d_dev, StartRegister, pConstantData, Vector4fCount);
-            }
-
-            std::vector<uint32_t> new_registers;
-            std::vector<uint32_t>& regs = new_registers;
-            auto patched_shader = g::patched_btb_shaders.find(shader);
-            if (patched_shader != g::patched_btb_shaders.end()) {
-                regs = patched_shader->second;
-            }
-
-            const auto this_register_patched = std::find(regs.cbegin(), regs.cend(), StartRegister) != regs.cend();
-
-            if (!g::optimized_btb_shaders.contains(shader)) {
-                if (regs.empty()) {
-                    g::d3d_vr->SetShaderConstantCount(shader, g::base_shader_data_end_register * 2);
-                    if (!patch_spirv_shader(shader, StartRegister, g::base_shader_data_end_register, false)) {
-                        dbg("Shader patch failed!");
-                        g::failed_multiview_btb_shaders++;
-                    }
-                    regs.push_back(StartRegister);
-                    g::patched_btb_shaders[shader] = regs;
-                } else if (!this_register_patched) {
-                    // This is another variable at `StartRegister`, patch the shader again
-                    if (!patch_spirv_shader(shader, StartRegister, g::base_shader_data_end_register, false)) {
-                        dbg("Shader patch failed!");
-                        g::failed_multiview_btb_shaders++;
-                    }
-                    regs.push_back(StartRegister);
-                    g::patched_btb_shaders[shader] = regs;
-                }
-            }
-
-            shader->Release();
-
-            // We don't know which one of these this matrix is, so we test it against known candidates.
-            // These are the different ones passed to shaders, gathered from the BTB stage list of RSF.
-            // Some custom stages might have other shaders that pass the data in a different format.
-            // Those won't work without handling them here, but such is life.
-            if (set_btb_vertex_shader_constant(This, StartRegister, g::base_shader_data_end_register, fixedfunction::current_projection_matrix, pConstantData, Vector4fCount))
-                return D3D_OK;
-            if (set_btb_vertex_shader_constant(This, StartRegister, g::base_shader_data_end_register, fixedfunction::current_view_matrix, pConstantData, Vector4fCount))
-                return D3D_OK;
-            if (set_btb_vertex_shader_constant(This, StartRegister, g::base_shader_data_end_register, fixedfunction::current_projview_matrix, pConstantData, Vector4fCount))
-                return D3D_OK;
-            if (set_btb_vertex_shader_constant(This, StartRegister, g::base_shader_data_end_register, fixedfunction::current_viewproj_matrix, pConstantData, Vector4fCount))
-                return D3D_OK;
-            if (set_btb_vertex_shader_constant(This, StartRegister, g::base_shader_data_end_register, fixedfunction::current_worldview_matrix, pConstantData, Vector4fCount))
-                return D3D_OK;
-            if (set_btb_vertex_shader_constant(This, StartRegister, g::base_shader_data_end_register, fixedfunction::current_worldviewproj_matrix, pConstantData, Vector4fCount))
-                return D3D_OK;
-
-            g::hooks::set_vertex_shader_constant_f.call(g::d3d_dev, reg, pConstantData, Vector4fCount);
-            g::hooks::set_vertex_shader_constant_f.call(g::d3d_dev, reg + 4, pConstantData, Vector4fCount);
         }
 
         return g::hooks::set_vertex_shader_constant_f.call(g::d3d_dev, StartRegister, pConstantData, Vector4fCount);
-    }
-
-    static void update_btb_comparison_matrices(RenderTarget left, RenderTarget right)
-    {
-        const auto world = m4_from_d3d(fixedfunction::current_world_matrix);
-        const auto update_matrices = [&world](RenderTarget tgt) {
-            const auto proj = m4_from_d3d(fixedfunction::current_projection_matrix[tgt]);
-            const auto view = m4_from_d3d(fixedfunction::current_view_matrix[tgt]);
-
-            fixedfunction::current_projview_matrix[tgt] = d3d_from_m4(glm::transpose(view * proj));
-            fixedfunction::current_viewproj_matrix[tgt] = d3d_from_m4(glm::transpose(proj * view));
-            fixedfunction::current_worldview_matrix[tgt] = d3d_from_m4(glm::transpose(view * world));
-            fixedfunction::current_worldviewproj_matrix[tgt] = d3d_from_m4(glm::transpose(proj * view * world));
-        };
-
-        update_matrices(left);
-        update_matrices(right);
     }
 
     HRESULT __stdcall SetTransform(IDirect3DDevice9* This, D3DTRANSFORMSTATETYPE State, const D3DMATRIX* pMatrix)
@@ -773,7 +575,6 @@ namespace dx {
                 if (multiview_rendering_enabled()) {
                     const auto multiview_target = render_target_counterpart(target);
                     fixedfunction::current_projection_matrix[multiview_target] = d3d_from_m4(g::vr->get_projection(multiview_target));
-                    update_btb_comparison_matrices(target, multiview_target);
                     ret |= g::hooks::set_transform.call(g::d3d_dev, D3DTS_PROJECTION_RIGHT, &fixedfunction::current_projection_matrix[multiview_target]);
                 }
 
@@ -787,81 +588,22 @@ namespace dx {
                     const auto multiview_target = render_target_counterpart(target);
                     fixedfunction::current_view_matrix[multiview_target] = d3d_from_m4(
                         g::vr->get_eye_pos(multiview_target) * g::vr->get_pose(multiview_target) * g::flip_z_matrix * rbr::get_horizon_lock_matrix() * m4_from_d3d(*pMatrix));
-                    update_btb_comparison_matrices(target, multiview_target);
                     ret |= g::hooks::set_transform.call(g::d3d_dev, D3DTS_VIEW_RIGHT, &fixedfunction::current_view_matrix[multiview_target]);
                 }
 
                 return ret;
-            } else if (multiview_rendering_enabled() && State == D3DTS_WORLD) {
-                // These matrices are needed for BTB shader constants in multiview case
-                const auto multiview_target = render_target_counterpart(target);
-                fixedfunction::current_world_matrix = *pMatrix;
-                update_btb_comparison_matrices(target, multiview_target);
             }
         } else if (multiview_rendering_enabled()) {
-            // Update left eye matrices as the 2D plane texture is drawn using the data from the left eye location
+            // Update right view because some other plugin may draw on the 2D plane
+            // using the data from the left eye location
             if (State == D3DTS_PROJECTION) {
-                fixedfunction::current_projection_matrix[LeftEye] = *pMatrix;
-                fixedfunction::current_projection_matrix[FocusLeft] = *pMatrix;
-                fixedfunction::current_projection_matrix[RightEye] = *pMatrix;
-                fixedfunction::current_projection_matrix[FocusRight] = *pMatrix;
-
-                update_btb_comparison_matrices(LeftEye, RightEye);
-                update_btb_comparison_matrices(FocusLeft, FocusRight);
-
-                // Update right view because some other plugin may draw on the 2D plane
                 g::hooks::set_transform.call(g::d3d_dev, D3DTS_PROJECTION_RIGHT, pMatrix);
             } else if (State == D3DTS_VIEW) {
-                fixedfunction::current_view_matrix[LeftEye] = *pMatrix;
-                fixedfunction::current_view_matrix[FocusLeft] = *pMatrix;
-                fixedfunction::current_view_matrix[RightEye] = *pMatrix;
-                fixedfunction::current_view_matrix[FocusRight] = *pMatrix;
-
-                update_btb_comparison_matrices(LeftEye, RightEye);
-                update_btb_comparison_matrices(FocusLeft, FocusRight);
-
-                // Update right view because some other plugin may draw on the 2D plane
                 g::hooks::set_transform.call(g::d3d_dev, D3DTS_VIEW_RIGHT, pMatrix);
-            } else if (State == D3DTS_WORLD) {
-                fixedfunction::current_world_matrix = *pMatrix;
-                update_btb_comparison_matrices(LeftEye, RightEye);
-                update_btb_comparison_matrices(FocusLeft, FocusRight);
             }
         }
 
         return g::hooks::set_transform.call(g::d3d_dev, State, pMatrix);
-    }
-
-    HRESULT __stdcall BTB_SetRenderTarget(IDirect3DDevice9* This, DWORD RenderTargetIndex, IDirect3DSurface9* pRenderTarget)
-    {
-        // This was found purely by luck after testing all kinds of things.
-        // For some reason, if this call is called with the original This pointer (from RBRRX)
-        // plugins switching the render target (i.e. RBRHUD) will cause the stage geometry
-        // to not be rendered at all. Routing the call to the D3D device created by openRBRVR,
-        // it seems to work correctly.
-        return g::d3d_dev->SetRenderTarget(RenderTargetIndex, pRenderTarget);
-    }
-
-    HRESULT __stdcall DrawPrimitive(IDirect3DDevice9* This, D3DPRIMITIVETYPE PrimitiveType, UINT StartVertex, UINT PrimitiveCount)
-    {
-        if (rbr::is_on_btb_stage()) {
-            IDirect3DVertexShader9* shader;
-            g::d3d_dev->GetVertexShader(&shader);
-
-            if (shader && !multiview_rendering_enabled()) {
-                // Shader #39 causes strange "shadows" on BTB stages
-                // Clearly visible during CFH, and otherwise visible too when looking up
-                // Probably some projection matrix issue, but changing the projection matrix like
-                // we do normally had no effect, so on BTB stages we just won't draw this primitive with this shader.
-                // With multiview this bug seems to not occur so we also do this exception when multiview isn't enabled.
-                auto should_skip_drawing = shader == g::base_game_shaders[39];
-                shader->Release();
-                if (should_skip_drawing) {
-                    return 0;
-                }
-            }
-        }
-        return g::hooks::draw_primitive.call(This, PrimitiveType, StartVertex, PrimitiveCount);
     }
 
     HRESULT __stdcall DrawIndexedPrimitive(IDirect3DDevice9* This, D3DPRIMITIVETYPE PrimitiveType, INT BaseVertexIndex, UINT MinVertexIndex, UINT NumVertices, UINT startIndex, UINT primCount)
@@ -1024,7 +766,6 @@ namespace dx {
             g::hooks::get_vertex_shader = Hook(devvtbl->GetVertexShader, GetVertexShader);
             g::hooks::set_vertex_shader = Hook(devvtbl->SetVertexShader, SetVertexShader);
             g::hooks::draw_indexed_primitive = Hook(devvtbl->DrawIndexedPrimitive, DrawIndexedPrimitive);
-            g::hooks::draw_primitive = Hook(devvtbl->DrawPrimitive, DrawPrimitive);
             g::hooks::set_render_state = Hook(devvtbl->SetRenderState, SetRenderState);
             g::hooks::clear = Hook(devvtbl->Clear, Clear);
             g::hooks::end_state_block = Hook(devvtbl->EndStateBlock, EndStateBlock);
@@ -1050,20 +791,6 @@ namespace dx {
             }
         } catch (const std::runtime_error& e) {
             MessageBoxA(hFocusWindow, e.what(), "VR init failed", MB_OK);
-        }
-        // Initialize this pointer here, as it's too early to do this in openRBRVR constructor
-        auto handle = GetModuleHandle("Plugins\\rbr_rx.dll");
-        if (handle) {
-            auto rx_addr = reinterpret_cast<uintptr_t>(handle);
-            g::btb_track_status_ptr = reinterpret_cast<uint8_t*>(rx_addr + rbr_rx::TRACK_STATUS_OFFSET);
-
-            IDirect3DDevice9Vtbl* rbrrxdev = reinterpret_cast<IDirect3DDevice9Vtbl*>(rx_addr + rbr_rx::DEVICE_VTABLE_OFFSET);
-            try {
-                g::hooks::btb_set_render_target = Hook(rbrrxdev->SetRenderTarget, BTB_SetRenderTarget);
-            } catch (const std::runtime_error& e) {
-                dbg(e.what());
-                MessageBoxA(hFocusWindow, e.what(), "Hooking failed", MB_OK);
-            }
         }
 
         return ret;
