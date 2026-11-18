@@ -448,18 +448,7 @@ OpenXR::OpenXR()
 
 void OpenXR::init(IDirect3DDevice9* dev, IDirect3DExtensions9** vrdev, uint32_t companion_window_width, uint32_t companion_window_height, std::optional<XrPosef> old_view_pose)
 {
-    if (dev->CreateQuery(D3DQUERYTYPE_TIMESTAMP, &gpu_start_query) != D3D_OK) {
-        throw std::runtime_error("VR initialization failed: CreateQuery");
-    }
-    if (dev->CreateQuery(D3DQUERYTYPE_TIMESTAMP, &gpu_end_query) != D3D_OK) {
-        throw std::runtime_error("VR initialization failed: CreateQuery");
-    }
-    if (dev->CreateQuery(D3DQUERYTYPE_TIMESTAMPDISJOINT, &gpu_disjoint_query) != D3D_OK) {
-        throw std::runtime_error("VR initialization failed: CreateQuery");
-    }
-    if (dev->CreateQuery(D3DQUERYTYPE_TIMESTAMPFREQ, &gpu_freq_query) != D3D_OK) {
-        throw std::runtime_error("VR initialization failed: CreateQuery");
-    }
+    gpu_timer.init(dev);
 
     XrGraphicsRequirementsD3D11KHR gfx_requirements = { .type = XR_TYPE_GRAPHICS_REQUIREMENTS_D3D11_KHR };
     auto xrGetD3D11GraphicsRequirementsKHR = get_extension<PFN_xrGetD3D11GraphicsRequirementsKHR>(instance, "xrGetD3D11GraphicsRequirementsKHR");
@@ -1094,11 +1083,7 @@ void OpenXR::prepare_frames_for_hmd(IDirect3DDevice9* dev)
     xrReleaseSwapchainImage(swapchains[LeftEye], &release_info);
     xrReleaseSwapchainImage(swapchains[RightEye], &release_info);
 
-    if (g::cfg.debug && perf_query_free_to_use) [[unlikely]] {
-        gpu_end_query->Issue(D3DISSUE_END);
-        gpu_freq_query->Issue(D3DISSUE_END);
-        gpu_disjoint_query->Issue(D3DISSUE_END);
-    }
+    gpu_timer.end();
 }
 
 void OpenXR::synchronize_graphics_apis(bool wait_for_cpu)
@@ -1275,11 +1260,7 @@ bool OpenXR::update_vr_poses()
     }
 
     update_visual_hands(update_poses());
-
-    if (g::cfg.debug && perf_query_free_to_use) [[unlikely]] {
-        gpu_disjoint_query->Issue(D3DISSUE_BEGIN);
-        gpu_start_query->Issue(D3DISSUE_END);
-    }
+    gpu_timer.begin();
 
     return true;
 }
@@ -1508,30 +1489,7 @@ void OpenXR::render_hands(IDirect3DDevice9* dev, RenderTarget target)
 FrameTimingInfo OpenXR::get_frame_timing()
 {
     FrameTimingInfo ret = { 0 };
-
-    BOOL disjoint;
-    const auto hr = gpu_disjoint_query->GetData(&disjoint, sizeof(disjoint), 0);
-    if (hr == S_FALSE) {
-        // Queries still in flight, don't reissue them yet
-        perf_query_free_to_use = false;
-        return ret;
-    }
-
-    // The queries have completed (or failed), so they can be reissued next frame.
-    perf_query_free_to_use = true;
-
-    if (hr != D3D_OK || disjoint) {
-        return ret;
-    }
-
-    uint64_t gpu_start, gpu_end, freq;
-    if (gpu_start_query->GetData(&gpu_start, sizeof(gpu_start), 0) == D3D_OK
-        && gpu_end_query->GetData(&gpu_end, sizeof(gpu_end), 0) == D3D_OK
-        && gpu_freq_query->GetData(&freq, sizeof(freq), 0) == D3D_OK
-        && freq > 0 && gpu_end > gpu_start) {
-        ret.gpu_total = float(gpu_end - gpu_start) / float(freq);
-    }
-
+    ret.gpu_total = gpu_timer.get_elapsed();
     return ret;
 }
 
@@ -1664,8 +1622,5 @@ void OpenXR::shutdown_vr()
     xrDestroySession(session);
     xrDestroyInstance(instance);
 
-    gpu_start_query->Release();
-    gpu_end_query->Release();
-    gpu_freq_query->Release();
-    gpu_disjoint_query->Release();
+    gpu_timer.release();
 }

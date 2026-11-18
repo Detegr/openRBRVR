@@ -18,6 +18,80 @@ namespace g {
     static IDirect3DVertexBuffer9* companion_window_vertex_buf_focus;
 }
 
+void GpuTimer::init(IDirect3DDevice9* dev)
+{
+    if (dev->CreateQuery(D3DQUERYTYPE_TIMESTAMP, &start_query) != D3D_OK) {
+        throw std::runtime_error("VR initialization failed: CreateQuery");
+    }
+    if (dev->CreateQuery(D3DQUERYTYPE_TIMESTAMP, &end_query) != D3D_OK) {
+        throw std::runtime_error("VR initialization failed: CreateQuery");
+    }
+    if (dev->CreateQuery(D3DQUERYTYPE_TIMESTAMPDISJOINT, &disjoint_query) != D3D_OK) {
+        throw std::runtime_error("VR initialization failed: CreateQuery");
+    }
+    if (dev->CreateQuery(D3DQUERYTYPE_TIMESTAMPFREQ, &freq_query) != D3D_OK) {
+        throw std::runtime_error("VR initialization failed: CreateQuery");
+    }
+}
+
+void GpuTimer::release()
+{
+    for (auto query : { &start_query, &end_query, &disjoint_query, &freq_query }) {
+        if (*query) {
+            (*query)->Release();
+            *query = nullptr;
+        }
+    }
+}
+
+void GpuTimer::begin()
+{
+    if (g::cfg.debug && queries_free_to_use && start_query) [[unlikely]] {
+        disjoint_query->Issue(D3DISSUE_BEGIN);
+        start_query->Issue(D3DISSUE_END);
+    }
+}
+
+void GpuTimer::end()
+{
+    if (g::cfg.debug && queries_free_to_use && end_query) [[unlikely]] {
+        end_query->Issue(D3DISSUE_END);
+        freq_query->Issue(D3DISSUE_END);
+        disjoint_query->Issue(D3DISSUE_END);
+    }
+}
+
+float GpuTimer::get_elapsed()
+{
+    if (!disjoint_query) {
+        return 0.0f;
+    }
+
+    BOOL disjoint;
+    const auto hr = disjoint_query->GetData(&disjoint, sizeof(disjoint), 0);
+    if (hr == S_FALSE) {
+        // Queries still in flight, don't reissue them yet
+        queries_free_to_use = false;
+        return 0.0f;
+    }
+
+    // The queries have completed (or failed), so they can be reissued next frame.
+    queries_free_to_use = true;
+
+    if (hr != D3D_OK || disjoint) {
+        return 0.0f;
+    }
+
+    uint64_t gpu_start, gpu_end, freq;
+    if (start_query->GetData(&gpu_start, sizeof(gpu_start), 0) == D3D_OK
+        && end_query->GetData(&gpu_end, sizeof(gpu_end), 0) == D3D_OK
+        && freq_query->GetData(&freq, sizeof(freq), 0) == D3D_OK
+        && freq > 0 && gpu_end > gpu_start) {
+        return float(gpu_end - gpu_start) / float(freq);
+    }
+    return 0.0f;
+}
+
 bool VRInterface::is_using_quad_view_rendering() const
 {
     return get_runtime_type() == OPENXR && g::cfg.quad_view_rendering;
