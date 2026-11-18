@@ -10,6 +10,7 @@ enum ApiOperation : uint64_t {
     RESERVED2 = 0x8,
     GET_VR_RUNTIME = 0x10,
     MOVE_SEAT = 0x20,
+    SET_REVERSE_Z = 0x40,
 };
 
 enum SeatMovement : uint64_t {

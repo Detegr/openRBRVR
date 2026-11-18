@@ -228,8 +228,8 @@ bool OpenVR::update_vr_poses()
         hmd_pose[RightEye] = hmd_pose[LeftEye];
     }
 
-    projection[LeftEye] = get_projection_matrix(LeftEye, z_near, z_far, rbr::should_use_reverse_z_buffer());
-    projection[RightEye] = get_projection_matrix(RightEye, z_near, z_far, rbr::should_use_reverse_z_buffer());
+    projection[LeftEye] = get_projection_matrix(LeftEye, z_near, z_far, g::reverse_z);
+    projection[RightEye] = get_projection_matrix(RightEye, z_near, z_far, g::reverse_z);
 
     return true;
 }

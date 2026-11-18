@@ -42,7 +42,7 @@ static M4 create_default_projection_matrix(float aspect, float z_near, float z_f
 bool DummyVR::update_vr_poses()
 {
     const auto aspect = static_cast<float>(companion_window_width / companion_window_height);
-    projection[LeftEye] = create_default_projection_matrix(aspect, z_near, z_far, rbr::should_use_reverse_z_buffer());
+    projection[LeftEye] = create_default_projection_matrix(aspect, z_near, z_far, g::reverse_z);
     projection[RightEye] = projection[LeftEye];
     return true;
 }

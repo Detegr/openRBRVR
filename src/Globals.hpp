@@ -96,6 +96,9 @@ namespace g {
     // Is a saved seat position loaded from disk for the current car
     extern bool seat_position_loaded;
 
+    // Is reverse-z buffer active
+    extern bool reverse_z;
+
     // String containing the current DXVK version in use
     extern std::string dxvk_version;
 
@@ -114,10 +117,6 @@ namespace g {
         extern Hook<decltype(IDirect3DDevice9Vtbl::GetVertexShader)> get_vertex_shader;
         extern Hook<decltype(IDirect3DDevice9Vtbl::SetVertexShader)> set_vertex_shader;
         extern Hook<decltype(IDirect3DDevice9Vtbl::DrawIndexedPrimitive)> draw_indexed_primitive;
-        extern Hook<decltype(IDirect3DDevice9Vtbl::SetRenderState)> set_render_state;
-        extern Hook<decltype(IDirect3DDevice9Vtbl::Clear)> clear;
-        extern Hook<decltype(IDirect3DDevice9Vtbl::EndStateBlock)> end_state_block;
-        extern Hook<decltype(IDirect3DStateBlock9Vtbl::Apply)> apply_state_block;
 
         // RBR functions
         extern Hook<decltype(&rbr::load_texture)> load_texture;
