@@ -52,6 +52,7 @@ pub fn build(b: *std.Build) void {
         "src/HandAssets.cpp",
         "src/HandMesh.cpp",
         "src/HandTracking.cpp",
+        "src/HedgeHog.cpp",
         "src/Menu.cpp",
         "src/OpenVR.cpp",
         "src/OpenXR.cpp",

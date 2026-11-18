@@ -1,6 +1,7 @@
 #include "RBR.hpp"
 #include "Dx.hpp"
 #include "Globals.hpp"
+#include "HedgeHog.hpp"
 #include "IPlugin.h"
 #include "Util.hpp"
 #include "VR.hpp"
@@ -33,6 +34,9 @@ namespace g {
     static double previous_frame_yaw;
     static bool skip_cube_map;
     static bool is_rendering_cube_map;
+
+    // Objects visible in the left and right peripheral views, used for culling the focus views
+    static std::vector<int32_t> peripheral_visible_objects[2];
 }
 
 namespace rbr {
@@ -88,6 +92,10 @@ namespace rbr {
     // From hedgehog3d.dll. We can't resolve the real addresses here.
     static uintptr_t PARTICLE_HANDLING_CHECK_ADDR = 0x10076672;
     static constexpr uintptr_t RENDER_CUBE_MAP_ADDR = 0x10069cf0;
+    static constexpr uintptr_t HEDGEHOG_RENDER_ADDR = 0x100674e0;
+    static constexpr uintptr_t HEDGEHOG_CULL_FUNCTION_ADDR = 0x10062dd0;
+
+    static uintptr_t FENCE_FRUSTUM_CHECK_ADDR = get_address(0x4bf9d0);
 
     static uintptr_t CAR_INFO_ADDR = get_address(0x165FC68);
     static uintptr_t* GAME_MODE_EXT_2_PTR = reinterpret_cast<uintptr_t*>(get_address(0x7EA678));
@@ -182,6 +190,42 @@ namespace rbr {
         g::is_rendering_cube_map = true;
         g::hooks::render_cube_map.call(world);
         g::is_rendering_cube_map = false;
+    }
+
+    static M4 get_view_frustum_matrix(RenderTarget tgt)
+    {
+        return g::vr->get_projection(tgt) * g::vr->get_eye_pos(tgt) * g::vr->get_pose(tgt) * g::flip_z_matrix * g::horizon_lock_matrix;
+    }
+
+    void __fastcall hedgehog_render(void* world, void* edx)
+    {
+        if (g::vr && g::vr_render_target && !g::is_rendering_cube_map) {
+            const auto target = g::vr_render_target.value();
+            const auto multiview = dx::multiview_rendering_enabled();
+
+            M4 clip_matrices[2] = { get_view_frustum_matrix(target) };
+            if (multiview) {
+                clip_matrices[1] = get_view_frustum_matrix(render_target_counterpart(target));
+            }
+            const auto views = std::span<const M4>(clip_matrices, multiview ? 2 : 1);
+
+            if (target == FocusLeft || target == FocusRight) {
+                // The focus view is inside the peripheral view, so only the objects visible in it need to be tested
+                hedgehog::cull_subset(world, views, g::peripheral_visible_objects[target - FocusLeft]);
+            } else {
+                if (multiview) {
+                    hedgehog::cull_union(world, views);
+                } else {
+                    hedgehog::cull(world, views[0]);
+                }
+
+                if (g::vr->is_using_quad_view_rendering()) {
+                    const auto visible = hedgehog::visible_objects(world);
+                    g::peripheral_visible_objects[target].assign(visible.begin(), visible.end());
+                }
+            }
+        }
+        g::hooks::hedgehog_render.call(world, edx);
     }
 
     static uintptr_t get_camera_info_ptr()
@@ -381,8 +425,19 @@ namespace rbr {
                 if (!g::hooks::load_texture.call) {
                     g::hooks::load_texture = Hook(*reinterpret_cast<decltype(load_texture)*>(handle + 0xAEC15), load_texture);
                     g::hooks::render_cube_map = Hook(reinterpret_cast<decltype(render_cube_map)*>(get_hedgehog_address(RENDER_CUBE_MAP_ADDR)), &render_cube_map);
+                    g::hooks::hedgehog_render = Hook(*reinterpret_cast<decltype(hedgehog_render)*>(get_hedgehog_address(HEDGEHOG_RENDER_ADDR)), hedgehog_render);
+                    g::hooks::hedgehog_cull = Hook(reinterpret_cast<decltype(&hedgehog::hedgehog_cull)>(get_hedgehog_address(HEDGEHOG_CULL_FUNCTION_ADDR)), &hedgehog::hedgehog_cull);
                 }
             }
+        }
+
+        static bool fence_fix_applied = false;
+        if (!fence_fix_applied) {
+            // Apply (at most once) a patch that makes a point-in-frustum check that makes fences
+            // not disppear at high FoVs.
+            uint8_t patched_bytes[] { 0xB8, 0x01, 0x00, 0x00, 0x00, 0xC2, 0x08, 0x00 };
+            write_data(FENCE_FRUSTUM_CHECK_ADDR, patched_bytes, sizeof(patched_bytes));
+            fence_fix_applied = true;
         }
 
         // Swap JZ to JNZ as we want to skip the code if we're not interested
@@ -569,6 +624,7 @@ namespace rbr {
                 return;
             }
 
+            hedgehog::enable_hedgehog_cull(!g::is_rendering_3d); // Disable HedgeHog's own culling if we're rendering in VR
             g::frame_start = std::chrono::steady_clock::now();
 
             if (g::is_rendering_3d) {
