@@ -179,7 +179,7 @@ namespace dx {
         const float cpuTime = cpu_frametime_us / 1000.0f;
         static float gpu_total = 0.0f;
 
-        if (g::vr->get_runtime_type() == OPENXR) {
+        if (g::vr->get_runtime_type() != OPENVR) {
             if (t.gpu_total > 0.0) {
                 // Cache non-zero GPU total value as we won't get a new value for every frame
                 gpu_total = t.gpu_total * 1000.0f;

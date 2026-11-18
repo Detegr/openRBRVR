@@ -5,6 +5,8 @@
 
 void DummyVR::init(IDirect3DDevice9* dev, IDirect3DExtensions9** vrdev, uint32_t companionWindowWidth, uint32_t companionWindowHeight)
 {
+    gpu_timer.init(dev);
+
     for (const auto& gfx : g::cfg.gfx) {
         RenderContext ctx = {
             .width = { companionWindowWidth, companionWindowWidth },
@@ -44,6 +46,7 @@ bool DummyVR::update_vr_poses()
     const auto aspect = static_cast<float>(companion_window_width / companion_window_height);
     projection[LeftEye] = create_default_projection_matrix(aspect, z_near, z_far, g::reverse_z);
     projection[RightEye] = projection[LeftEye];
+    gpu_timer.begin();
     return true;
 }
 

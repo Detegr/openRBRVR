@@ -90,6 +90,24 @@ struct FrameTimingInfo {
     uint32_t dropped_frames;
 };
 
+class GpuTimer {
+public:
+    void init(IDirect3DDevice9* dev);
+    void release();
+
+    void begin();
+    void end();
+
+    float get_elapsed();
+
+private:
+    bool queries_free_to_use = true;
+    IDirect3DQuery9* start_query = nullptr;
+    IDirect3DQuery9* end_query = nullptr;
+    IDirect3DQuery9* disjoint_query = nullptr;
+    IDirect3DQuery9* freq_query = nullptr;
+};
+
 struct RenderContext {
     // One for each possible view (2 for stereo, 4 for quad views)
     uint32_t width[4];

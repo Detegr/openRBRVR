@@ -76,11 +76,7 @@ private:
     std::vector<char> device_extensions;
     std::vector<char> instance_extensions;
 
-    bool perf_query_free_to_use = true;
-    IDirect3DQuery9* gpu_start_query;
-    IDirect3DQuery9* gpu_end_query;
-    IDirect3DQuery9* gpu_disjoint_query;
-    IDirect3DQuery9* gpu_freq_query;
+    GpuTimer gpu_timer;
 
     XrSwapchainImageD3D11KHR& acquire_swapchain_image(RenderTarget tgt);
     std::optional<XrViewState> update_views();
