@@ -84,6 +84,8 @@ void OpenVR::init(IDirect3DDevice9* dev, IDirect3DExtensions9** vrdev, uint32_t 
     // }
 
     try {
+        init_common_surfaces(dev, companionWindowWidth, companionWindowHeight);
+
         for (const auto& gfx : g::cfg.gfx) {
             auto supersampling = gfx.second.supersampling;
             auto wss = static_cast<uint32_t>(w * supersampling);
@@ -95,7 +97,7 @@ void OpenVR::init(IDirect3DDevice9* dev, IDirect3DExtensions9** vrdev, uint32_t 
                 .quad_view_rendering = false,
                 .multiview_rendering = gfx.second.multiview_rendering,
             };
-            init_surfaces(dev, ctx, companionWindowWidth, companionWindowHeight);
+            init_surfaces(dev, ctx);
             render_contexts[gfx.first] = ctx;
         }
         set_render_context("default");

@@ -7,6 +7,8 @@ void DummyVR::init(IDirect3DDevice9* dev, IDirect3DExtensions9** vrdev, uint32_t
 {
     gpu_timer.init(dev);
 
+    init_common_surfaces(dev, companionWindowWidth, companionWindowHeight);
+
     for (const auto& gfx : g::cfg.gfx) {
         RenderContext ctx = {
             .width = { companionWindowWidth, companionWindowWidth },
@@ -15,7 +17,7 @@ void DummyVR::init(IDirect3DDevice9* dev, IDirect3DExtensions9** vrdev, uint32_t
             .quad_view_rendering = false,
             .multiview_rendering = false,
         };
-        init_surfaces(dev, ctx, companionWindowWidth, companionWindowHeight);
+        init_surfaces(dev, ctx);
         render_contexts[gfx.first] = ctx;
     }
 

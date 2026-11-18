@@ -64,6 +64,10 @@ private:
     std::chrono::steady_clock::time_point last_hand_frame_log {};
     std::array<std::chrono::steady_clock::time_point, 4> last_hand_draw_log {};
     XrViewStateFlags hand_view_flags = 0;
+    // Shared 2D render targets (GameMenu, Overlay)
+    std::array<ID3D11Texture2D*, shared_render_target_count> overlay_textures { };
+    std::array<HANDLE, shared_render_target_count> overlay_handles { };
+    bool overlay_prepared = false;
 
     PFN_xrConvertWin32PerformanceCounterToTimeKHR xr_convert_win32_performance_counter_to_time;
 
@@ -78,7 +82,8 @@ private:
 
     GpuTimer gpu_timer;
 
-    XrSwapchainImageD3D11KHR& acquire_swapchain_image(RenderTarget tgt);
+    XrSwapchainImageD3D11KHR& acquire_swapchain_image(size_t idx);
+    size_t overlay_swapchain_index() const { return swapchains.size() - 1; }
     std::optional<XrViewState> update_views();
     bool update_poses();
     bool get_projection_matrix(XrViewState view_state);

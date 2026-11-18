@@ -5,6 +5,7 @@
 
 #include <d3d9_extensions.h>
 
+#include <array>
 #include <d3d9.h>
 #include <openvr.h>
 #include <openxr.h>
@@ -114,12 +115,12 @@ struct RenderContext {
     uint32_t height[4];
     HANDLE dx_shared_handle[4] = { 0 };
 
-    // One for each render target
-    IDirect3DTexture9* dx_texture[6] = { 0 };
-    IDirect3DSurface9* dx_surface[6] = { 0 };
-    IDirect3DSurface9* dx_depth_stencil_surface[6] = { 0 };
+    // One for each eye/focus render target
+    // The 2D targets (menus, overlay) are shared between render contexts
+    IDirect3DTexture9* dx_texture[4] = { 0 };
+    IDirect3DSurface9* dx_surface[4] = { 0 };
+    IDirect3DSurface9* dx_depth_stencil_surface[4] = { 0 };
 
-    IDirect3DTexture9* overlay_border;
     D3DMULTISAMPLE_TYPE msaa;
 
     bool quad_view_rendering;
@@ -128,17 +129,36 @@ struct RenderContext {
     void* ext;
 };
 
+constexpr float menu_quad_base_size = 1.25f;
+constexpr float menu_quad_z = 2.4f;
+constexpr float overlay_quad_base_size = 0.6f;
+constexpr float overlay_quad_z = 1.0f;
+
 class VRInterface {
 protected:
+    struct SharedRenderTarget {
+        IDirect3DTexture9* dx_texture = nullptr;
+        IDirect3DSurface9* dx_surface = nullptr;
+        IDirect3DSurface9* dx_depth_stencil_surface = nullptr;
+    };
+
     std::unordered_map<std::string, RenderContext> render_contexts;
     std::string current_render_context_name;
     RenderContext* current_render_context;
+    std::array<SharedRenderTarget, shared_render_target_count> shared_targets;
+    IDirect3DTexture9* overlay_border = nullptr;
 
     M4 hmd_pose[4];
     M4 eye_pos[4];
     M4 projection[4];
 
-    void init_surfaces(IDirect3DDevice9* dev, RenderContext& ctx, uint32_t res_x_2d, uint32_t res_y_2d);
+    void init_surfaces(IDirect3DDevice9* dev, RenderContext& ctx);
+    void init_common_surfaces(IDirect3DDevice9* dev, uint32_t res_x_2d, uint32_t res_y_2d, HANDLE* game_menu_shared_handle = nullptr, HANDLE* overlay_shared_handle = nullptr);
+    void release_common_surfaces();
+
+    IDirect3DTexture9*& target_texture(RenderTarget tgt);
+    IDirect3DSurface9*& target_surface(RenderTarget tgt);
+    IDirect3DSurface9*& target_depth_stencil(RenderTarget tgt);
 
     static constexpr float z_near = 0.01f;
     static constexpr float z_far = 10000.0f;
@@ -174,7 +194,13 @@ public:
     }
     const M4& get_eye_pos(RenderTarget tgt) const { return eye_pos[tgt]; }
     const M4& get_pose(RenderTarget tgt) const { return hmd_pose[tgt]; }
-    IDirect3DTexture9* get_texture(RenderTarget tgt) const { return current_render_context->dx_texture[tgt]; }
+    IDirect3DTexture9* get_texture(RenderTarget tgt) const
+    {
+        return is_shared_render_target(tgt)
+            ? shared_targets[shared_render_target_index(tgt)].dx_texture
+            : current_render_context->dx_texture[tgt];
+    }
+    IDirect3DTexture9* get_overlay_border() const { return overlay_border; }
     RenderContext* get_current_render_context() const { return current_render_context; }
     const std::string& get_current_render_context_name() const { return current_render_context_name; }
     bool create_companion_window_buffer(IDirect3DDevice9* dev);
