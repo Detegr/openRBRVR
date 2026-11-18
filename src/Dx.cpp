@@ -347,7 +347,8 @@ namespace dx {
         auto ret = 0;
         if (g::vr && !g::vr_error) {
             auto game_mode = rbr::get_game_mode();
-            const auto companion_eye = static_cast<RenderTarget>(g::cfg.companion_eye + (g::vr->is_using_quad_view_rendering() ? 2 : 0));
+            // With quad views, the focus view is drawn on top of the peripheral view
+            const auto companion_eye = g::cfg.companion_eye;
             if (g::cfg.companion_mode == CompanionMode::Static) {
                 if (game_mode == GameMode::Driving || game_mode == GameMode::Pause) {
                     // Render the overlay over the 3D content, if we're running the static view on desktop window
