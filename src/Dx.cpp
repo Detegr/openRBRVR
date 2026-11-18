@@ -284,6 +284,11 @@ namespace dx {
         const auto& texture = g::vr->get_texture(render_target_2d);
 
         const auto render_2d = [&](RenderTarget render_target_3d) {
+            if (g::vr->get_runtime_type() == OPENXR) {
+                // The 2D content is displayed with an OpenXR composition layer,
+                // nothing to be rendered here.
+                return;
+            }
             if (g::vr->get_runtime_type() == DUMMY) {
                 // Without a headset, the 2D content is drawn as it's drawn without VR
                 render_2d_fullscreen(g::d3d_dev, texture);
@@ -331,7 +336,7 @@ namespace dx {
         if (g::vr && !g::vr_error) [[likely]] {
             if (g::current_2d_render_target) {
                 if (g::draw_overlay_border) {
-                    render_overlay_border(g::d3d_dev, g::vr->get_current_render_context()->overlay_border);
+                    render_overlay_border(g::d3d_dev, g::vr->get_overlay_border());
                 }
                 g::vr->finish_vr_rendering(g::d3d_dev, g::current_2d_render_target.value());
                 render_vr_overlay(g::current_2d_render_target.value(), !rbr::is_rendering_3d());
@@ -361,6 +366,15 @@ namespace dx {
                 }
             } else if (g::cfg.companion_mode == CompanionMode::VREye || game_mode != GameMode::Driving) {
                 render_companion_window_from_render_target(g::d3d_dev, g::vr, (rbr::is_rendering_3d() && rbr::get_game_mode() != GameMode::MainMenu) ? companion_eye : GameMenu);
+            }
+
+            if (g::vr->get_runtime_type() == OPENXR && g::current_2d_render_target == Overlay) {
+                const bool desktop_window_off = g::cfg.companion_mode == CompanionMode::Off && game_mode == GameMode::Driving;
+                const bool already_rendered = g::cfg.companion_mode == CompanionMode::Static
+                    && (game_mode == GameMode::Driving || game_mode == GameMode::Pause);
+                if (!desktop_window_off && !already_rendered) {
+                    render_companion_window_from_render_target(g::d3d_dev, g::vr, Overlay);
+                }
             }
             g::vr->prepare_frames_for_hmd(g::d3d_dev);
         }
