@@ -16,16 +16,12 @@
 #include <d3d9.h>
 
 struct OpenXRRenderContext {
-    std::vector<XrSwapchain> swapchains;
     std::vector<ID3D11Texture2D*> shared_textures;
-    std::vector<std::vector<XrSwapchainImageD3D11KHR>> swapchain_images;
     std::vector<XrView> views;
     std::vector<XrCompositionLayerProjectionView> projection_views;
 
     OpenXRRenderContext(size_t view_count)
-        : swapchains(view_count)
-        , shared_textures(view_count)
-        , swapchain_images(view_count)
+        : shared_textures(view_count)
         , views(view_count)
         , projection_views(view_count)
     {
@@ -54,6 +50,8 @@ private:
     XrSpace view_space;
     XrFrameState frame_state;
     int64_t swapchain_format;
+    std::vector<XrSwapchain> swapchains;
+    std::vector<std::vector<XrSwapchainImageD3D11KHR>> swapchain_images;
     XrPosef view_pose;
     XrViewConfigurationType primary_view_config_type;
     InputState input_state; // For sending poses to OpenXR-MotionCompensation https://github.com/BuzzteeBear/OpenXR-MotionCompensation

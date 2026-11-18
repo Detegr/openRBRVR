@@ -586,10 +586,60 @@ void OpenXR::init(IDirect3DDevice9* dev, IDirect3DVR9** vrdev, uint32_t companio
     }
     g::d3d_vr->ImportFence(cross_api_fence.shared_handle, cross_api_fence.value);
 
-    for (const auto& gfx : g::cfg.gfx) {
-        auto supersampling = gfx.second.supersampling;
+    const auto context_resolution = [&](const RenderContextConfig& gfx, size_t view) {
+        return std::make_tuple(
+            static_cast<uint32_t>(view_config_views[view].recommendedImageRectWidth * gfx.supersampling),
+            static_cast<uint32_t>(view_config_views[view].recommendedImageRectHeight * gfx.supersampling));
+    };
 
-        OpenXRRenderContext* xr_ctx = new OpenXRRenderContext(view_config_views.size());
+    // Allocate a single set of swapchains that is large enough for every render context
+    swapchains.resize(view_count);
+    swapchain_images.resize(view_count);
+    for (size_t i = 0; i < view_count; ++i) {
+        uint32_t max_width = 0;
+        uint32_t max_height = 0;
+        for (const auto& gfx : g::cfg.gfx) {
+            const auto [w, h] = context_resolution(gfx.second, i);
+            max_width = std::max(max_width, w);
+            max_height = std::max(max_height, h);
+        }
+
+        XrSwapchainCreateInfo swapchain_create_info = {
+            .type = XR_TYPE_SWAPCHAIN_CREATE_INFO,
+            .createFlags = 0,
+            .usageFlags = XR_SWAPCHAIN_USAGE_COLOR_ATTACHMENT_BIT | XR_SWAPCHAIN_USAGE_TRANSFER_DST_BIT,
+            .format = swapchain_format,
+            .sampleCount = 1,
+            .width = max_width,
+            .height = max_height,
+            .faceCount = 1,
+            .arraySize = 1,
+            .mipCount = 1,
+        };
+        dbg(std::format("requesting swapchain: {}x{}, format {}", swapchain_create_info.width, swapchain_create_info.height, swapchain_create_info.format));
+
+        if (auto err = xrCreateSwapchain(session, &swapchain_create_info, &swapchains[i]); err != XR_SUCCESS) {
+            throw std::runtime_error(std::format("VR init failed. xrCreateSwapchain: {}", XrResultToString(instance, err)));
+        }
+
+        uint32_t imageCount;
+        if (auto err = xrEnumerateSwapchainImages(swapchains[i], 0, &imageCount, nullptr); err != XR_SUCCESS) {
+            throw std::runtime_error(std::format("Failed to initialize OpenXR: xrEnumerateSwapchainImages {}", XrResultToString(instance, err)));
+        }
+
+        swapchain_images[i].resize(imageCount, { .type = XR_TYPE_SWAPCHAIN_IMAGE_D3D11_KHR });
+        if (auto err = xrEnumerateSwapchainImages(
+                swapchains[i],
+                swapchain_images[i].size(),
+                &imageCount,
+                reinterpret_cast<XrSwapchainImageBaseHeader*>(swapchain_images[i].data()));
+            err != XR_SUCCESS) {
+            throw std::runtime_error(std::format("Failed to initialize OpenXR: xrEnumerateSwapchainImages {}", XrResultToString(instance, err)));
+        }
+    }
+
+    for (const auto& gfx : g::cfg.gfx) {
+        OpenXRRenderContext* xr_ctx = new OpenXRRenderContext(view_count);
         RenderContext ctx = {
             .dx_shared_handle = { 0 },
             .msaa = gfx.second.msaa.value_or(g::cfg.gfx["default"].msaa.value()),
@@ -598,42 +648,8 @@ void OpenXR::init(IDirect3DDevice9* dev, IDirect3DVR9** vrdev, uint32_t companio
             .ext = xr_ctx
         };
 
-        for (size_t i = 0; i < view_config_views.size(); ++i) {
-            ctx.width[i] = static_cast<uint32_t>(view_config_views[i].recommendedImageRectWidth * supersampling);
-            ctx.height[i] = static_cast<uint32_t>(view_config_views[i].recommendedImageRectHeight * supersampling);
-
-            XrSwapchainCreateInfo swapchain_create_info = {
-                .type = XR_TYPE_SWAPCHAIN_CREATE_INFO,
-                .createFlags = 0,
-                .usageFlags = XR_SWAPCHAIN_USAGE_COLOR_ATTACHMENT_BIT,
-                .format = swapchain_format,
-                .sampleCount = 1,
-                .width = ctx.width[i],
-                .height = ctx.height[i],
-                .faceCount = 1,
-                .arraySize = 1,
-                .mipCount = 1,
-            };
-            dbg(std::format("requesting swapchain: {}x{}, format {}", swapchain_create_info.width, swapchain_create_info.height, swapchain_create_info.format));
-
-            if (auto err = xrCreateSwapchain(session, &swapchain_create_info, &xr_ctx->swapchains[i]); err != XR_SUCCESS) {
-                throw std::runtime_error(std::format("VR init failed. xrCreateSwapchain: {}", XrResultToString(instance, err)));
-            }
-
-            uint32_t imageCount;
-            if (auto err = xrEnumerateSwapchainImages(xr_ctx->swapchains[i], 0, &imageCount, nullptr); err != XR_SUCCESS) {
-                throw std::runtime_error(std::format("Failed to initialize OpenXR: xrEnumerateSwapchainImages {}", XrResultToString(instance, err)));
-            }
-
-            xr_ctx->swapchain_images[i].resize(imageCount, { .type = XR_TYPE_SWAPCHAIN_IMAGE_D3D11_KHR });
-            if (auto err = xrEnumerateSwapchainImages(
-                    xr_ctx->swapchains[i],
-                    xr_ctx->swapchain_images[i].size(),
-                    &imageCount,
-                    reinterpret_cast<XrSwapchainImageBaseHeader*>(xr_ctx->swapchain_images[i].data()));
-                err != XR_SUCCESS) {
-                throw std::runtime_error(std::format("Failed to initialize OpenXR: xrEnumerateSwapchainImages {}", XrResultToString(instance, err)));
-            }
+        for (size_t i = 0; i < view_count; ++i) {
+            std::tie(ctx.width[i], ctx.height[i]) = context_resolution(gfx.second, i);
 
             D3D11_TEXTURE2D_DESC desc = {
                 .Width = ctx.width[i],
@@ -672,7 +688,7 @@ void OpenXR::init(IDirect3DDevice9* dev, IDirect3DVR9** vrdev, uint32_t companio
                 .type = XR_TYPE_COMPOSITION_LAYER_PROJECTION_VIEW,
                 .next = nullptr,
                 .subImage = {
-                    .swapchain = xr_ctx->swapchains[i],
+                    .swapchain = swapchains[i],
                     .imageRect = {
                         .offset = { 0, 0 },
                         .extent = {
@@ -958,11 +974,11 @@ XrSwapchainImageD3D11KHR& OpenXR::acquire_swapchain_image(RenderTarget tgt)
     };
 
     uint32_t idx;
-    if (auto err = xrAcquireSwapchainImage(xr_context()->swapchains[tgt], &acquire_info, &idx); err != XR_SUCCESS) {
+    if (auto err = xrAcquireSwapchainImage(swapchains[tgt], &acquire_info, &idx); err != XR_SUCCESS) {
         dbg(std::format("Could not acquire swapchain image: {}", XrResultToString(instance, err)));
     }
 
-    return xr_context()->swapchain_images[tgt][idx];
+    return swapchain_images[tgt][idx];
 }
 
 static void resolve_msaa(IDirect3DDevice9* dev, RenderContext* ctx, RenderTarget tgt)
@@ -1033,22 +1049,22 @@ void OpenXR::prepare_frames_for_hmd(IDirect3DDevice9* dev)
         .next = nullptr,
     };
 
-    if (auto res = xrWaitSwapchainImage(xr_context()->swapchains[LeftEye], &info); res != XR_SUCCESS) {
+    if (auto res = xrWaitSwapchainImage(swapchains[LeftEye], &info); res != XR_SUCCESS) {
         dbg(std::format("xrWaitSwapchainImage (left): {}", XrResultToString(instance, res)));
         return;
     }
-    if (auto res = xrWaitSwapchainImage(xr_context()->swapchains[RightEye], &info); res != XR_SUCCESS) {
+    if (auto res = xrWaitSwapchainImage(swapchains[RightEye], &info); res != XR_SUCCESS) {
         dbg(std::format("xrWaitSwapchainImage (right): {}", XrResultToString(instance, res)));
-        xrReleaseSwapchainImage(xr_context()->swapchains[LeftEye], &release_info);
+        xrReleaseSwapchainImage(swapchains[LeftEye], &release_info);
         return;
     }
 
     if (g::cfg.quad_view_rendering) {
-        if (auto res = xrWaitSwapchainImage(xr_context()->swapchains[FocusLeft], &info); res != XR_SUCCESS) {
+        if (auto res = xrWaitSwapchainImage(swapchains[FocusLeft], &info); res != XR_SUCCESS) {
             dbg(std::format("xrWaitSwapchainImage (focus left): {}", XrResultToString(instance, res)));
             return;
         }
-        if (auto res = xrWaitSwapchainImage(xr_context()->swapchains[FocusRight], &info); res != XR_SUCCESS) {
+        if (auto res = xrWaitSwapchainImage(swapchains[FocusRight], &info); res != XR_SUCCESS) {
             dbg(std::format("xrWaitSwapchainImage (focus right): {}", XrResultToString(instance, res)));
             return;
         }
@@ -1056,26 +1072,27 @@ void OpenXR::prepare_frames_for_hmd(IDirect3DDevice9* dev)
 
     synchronize_graphics_apis();
 
-    // Copy shared textures to OpenXR textures
-    g::d3d11_ctx->CopyResource(left.texture, xr_context()->shared_textures[LeftEye]);
-    g::d3d11_ctx->CopyResource(right.texture, xr_context()->shared_textures[RightEye]);
+    // Copy shared textures to the top-left corner of the OpenXR textures.
+    // The swapchain images may be larger than the current render context's resolution.
+    g::d3d11_ctx->CopySubresourceRegion(left.texture, 0, 0, 0, 0, xr_context()->shared_textures[LeftEye], 0, nullptr);
+    g::d3d11_ctx->CopySubresourceRegion(right.texture, 0, 0, 0, 0, xr_context()->shared_textures[RightEye], 0, nullptr);
 
     if (g::cfg.quad_view_rendering) {
-        g::d3d11_ctx->CopyResource(focus_left.texture, xr_context()->shared_textures[FocusLeft]);
-        g::d3d11_ctx->CopyResource(focus_right.texture, xr_context()->shared_textures[FocusRight]);
+        g::d3d11_ctx->CopySubresourceRegion(focus_left.texture, 0, 0, 0, 0, xr_context()->shared_textures[FocusLeft], 0, nullptr);
+        g::d3d11_ctx->CopySubresourceRegion(focus_right.texture, 0, 0, 0, 0, xr_context()->shared_textures[FocusRight], 0, nullptr);
 
         // Make sure D3D11 side of work is done before displaying the textures to the HMD
         g::d3d11_ctx->Flush();
 
-        xrReleaseSwapchainImage(xr_context()->swapchains[FocusLeft], &release_info);
-        xrReleaseSwapchainImage(xr_context()->swapchains[FocusRight], &release_info);
+        xrReleaseSwapchainImage(swapchains[FocusLeft], &release_info);
+        xrReleaseSwapchainImage(swapchains[FocusRight], &release_info);
     } else {
         // Make sure D3D11 side of work is done before displaying the textures to the HMD
         g::d3d11_ctx->Flush();
     }
 
-    xrReleaseSwapchainImage(xr_context()->swapchains[LeftEye], &release_info);
-    xrReleaseSwapchainImage(xr_context()->swapchains[RightEye], &release_info);
+    xrReleaseSwapchainImage(swapchains[LeftEye], &release_info);
+    xrReleaseSwapchainImage(swapchains[RightEye], &release_info);
 
     if (g::cfg.debug && perf_query_free_to_use) [[unlikely]] {
         gpu_end_query->Issue(D3DISSUE_END);
@@ -1629,10 +1646,13 @@ void OpenXR::shutdown_vr()
         }
 
         auto xr_ctx = reinterpret_cast<OpenXRRenderContext*>(ctx.ext);
-        for (size_t i = 0; i < xr_ctx->swapchains.size(); ++i) {
-            xrDestroySwapchain(xr_ctx->swapchains[i]);
-            xr_ctx->shared_textures[i]->Release();
+        for (auto tex : xr_ctx->shared_textures) {
+            tex->Release();
         }
+    }
+
+    for (auto swapchain : swapchains) {
+        xrDestroySwapchain(swapchain);
     }
 
     xrDestroySession(session);
