@@ -4,7 +4,7 @@
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs?ref=nixos-unstable";
     zig = { url = github:mitchellh/zig-overlay; };
-    zls = { url = github:zigtools/zls/0.15.1; };
+    zls = { url = github:zigtools/zls/0.16.0; };
   };
 
   outputs = { self, nixpkgs, zig, zls }: {
@@ -13,7 +13,8 @@
     in pkgs.mkShell {
       buildInputs = [
         pkgs.clang-tools
-        zig.packages.x86_64-linux."0.15.2"
+        pkgs.glslang
+        zig.packages.x86_64-linux."0.16.0"
         zls.packages.x86_64-linux.zls
       ];
     };
