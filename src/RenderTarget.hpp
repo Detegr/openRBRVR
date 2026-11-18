@@ -11,6 +11,18 @@ enum RenderTarget : size_t {
     Overlay = 5,
 };
 
+constexpr size_t shared_render_target_count = 2;
+
+constexpr bool is_shared_render_target(RenderTarget t)
+{
+    return t >= GameMenu;
+}
+
+constexpr size_t shared_render_target_index(RenderTarget t)
+{
+    return static_cast<size_t>(t) - static_cast<size_t>(GameMenu);
+}
+
 constexpr RenderTarget render_target_counterpart(RenderTarget t)
 {
     if (t == LeftEye)

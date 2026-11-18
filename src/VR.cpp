@@ -109,6 +109,33 @@ void VRInterface::set_render_context(const std::string& name)
     }
 }
 
+IDirect3DTexture9*& VRInterface::target_texture(RenderTarget tgt)
+{
+    if (is_shared_render_target(tgt)) {
+        return shared_targets[shared_render_target_index(tgt)].dx_texture;
+    }
+
+    return current_render_context->dx_texture[tgt];
+}
+
+IDirect3DSurface9*& VRInterface::target_surface(RenderTarget tgt)
+{
+    if (is_shared_render_target(tgt)) {
+        return shared_targets[shared_render_target_index(tgt)].dx_surface;
+    }
+
+    return current_render_context->dx_surface[tgt];
+}
+
+IDirect3DSurface9*& VRInterface::target_depth_stencil(RenderTarget tgt)
+{
+    if (is_shared_render_target(tgt)) {
+        return shared_targets[shared_render_target_index(tgt)].dx_depth_stencil_surface;
+    }
+
+    return current_render_context->dx_depth_stencil_surface[tgt];
+}
+
 static bool create_menu_screen_companion_window_buffer(IDirect3DDevice9* dev)
 {
     // clang-format off
@@ -173,19 +200,23 @@ bool create_quad(IDirect3DDevice9* dev, float size, float aspect, float z, IDire
 
 IDirect3DSurface9* VRInterface::prepare_vr_rendering(IDirect3DDevice9* dev, RenderTarget tgt, bool clear)
 {
+    auto& texture = target_texture(tgt);
+    auto& surface = target_surface(tgt);
+    auto& depth_stencil = target_depth_stencil(tgt);
+
     if (is_using_texture_to_render(current_render_context->msaa, tgt, dx::multiview_rendering_enabled())) {
-        if (current_render_context->dx_texture[tgt]->GetSurfaceLevel(0, &current_render_context->dx_surface[tgt]) != D3D_OK) {
+        if (texture->GetSurfaceLevel(0, &surface) != D3D_OK) {
             dbg("PrepareVRRendering: Failed to get surface level");
-            current_render_context->dx_surface[tgt] = nullptr;
+            surface = nullptr;
             return nullptr;
         }
     }
-    if (dev->SetRenderTarget(0, current_render_context->dx_surface[tgt]) != D3D_OK) {
+    if (dev->SetRenderTarget(0, surface) != D3D_OK) {
         dbg("PrepareVRRendering: Failed to set render target");
         finish_vr_rendering(dev, tgt);
         return nullptr;
     }
-    if (dev->SetDepthStencilSurface(current_render_context->dx_depth_stencil_surface[tgt]) != D3D_OK) {
+    if (dev->SetDepthStencilSurface(depth_stencil) != D3D_OK) {
         dbg("PrepareVRRendering: Failed to set depth stencil surface");
         finish_vr_rendering(dev, tgt);
         return nullptr;
@@ -195,25 +226,24 @@ IDirect3DSurface9* VRInterface::prepare_vr_rendering(IDirect3DDevice9* dev, Rend
             dbg("PrepareVRRendering: Failed to clear surface");
         }
     }
-    return current_render_context->dx_surface[tgt];
+    return surface;
 }
 
 void VRInterface::finish_vr_rendering(IDirect3DDevice9* dev, RenderTarget tgt)
 {
-    if (is_using_texture_to_render(current_render_context->msaa, tgt, dx::multiview_rendering_enabled()) && current_render_context->dx_surface[tgt]) {
-        current_render_context->dx_surface[tgt]->Release();
-        current_render_context->dx_surface[tgt] = nullptr;
+    auto& surface = target_surface(tgt);
+    if (is_using_texture_to_render(current_render_context->msaa, tgt, dx::multiview_rendering_enabled()) && surface) {
+        surface->Release();
+        surface = nullptr;
     }
 }
 
 static bool create_render_target(IDirect3DDevice9* dev, D3DMULTISAMPLE_TYPE msaa, RenderContext& ctx, RenderTarget tgt, D3DFORMAT fmt, uint32_t w, uint32_t h, bool multiview)
 {
-    HANDLE null_handle = nullptr;
-    HANDLE* shared_handle = (tgt == LeftEye || tgt == RightEye || tgt == FocusLeft || tgt == FocusRight) ? &ctx.dx_shared_handle[tgt] : &null_handle;
-    return create_render_target(dev, msaa, &ctx.dx_surface[tgt], &ctx.dx_depth_stencil_surface[tgt], &ctx.dx_texture[tgt], shared_handle, tgt, fmt, w, h, multiview);
+    return create_render_target(dev, msaa, &ctx.dx_surface[tgt], &ctx.dx_depth_stencil_surface[tgt], &ctx.dx_texture[tgt], &ctx.dx_shared_handle[tgt], tgt, fmt, w, h, multiview);
 }
 
-void VRInterface::init_surfaces(IDirect3DDevice9* dev, RenderContext& ctx, uint32_t res_x_2d, uint32_t res_y_2d)
+void VRInterface::init_surfaces(IDirect3DDevice9* dev, RenderContext& ctx)
 {
     const auto create_vr_render_target = [&](RenderTarget tgt) {
         if (!create_render_target(dev, ctx.msaa, ctx, tgt, D3DFMT_X8B8G8R8, ctx.width[tgt], ctx.height[tgt], ctx.multiview_rendering)) {
@@ -227,27 +257,37 @@ void VRInterface::init_surfaces(IDirect3DDevice9* dev, RenderContext& ctx, uint3
         create_vr_render_target(FocusLeft);
         create_vr_render_target(FocusRight);
     }
+}
 
-    if (!create_render_target(dev, D3DMULTISAMPLE_NONE, ctx, GameMenu, D3DFMT_X8B8G8R8, res_x_2d, res_y_2d, false))
-        throw std::runtime_error("Could not create texture for menus");
-    if (!create_render_target(dev, D3DMULTISAMPLE_NONE, ctx, Overlay, D3DFMT_A8B8G8R8, res_x_2d, res_y_2d, false))
-        throw std::runtime_error("Could not create texture for overlay");
-
-    if (dev->CreateTexture(res_x_2d, res_y_2d, 1, D3DUSAGE_RENDERTARGET, D3DFMT_A8B8G8R8, D3DPOOL_DEFAULT, &ctx.overlay_border, nullptr) != D3D_OK)
-        throw std::runtime_error("Could not create overlay border texture");
-
+void VRInterface::init_common_surfaces(IDirect3DDevice9* dev, uint32_t res_x_2d, uint32_t res_y_2d, HANDLE* game_menu_shared_handle, HANDLE* overlay_shared_handle)
+{
     this->companion_window_width = res_x_2d;
     this->companion_window_height = res_y_2d;
-    auto aspect_ratio = static_cast<float>(static_cast<double>(res_x_2d) / static_cast<double>(res_y_2d));
+    const auto aspect_ratio = static_cast<float>(static_cast<double>(res_x_2d) / static_cast<double>(res_y_2d));
+    this->companion_window_aspect_ratio = aspect_ratio;
+
+    HANDLE null_handle = nullptr;
+    auto& game_menu = shared_targets[shared_render_target_index(GameMenu)];
+    if (!create_render_target(dev, D3DMULTISAMPLE_NONE, &game_menu.dx_surface, &game_menu.dx_depth_stencil_surface, &game_menu.dx_texture,
+            game_menu_shared_handle ? game_menu_shared_handle : &null_handle, GameMenu, D3DFMT_X8B8G8R8, res_x_2d, res_y_2d, false))
+        throw std::runtime_error("Could not create texture for menus");
+
+    auto& overlay = shared_targets[shared_render_target_index(Overlay)];
+    if (!create_render_target(dev, D3DMULTISAMPLE_NONE, &overlay.dx_surface, &overlay.dx_depth_stencil_surface, &overlay.dx_texture,
+            overlay_shared_handle ? overlay_shared_handle : &null_handle, Overlay, D3DFMT_A8B8G8R8, res_x_2d, res_y_2d, false))
+        throw std::runtime_error("Could not create texture for overlay");
+
+    if (dev->CreateTexture(res_x_2d, res_y_2d, 1, D3DUSAGE_RENDERTARGET, D3DFMT_A8B8G8R8, D3DPOOL_DEFAULT, &overlay_border, nullptr) != D3D_OK)
+        throw std::runtime_error("Could not create overlay border texture");
+
+    // Vertex buffers are process wide, create them only once
     static bool quads_created = false;
     if (!quads_created) {
-        this->companion_window_aspect_ratio = aspect_ratio;
-
-        // Create and fill a vertex buffers for the 2D planes
+        // Create and fill vertex buffers for the 2D planes
         // We can reuse all of these in every rendering context
-        if (!create_quad(dev, 1.25f, aspect_ratio, 2.4f, &g::quad_vertex_buf[0]))
+        if (!create_quad(dev, menu_quad_base_size, aspect_ratio, menu_quad_z, &g::quad_vertex_buf[0]))
             throw std::runtime_error("Could not create menu quad");
-        if (!create_quad(dev, 0.6f, aspect_ratio, 1.0f, &g::quad_vertex_buf[1]))
+        if (!create_quad(dev, overlay_quad_base_size, aspect_ratio, overlay_quad_z, &g::quad_vertex_buf[1]))
             throw std::runtime_error("Could not create overlay quad");
         if (!create_quad(dev, 1.0f, 1.0f, 1.0f, &g::overlay_border_quad))
             throw std::runtime_error("Could not create overlay border quad");
@@ -261,7 +301,7 @@ void VRInterface::init_surfaces(IDirect3DDevice9* dev, RenderContext& ctx, uint3
 
     // Render overlay border to a texture for later use
     IDirect3DSurface9* adj;
-    if (ctx.overlay_border->GetSurfaceLevel(0, &adj) == D3D_OK) {
+    if (overlay_border->GetSurfaceLevel(0, &adj) == D3D_OK) {
         IDirect3DSurface9* orig;
         dev->GetRenderTarget(0, &orig);
         dev->SetRenderTarget(0, adj);
@@ -277,6 +317,29 @@ void VRInterface::init_surfaces(IDirect3DDevice9* dev, RenderContext& ctx, uint3
         adj->Release();
         dev->SetRenderTarget(0, orig);
         orig->Release();
+    }
+}
+
+void VRInterface::release_common_surfaces()
+{
+    for (auto& tgt : shared_targets) {
+        if (tgt.dx_texture) {
+            tgt.dx_texture->Release();
+            tgt.dx_texture = nullptr;
+        }
+        if (tgt.dx_surface) {
+            tgt.dx_surface->Release();
+            tgt.dx_surface = nullptr;
+        }
+        if (tgt.dx_depth_stencil_surface) {
+            tgt.dx_depth_stencil_surface->Release();
+            tgt.dx_depth_stencil_surface = nullptr;
+        }
+    }
+
+    if (overlay_border) {
+        overlay_border->Release();
+        overlay_border = nullptr;
     }
 }
 
