@@ -51,7 +51,7 @@ or edit the existing entries in `Plugins/openRBRVR.toml`:
 
 The project uses [Zig](https://ziglang.org/) as the build system. To build the
 project, download the [Zig compiler version
-0.15.2](https://ziglang.org/download/0.15.2/zig-x86_64-windows-0.15.2.zip),
+0.16.0](https://ziglang.org/download/0.16.0/zig-x86_64-windows-0.16.0.zip),
 extract it to a path of your liking and invoke `zig build`.
 
 For a release build, use `zig build --release=fast`. To build directly to RBR
