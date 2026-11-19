@@ -60,9 +60,9 @@ private:
     HandTracking hand_tracking;
     HandMesh hand_mesh;
     IDirect3DTexture9* glove_texture = nullptr;
-    std::chrono::steady_clock::time_point last_glove_texture_attempt {};
-    std::chrono::steady_clock::time_point last_hand_frame_log {};
-    std::array<std::chrono::steady_clock::time_point, 4> last_hand_draw_log {};
+    std::chrono::steady_clock::time_point last_glove_texture_attempt { };
+    std::chrono::steady_clock::time_point last_hand_frame_log { };
+    std::array<std::chrono::steady_clock::time_point, 4> last_hand_draw_log { };
     XrViewStateFlags hand_view_flags = 0;
     // Shared 2D render targets (GameMenu, Overlay)
     std::array<ID3D11Texture2D*, shared_render_target_count> overlay_textures { };
