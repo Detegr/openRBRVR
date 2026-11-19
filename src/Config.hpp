@@ -44,7 +44,7 @@ static std::optional<glm::vec3> vec3_from_space_separated_string(const std::stri
     std::stringstream ss(s);
 
     int i = 0;
-    auto ret = glm::vec3 {};
+    auto ret = glm::vec3 { };
     auto v = glm::value_ptr(ret);
     while (std::getline(ss, val, ' ')) {
         auto idx = i;
@@ -58,7 +58,7 @@ static std::optional<glm::vec3> vec3_from_space_separated_string(const std::stri
             return ret;
         }
 
-        float f {};
+        float f { };
         auto [p, ec] = std::from_chars(val.data(), val.data() + val.size(), f);
         if (ec != std::errc()) {
             return std::nullopt;
@@ -77,7 +77,7 @@ static std::optional<glm::vec3> vec3_from_space_separated_string(const std::stri
 struct RenderContextConfig {
     float supersampling = 1.0;
     std::optional<D3DMULTISAMPLE_TYPE> msaa = std::nullopt;
-    std::vector<int> stage_ids = {};
+    std::vector<int> stage_ids = { };
     bool quad_view_rendering = false;
     bool multiview_rendering = false;
 };
@@ -103,7 +103,7 @@ struct Config {
     bool render_replays_3d = false;
     int anisotropy = 0;
     VRRuntime runtime = VRRuntime::OPENVR;
-    std::unordered_map<std::string, RenderContextConfig> gfx = { { "default", RenderContextConfig {} } };
+    std::unordered_map<std::string, RenderContextConfig> gfx = { { "default", RenderContextConfig { } } };
     glm::ivec2 companion_offset;
     int companion_size = 100;
     RenderTarget companion_eye = LeftEye;
@@ -316,7 +316,7 @@ struct Config {
     static Config from_toml(const std::filesystem::path& path)
     {
         toml::table parsed;
-        auto cfg = Config {};
+        auto cfg = Config { };
 
         if (!std::filesystem::exists(path)) {
             if (!cfg.write(path)) {

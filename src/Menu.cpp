@@ -18,7 +18,7 @@ auto id(const T& txt) -> auto
 }
 
 LicenseMenu::LicenseMenu()
-    : Menu("openRBRVR licenses", {})
+    : Menu("openRBRVR licenses", { })
     , menuScroll(0)
 {
     for (const auto& row : g::license_information) {
