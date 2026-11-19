@@ -17,7 +17,7 @@ public:
         Tracked };
     struct Hand {
         XrHandTrackerEXT tracker = XR_NULL_HANDLE;
-        std::array<XrHandJointLocationEXT, XR_HAND_JOINT_COUNT_EXT> joints {};
+        std::array<XrHandJointLocationEXT, XR_HAND_JOINT_COUNT_EXT> joints { };
         bool active = false;
         bool locate_error_reported = false;
         Status status = Status::NotLocated;
@@ -39,14 +39,14 @@ public:
 private:
     void destroy_trackers();
     void log_status();
-    std::chrono::steady_clock::time_point last_status_log {};
+    std::chrono::steady_clock::time_point last_status_log { };
     bool tracking_supported = false;
     bool data_source_enabled = false;
     bool creation_attempted = false;
     XrSpace view_space = XR_NULL_HANDLE;
     XrResult reference_result = XR_SUCCESS;
     XrSpaceLocationFlags reference_flags = 0;
-    std::array<Hand, 2> hand_states {};
+    std::array<Hand, 2> hand_states { };
     PFN_xrCreateHandTrackerEXT create = nullptr;
     PFN_xrDestroyHandTrackerEXT destroy = nullptr;
     PFN_xrLocateHandJointsEXT locate = nullptr;

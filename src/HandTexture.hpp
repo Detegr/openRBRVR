@@ -13,7 +13,7 @@ HRESULT upload_hand_texture(Texture* texture, const HandTextureData& data)
         const auto& mip = data.levels[level];
         const size_t row_bytes = std::max(1u, (mip.width + 3) / 4) * sizeof(uint64_t);
         const size_t rows = std::max(1u, (mip.height + 3) / 4);
-        D3DLOCKED_RECT lock {};
+        D3DLOCKED_RECT lock { };
         if (const auto result = texture->LockRect(static_cast<UINT>(level), &lock, nullptr, 0); FAILED(result)) {
             return result;
         }

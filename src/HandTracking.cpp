@@ -48,7 +48,7 @@ void HandTracking::hide()
     reference_result = XR_SUCCESS;
     for (auto& hand : hand_states) {
         hand.active = false;
-        hand.joints = {};
+        hand.joints = { };
         hand.status = Status::NotLocated;
         hand.invalid_joint = -1;
     }
@@ -61,7 +61,7 @@ void HandTracking::destroy_trackers()
         if (hand.tracker && destroy) {
             destroy(hand.tracker);
         }
-        hand = {};
+        hand = { };
     }
     if (view_space && destroy_space) {
         destroy_space(view_space);
