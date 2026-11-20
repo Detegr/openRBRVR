@@ -1,10 +1,3 @@
-## Unreleased
-
-- API version 6: new `GET_VIEW_INFO` operation returns the VR projection, resolution and
-  focus-view flag of the view that is being rendered (and of the second layer with
-  multiview rendering), so plugins that post-process the 3D scene (for example
-  RBRHUD) can use the real projection of every view
-
 ## 2.2.4
 
 - Fix SteamVR OpenXR initialization in DXVK
