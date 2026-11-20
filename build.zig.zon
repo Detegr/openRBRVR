@@ -13,7 +13,7 @@
         },
         .dxvk = .{
             .url = "https://codeberg.org/openRBRPlugins/dxvk/archive/3.1.1.tar.gz",
-            .hash = "dxvk-3.1.1-DMArsQe0RwAsSa4js3RF8J24eXMjHiwd9I9NhQg31LWm",
+            .hash = "dxvk-3.1.1-DMArsUC0RwCCPC8_3nSWiWYoRtxjkaDLfFyxvroeXNqz",
         },
     },
     .fingerprint = 0x5781faea52030520,
