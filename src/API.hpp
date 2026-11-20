@@ -11,6 +11,7 @@ enum ApiOperation : uint64_t {
     GET_VR_RUNTIME = 0x10,
     MOVE_SEAT = 0x20,
     SET_REVERSE_Z = 0x40,
+    GET_VIEW_INFO = 0x80,
 };
 
 enum SeatMovement : uint64_t {
@@ -21,4 +22,16 @@ enum SeatMovement : uint64_t {
     MOVE_SEAT_LEFT = 4,
     MOVE_SEAT_UP = 5,
     MOVE_SEAT_DOWN = 6,
+};
+
+struct ViewInfo {
+    uint32_t struct_size;
+    uint32_t requested_target;
+    uint32_t width;
+    uint32_t height;
+
+    // Each is memcpy'd contents of a D3DMATRIX
+    float projection[16];
+    float pose[16];
+    float eye_pos[16];
 };
