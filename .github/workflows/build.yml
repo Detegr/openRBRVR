@@ -8,55 +8,64 @@ on:
 
 jobs:
   build:
-    runs-on: windows-latest
+    runs-on: ubuntu-latest
 
     steps:
     - name: Checkout repository
       uses: actions/checkout@v4
-      with:
-        submodules: recursive
 
-    - name: Set up MSVC
-      uses: microsoft/setup-msbuild@v1.0.2
-
-    - name: Download DirectX Headers
+    - name: Install dependencies
       run: |
-        $url = 'https://github.com/apitrace/dxsdk/archive/refs/heads/master.zip'
-        $headersPath = 'dxsdk-master/Include'
-        Invoke-WebRequest -Uri $url -OutFile 'dx.zip'
-        Expand-Archive -Path 'dx.zip' -DestinationPath '.'
-        Move-Item -Path $headersPath -Destination 'C:\Program Files (x86)\Microsoft SDKs\Windows\v10.0A\Include'
+        sudo apt-get update
+        sudo apt-get install -y glslang-tools
 
     - name: Cache Zig compiler
       id: cache-zig
-      uses: actions/cache@v4
+      uses: actions/cache@v6
       with:
-        path: zig-x86_64-windows-0.15.2
-        key: ${{ runner.os }}-zig
+        path: zig-x86_64-linux-0.16.0
+        key: ${{ runner.os }}-zig-0.16.0
 
-    - name: Download Zig 0.15.2
+    - name: Download Zig 0.16.0
       if: steps.cache-zig.outputs.cache-hit != 'true'
       run: |
-        $url = 'https://ziglang.org/download/0.15.2/zig-x86_64-windows-0.15.2.zip'
-        Invoke-WebRequest -Uri $url -OutFile 'zig.zip'
-        Expand-Archive -Path 'zig.zip' -DestinationPath '.'
+        url='https://ziglang.org/download/0.16.0/zig-x86_64-linux-0.16.0.tar.xz'
+        curl -fsSL "$url" -o zig.tar.xz
+        tar -xf zig.tar.xz
+
+    - name: Restore Zig cache
+      id: zig-cache-restore
+      uses: actions/cache/restore@v6
+      with:
+        path: .zig-cache
+        key: ${{ runner.os }}-zig-cache
 
     - name: Build
-      run: .\zig-x86_64-windows-0.15.2\zig.exe build --release=fast
+      run: ./zig-x86_64-linux-0.16.0/zig build --release=fast
 
-    - name: Upload openRBRVR.dll
-      uses: actions/upload-artifact@v4
+    - name: Cache Zig cache
+      if: steps.zig-cache-restore.outputs.cache-hit != 'true'
+      id: cache-zig-cache
+      uses: actions/cache/save@v6
       with:
-        name: openRBRVR.dll
+        path: .zig-cache
+        key: ${{ steps.zig-cache-restore.outputs.cache-primary-key }}
+
+    - name: Upload artifact
+      uses: actions/upload-artifact@v7
+      with:
+        name: openRBRVR
         path: |
-          zig-out\bin\openRBRVR.dll
-          zig-out\bin\Valve-hand-models-LICENSE.txt
+          zig-out/**/*
+          !zig-out/d3d9.pdb
+          !zig-out/Plugins/openRBRVR.pdb
 
-    - name: Upload openRBRVR.pdb
-      uses: actions/upload-artifact@v4
+    - name: Upload artifact
+      uses: actions/upload-artifact@v7
       with:
-        name: openRBRVR.pdb
-        path: zig-out\bin\openRBRVR.pdb
+        name: openRBRVR-with-pdbs
+        path: |
+          zig-out/**/*
 
   release:
     runs-on: ubuntu-latest
@@ -64,16 +73,10 @@ jobs:
     needs: build
 
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v4
-
-    - name: Fetch tags
-      run: git fetch --depth=1 origin +refs/tags/*:refs/tags/*
-
-    - name: Download Build Artifact
-      uses: actions/download-artifact@v4
+    - name: Download artifact
+      uses: actions/download-artifact@v7
       with:
-        name: openRBRVR.dll
+        name: openRBRVR.zip
 
     - name: Create changelog
       id: changelog
@@ -84,23 +87,6 @@ jobs:
           echo $line >> $GITHUB_ENV
         done <<< "$changes"
         echo EOF >> $GITHUB_ENV
-
-    - name: Create release zip
-      id: release-zip
-      run: |
-        mkdir -p openRBRVR-${{ github.ref_name }}/Plugins/openRBRVR
-        cp multiviewpatcher/multiviewpatcher.dll openRBRVR-${{ github.ref_name }}/Plugins/openRBRVR
-        cp thirdparty/dll/* openRBRVR-${{ github.ref_name }}
-        cp -r thirdparty/quad-views-foveated openRBRVR-${{ github.ref_name }}/Plugins/openRBRVR
-        cp -r thirdparty/obsmirror openRBRVR-${{ github.ref_name }}/Plugins/openRBRVR
-        cp openRBRVR.dll openRBRVR.toml.sample openRBRVR-${{ github.ref_name }}/Plugins
-        cp LICENSE openRBRVR-${{ github.ref_name }}/Plugins/openRBRVR
-        cp assets/valve_hands/LICENSE openRBRVR-${{ github.ref_name }}/Plugins/openRBRVR/Valve-hand-models-LICENSE.txt
-        cp README.md openRBRVR-${{ github.ref_name }}/Plugins/openRBRVR/README.openrbrvr.txt
-        cp README_FR.md openRBRVR-${{ github.ref_name }}/Plugins/openRBRVR/README_FR.openrbrvr.txt
-        cp README_CZ.md openRBRVR-${{ github.ref_name }}/Plugins/openRBRVR/README_CZ.openrbrvr.txt
-        cd openRBRVR-${{ github.ref_name }}
-        zip -r ../openRBRVR-${{ github.ref_name }}.zip .
 
     - name: Create GitHub release
       id: create_release
@@ -122,6 +108,6 @@ jobs:
       with:
         upload_url: ${{ steps.create_release.outputs.upload_url }}
         asset_name: openRBRVR-${{ github.ref_name }}.zip
-        asset_path: openRBRVR-${{ github.ref_name }}.zip
+        asset_path: openRBRVR.zip
         asset_content_type: application/zip
 
