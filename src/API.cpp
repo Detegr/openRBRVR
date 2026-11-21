@@ -4,6 +4,7 @@
 #include "Globals.hpp"
 #include "IPlugin.h"
 #include "OpenXR.hpp"
+#include "RBR.hpp"
 #include "VR.hpp"
 #include "openRBRVR.hpp"
 
@@ -51,10 +52,12 @@ extern "C" __declspec(dllexport) int64_t openRBRVR_Exec(ApiOperation ops, uint64
         const auto proj = d3d_from_m4(g::vr->get_projection(tgt));
         const auto pose = d3d_from_m4(g::vr->get_pose(tgt));
         const auto eye_pos = d3d_from_m4(g::vr->get_eye_pos(tgt));
+        const auto horizon_lock = d3d_from_m4(rbr::get_horizon_lock_matrix());
 
         memcpy(info->projection, &proj, sizeof(D3DMATRIX));
         memcpy(info->pose, &pose, sizeof(D3DMATRIX));
         memcpy(info->eye_pos, &eye_pos, sizeof(D3DMATRIX));
+        memcpy(info->horizon_lock, &horizon_lock, sizeof(D3DMATRIX));
 
         return 0;
     }
@@ -62,7 +65,7 @@ extern "C" __declspec(dllexport) int64_t openRBRVR_Exec(ApiOperation ops, uint64
     dbg(std::format("Exec: {} {}", (uint64_t)ops, (uint64_t)value));
 
     if (ops == API_VERSION) {
-        return 6;
+        return 7;
     }
     if (ops & NOTIFY_VERTEX_SHADER) {
         auto shader = reinterpret_cast<IDirect3DVertexShader9*>(value);
