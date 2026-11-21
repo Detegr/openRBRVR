@@ -34,4 +34,5 @@ struct ViewInfo {
     float projection[16];
     float pose[16];
     float eye_pos[16];
+    float horizon_lock[16];
 };
