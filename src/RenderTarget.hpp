@@ -27,8 +27,12 @@ constexpr RenderTarget render_target_counterpart(RenderTarget t)
 {
     if (t == LeftEye)
         return RightEye;
+    if (t == RightEye)
+        return LeftEye;
     if (t == FocusLeft)
         return FocusRight;
+    if (t == FocusRight)
+        return FocusLeft;
 
     throw std::runtime_error("invalid use of render_target_counterpart");
 }
