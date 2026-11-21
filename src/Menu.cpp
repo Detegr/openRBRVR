@@ -36,6 +36,9 @@ void LicenseMenu::select()
 
 void recenter_vr()
 {
+    if (!g::vr) {
+        return;
+    }
     g::vr->reset_view();
 }
 

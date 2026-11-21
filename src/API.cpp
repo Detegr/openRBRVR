@@ -99,6 +99,9 @@ extern "C" __declspec(dllexport) int64_t openRBRVR_Exec(ApiOperation ops, uint64
         g::seat_movement_request = static_cast<SeatMovement>(value);
     }
     if (ops & RECENTER_VR_VIEW) {
+        if (!g::vr) {
+            return -1;
+        }
         g::vr->reset_view();
     }
     if (ops & TOGGLE_DEBUG_INFO) {
