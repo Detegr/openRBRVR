@@ -605,7 +605,6 @@ namespace dx {
         if (multiview_rendering_enabled()) {
             // Unused BehaviorFlags in D3D9 is used to enable multiview in DXVK
             // The view count goes to bits 17-20
-            constexpr DWORD multiview_view_count = 2;
             BehaviorFlags |= D3DCREATE_DXVK_MULTIVIEW | (multiview_view_count << 17);
         }
 

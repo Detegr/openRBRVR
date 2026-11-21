@@ -24,9 +24,9 @@ enum SeatMovement : uint64_t {
     MOVE_SEAT_DOWN = 6,
 };
 
+// One view rendered by the current draw
 struct ViewInfo {
-    uint32_t struct_size;
-    uint32_t requested_target;
+    uint32_t target; // RenderTarget of this view
     uint32_t width;
     uint32_t height;
 
@@ -35,4 +35,5 @@ struct ViewInfo {
     float pose[16];
     float eye_pos[16];
     float horizon_lock[16];
+    float view[16]; // Full game view space -> eye transform
 };
