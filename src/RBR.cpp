@@ -605,6 +605,15 @@ namespace rbr {
         // The environment cube map is rendered during the first 3D scene render of the frame only
         g::skip_cube_map = false;
 
+        if (g::original_render_target) {
+            g::original_render_target->Release();
+            g::original_render_target = nullptr;
+        }
+        if (g::original_depth_stencil_target) {
+            g::original_depth_stencil_target->Release();
+            g::original_depth_stencil_target = nullptr;
+        }
+
         if (g::d3d_dev->GetRenderTarget(0, &g::original_render_target) != D3D_OK) [[unlikely]] {
             dbg("Could not get render original target");
         }
@@ -765,6 +774,9 @@ namespace rbr {
     uint32_t __stdcall load_texture(void* p, const char* tex_name, uint32_t a, uint32_t b, uint32_t c, uint32_t d, uint32_t e, uint32_t f, uint32_t g, uint32_t h, uint32_t i, uint32_t j, uint32_t k, IDirect3DTexture9** pp_texture)
     {
         auto ret = g::hooks::load_texture.call(p, tex_name, a, b, c, d, e, f, g, h, i, j, k, pp_texture);
+        if (ret != 0 || !tex_name || !pp_texture || !*pp_texture) {
+            return ret;
+        }
         auto tex = std::string(tex_name)
             | std::ranges::views::transform([](char c) { return std::tolower(c); })
             | std::ranges::to<std::string>();

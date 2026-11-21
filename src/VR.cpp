@@ -353,8 +353,8 @@ static void render_texture(
     IDirect3DVertexBuffer9* vbuf,
     bool depth_test = rbr::get_game_mode() == rbr::GameMode::MainMenu)
 {
-    IDirect3DVertexShader9* vs;
-    IDirect3DPixelShader9* ps;
+    IDirect3DVertexShader9* vs = nullptr;
+    IDirect3DPixelShader9* ps = nullptr;
     D3DMATRIX origProj, origProj2, origView, origView2, origWorld;
 
     dev->GetVertexShader(&vs);
@@ -379,7 +379,7 @@ static void render_texture(
 
     dev->BeginScene();
 
-    IDirect3DBaseTexture9* origTex;
+    IDirect3DBaseTexture9* origTex = nullptr;
     dev->GetTexture(0, &origTex);
 
     dev->SetRenderState(D3DRS_ALPHABLENDENABLE, TRUE);
@@ -413,6 +413,16 @@ static void render_texture(
         dev->SetTransform(D3DTS_VIEW_RIGHT, &origView2);
     }
     dev->SetTransform(D3DTS_WORLD, &origWorld);
+
+    if (vs) {
+        vs->Release();
+    }
+    if (ps) {
+        ps->Release();
+    }
+    if (origTex) {
+        origTex->Release();
+    }
 }
 
 void render_overlay_border(IDirect3DDevice9* dev, IDirect3DTexture9* tex)

@@ -343,10 +343,10 @@ namespace dx {
             }
         }
 
-        if (g::d3d_dev->SetRenderTarget(0, g::original_render_target) != D3D_OK) {
+        if (g::original_render_target && g::d3d_dev->SetRenderTarget(0, g::original_render_target) != D3D_OK) {
             dbg("Failed to reset render target to original");
         }
-        if (g::d3d_dev->SetDepthStencilSurface(g::original_depth_stencil_target) != D3D_OK) {
+        if (g::original_depth_stencil_target && g::d3d_dev->SetDepthStencilSurface(g::original_depth_stencil_target) != D3D_OK) {
             dbg("Failed to reset depth stencil surface to original");
         }
         auto ret = 0;
@@ -393,8 +393,14 @@ namespace dx {
             }
         }
 
-        g::original_render_target->Release();
-        g::original_depth_stencil_target->Release();
+        if (g::original_render_target) {
+            g::original_render_target->Release();
+            g::original_render_target = nullptr;
+        }
+        if (g::original_depth_stencil_target) {
+            g::original_depth_stencil_target->Release();
+            g::original_depth_stencil_target = nullptr;
+        }
 
         if (std::chrono::steady_clock::now() - g::second_start > std::chrono::seconds(1)) {
             g::second_start = std::chrono::steady_clock::now();
@@ -409,7 +415,7 @@ namespace dx {
 
     HRESULT __stdcall SetVertexShaderConstantF(IDirect3DDevice9* This, UINT StartRegister, const float* pConstantData, UINT Vector4fCount)
     {
-        IDirect3DVertexShader9* shader;
+        IDirect3DVertexShader9* shader = nullptr;
         if (auto ret = g::d3d_dev->GetVertexShader(&shader); ret != D3D_OK) {
             dbg("Could not get vertex shader");
             return ret;
@@ -423,6 +429,9 @@ namespace dx {
             std::array<float, 16> m;
             std::copy_n(pConstantData, 16, m.begin());
             g::deferred_shader_constants.insert_or_assign(StartRegister, m);
+        } else if (shader && Vector4fCount != 4) {
+            // Not a matrix, nothing to patch
+            shader->Release();
         } else if (shader && Vector4fCount == 4) {
             shader->Release();
 

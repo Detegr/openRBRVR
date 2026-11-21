@@ -139,25 +139,38 @@ void OpenVR::set_render_context(const std::string& name)
 {
     VRInterface::set_render_context(name);
 
-    IDirect3DSurface9 *left_eye, *right_eye;
+    IDirect3DSurface9 *left_eye = nullptr, *right_eye = nullptr;
+    const auto release_surfaces = [&] {
+        if (left_eye) {
+            left_eye->Release();
+            left_eye = nullptr;
+        }
+        if (right_eye) {
+            right_eye->Release();
+            right_eye = nullptr;
+        }
+    };
+
     if (current_render_context->dx_texture[LeftEye]->GetSurfaceLevel(0, &left_eye) != D3D_OK) {
         dbg("Failed to get left eye surface");
         return;
     }
     if (current_render_context->dx_texture[RightEye]->GetSurfaceLevel(0, &right_eye) != D3D_OK) {
         dbg("Failed to get right eye surface");
-        left_eye->Release();
+        release_surfaces();
         return;
     }
 
-    if (g::d3d_vr->GetVRDesc(left_eye, &dxvk_texture[LeftEye]) != D3D_OK) {
+    const auto left_result = g::d3d_vr->GetVRDesc(left_eye, &dxvk_texture[LeftEye]);
+    const auto right_result = left_result == D3D_OK ? g::d3d_vr->GetVRDesc(right_eye, &dxvk_texture[RightEye]) : left_result;
+    release_surfaces();
+
+    if (left_result != D3D_OK) {
         dbg("Failed to get left eye descriptor");
-        left_eye->Release();
         return;
     }
-    if (g::d3d_vr->GetVRDesc(right_eye, &dxvk_texture[RightEye]) != D3D_OK) {
+    if (right_result != D3D_OK) {
         dbg("Failed to get right eye descriptor");
-        right_eye->Release();
         return;
     }
 
@@ -193,6 +206,8 @@ void OpenVR::prepare_frames_for_hmd(IDirect3DDevice9* dev)
             dev->StretchRect(current_render_context->dx_surface[LeftEye], nullptr, left_eye, nullptr, D3DTEXF_NONE);
             dev->StretchRect(current_render_context->dx_surface[RightEye], nullptr, right_eye, nullptr, D3DTEXF_NONE);
         }
+        left_eye->Release();
+        right_eye->Release();
     }
 }
 
