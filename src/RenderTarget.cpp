@@ -94,13 +94,16 @@ bool create_render_target(
             D3DFMT_D16,
         };
 
+        // Discard must be FALSE: Direct3D 9 (and DXVK 3.x, which enforces it) rejects lockable depth formats such as
+        // D32F_LOCKABLE with Discard = TRUE. With TRUE the floating point format was never created and the eye
+        // surfaces silently ended up as the 24-bit fixed point D24S8, which gets nothing from reverse-Z.
         int i;
         for (i = 0; i < 4; i++) {
             HRESULT create_depth_result = -1;
             if (multiview) {
-                create_depth_result = g::d3d_vr->CreateMultiViewDepthStencilSurface(w, h, wantedFormats[i], msaa, 0, true, depth_stencil_surface, nullptr, 2);
+                create_depth_result = g::d3d_vr->CreateMultiViewDepthStencilSurface(w, h, wantedFormats[i], msaa, 0, false, depth_stencil_surface, nullptr, 2);
             } else {
-                create_depth_result = g::d3d_dev->CreateDepthStencilSurface(w, h, wantedFormats[i], msaa, 0, true, depth_stencil_surface, nullptr);
+                create_depth_result = g::d3d_dev->CreateDepthStencilSurface(w, h, wantedFormats[i], msaa, 0, false, depth_stencil_surface, nullptr);
             }
             if (SUCCEEDED(create_depth_result)) {
                 break;
@@ -110,9 +113,9 @@ bool create_render_target(
         dbg(std::format("Using {} as depthstencil format", (int)depth_stencil_format));
     } else {
         if (multiview) {
-            ret |= g::d3d_vr->CreateMultiViewDepthStencilSurface(w, h, depth_stencil_format, msaa, 0, true, depth_stencil_surface, nullptr, 2);
+            ret |= g::d3d_vr->CreateMultiViewDepthStencilSurface(w, h, depth_stencil_format, msaa, 0, false, depth_stencil_surface, nullptr, 2);
         } else {
-            ret |= g::d3d_dev->CreateDepthStencilSurface(w, h, depth_stencil_format, msaa, 0, true, depth_stencil_surface, nullptr);
+            ret |= g::d3d_dev->CreateDepthStencilSurface(w, h, depth_stencil_format, msaa, 0, false, depth_stencil_surface, nullptr);
         }
         if (FAILED(ret)) {
             dbg("D3D initialization failed: CreateRenderTarget");
