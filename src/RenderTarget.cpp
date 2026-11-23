@@ -88,14 +88,13 @@ bool create_render_target(
         // that we were able to make the surface out of.
 
         D3DFORMAT wantedFormats[] = {
-            D3DFMT_D32F_LOCKABLE,
             D3DFMT_D24S8,
             D3DFMT_D24X8,
             D3DFMT_D16,
         };
 
         int i;
-        for (i = 0; i < 4; i++) {
+        for (i = 0; i < 3; i++) {
             HRESULT create_depth_result = -1;
             if (multiview) {
                 create_depth_result = g::d3d_vr->CreateMultiViewDepthStencilSurface(w, h, wantedFormats[i], msaa, 0, false, depth_stencil_surface, nullptr, 2);
