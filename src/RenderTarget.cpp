@@ -98,9 +98,9 @@ bool create_render_target(
         for (i = 0; i < 4; i++) {
             HRESULT create_depth_result = -1;
             if (multiview) {
-                create_depth_result = g::d3d_vr->CreateMultiViewDepthStencilSurface(w, h, wantedFormats[i], msaa, 0, true, depth_stencil_surface, nullptr, 2);
+                create_depth_result = g::d3d_vr->CreateMultiViewDepthStencilSurface(w, h, wantedFormats[i], msaa, 0, false, depth_stencil_surface, nullptr, 2);
             } else {
-                create_depth_result = g::d3d_dev->CreateDepthStencilSurface(w, h, wantedFormats[i], msaa, 0, true, depth_stencil_surface, nullptr);
+                create_depth_result = g::d3d_dev->CreateDepthStencilSurface(w, h, wantedFormats[i], msaa, 0, false, depth_stencil_surface, nullptr);
             }
             if (SUCCEEDED(create_depth_result)) {
                 break;
@@ -110,9 +110,9 @@ bool create_render_target(
         dbg(std::format("Using {} as depthstencil format", (int)depth_stencil_format));
     } else {
         if (multiview) {
-            ret |= g::d3d_vr->CreateMultiViewDepthStencilSurface(w, h, depth_stencil_format, msaa, 0, true, depth_stencil_surface, nullptr, 2);
+            ret |= g::d3d_vr->CreateMultiViewDepthStencilSurface(w, h, depth_stencil_format, msaa, 0, false, depth_stencil_surface, nullptr, 2);
         } else {
-            ret |= g::d3d_dev->CreateDepthStencilSurface(w, h, depth_stencil_format, msaa, 0, true, depth_stencil_surface, nullptr);
+            ret |= g::d3d_dev->CreateDepthStencilSurface(w, h, depth_stencil_format, msaa, 0, false, depth_stencil_surface, nullptr);
         }
         if (FAILED(ret)) {
             dbg("D3D initialization failed: CreateRenderTarget");
