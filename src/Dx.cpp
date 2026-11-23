@@ -509,6 +509,19 @@ namespace dx {
             return g::hooks::set_transform.call(g::d3d_dev, State, pMatrix);
         }
 
+        if (rbr::is_rendering_car_shadow()) {
+            // Use the game's own matrices for the car shadow
+            // Otherwise it'll end up as a quad floating on top of the car
+            if (multiview_rendering_enabled()) {
+                if (State == D3DTS_PROJECTION) {
+                    g::hooks::set_transform.call(g::d3d_dev, D3DTS_PROJECTION_RIGHT, pMatrix);
+                } else if (State == D3DTS_VIEW) {
+                    g::hooks::set_transform.call(g::d3d_dev, D3DTS_VIEW_RIGHT, pMatrix);
+                }
+            }
+            return g::hooks::set_transform.call(g::d3d_dev, State, pMatrix);
+        }
+
         if (g::vr_render_target) {
             const auto target = g::vr_render_target.value();
 
@@ -558,41 +571,23 @@ namespace dx {
 
     HRESULT __stdcall DrawIndexedPrimitive(IDirect3DDevice9* This, D3DPRIMITIVETYPE PrimitiveType, INT BaseVertexIndex, UINT MinVertexIndex, UINT NumVertices, UINT startIndex, UINT primCount)
     {
-        IDirect3DVertexShader9* shader;
-        IDirect3DBaseTexture9* texture;
-        g::d3d_dev->GetVertexShader(&shader);
-        g::d3d_dev->GetTexture(0, &texture);
-        if (g::vr_render_target && !shader && !texture) {
-            if (!rbr::is_using_cockpit_camera()) {
-                // Don't draw these if we're not in a cockpit camera.
-                // In this mode, a black transparent square is drawn in front of the car
-                // if car shadows are enabled.
+        if (g::vr_render_target && rbr::is_rendering_wet_windscreen()) {
+            const bool is_windscreen = BaseVertexIndex == 0 && NumVertices == 4;
+            if (is_windscreen) {
+                // TODO: This method of detecting the windscreen is quite bad.
+                //
+                // It would be better to detect it from the texture I think.
+                // However, the texture is such that it is not loaded in the hooked
+                // load_texture function. This will do unless some rendering bugs are found.
+                //
+                // We can't render the windscreen for two reasons:
+                // - The windscreen needs to be rendered with cockpit projection to not clip it too early,
+                //   but doing so makes its Z-values be wrong compared to the stage. Maybe another projection
+                //   for it would work, but here comes the second point:
+                // - It looks pretty bad anyway, and it is just a 2D plane floating somewhere in front of the
+                //   opening for a windscreen. In VR where your FoV is large the effect does not really work
+                //   that well.
                 return 0;
-            }
-        } else {
-            if (shader) {
-                shader->Release();
-            }
-            if (texture)
-                texture->Release();
-            if (g::vr_render_target && rbr::is_rendering_wet_windscreen()) {
-                const bool is_windscreen = BaseVertexIndex == 0 && NumVertices == 4;
-                if (is_windscreen) {
-                    // TODO: This method of detecting the windscreen is quite bad.
-                    //
-                    // It would be better to detect it from the texture I think.
-                    // However, the texture is such that it is not loaded in the hooked
-                    // load_texture function. This will do unless some rendering bugs are found.
-                    //
-                    // We can't render the windscreen for two reasons:
-                    // - The windscreen needs to be rendered with cockpit projection to not clip it too early,
-                    //   but doing so makes its Z-values be wrong compared to the stage. Maybe another projection
-                    //   for it would work, but here comes the second point:
-                    // - It looks pretty bad anyway, and it is just a 2D plane floating somewhere in front of the
-                    //   opening for a windscreen. In VR where your FoV is large the effect does not really work
-                    //   that well.
-                    return 0;
-                }
             }
         }
         return g::hooks::draw_indexed_primitive.call(g::d3d_dev, PrimitiveType, BaseVertexIndex, MinVertexIndex, NumVertices, startIndex, primCount);

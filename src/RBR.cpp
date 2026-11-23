@@ -34,6 +34,7 @@ namespace g {
     static double previous_frame_yaw;
     static bool skip_cube_map;
     static bool is_rendering_cube_map;
+    static bool is_rendering_car_shadow;
 
     // Objects visible in the left and right peripheral views, used for culling the focus views
     static std::vector<int32_t> peripheral_visible_objects[2];
@@ -92,6 +93,7 @@ namespace rbr {
     // From hedgehog3d.dll. We can't resolve the real addresses here.
     static uintptr_t PARTICLE_HANDLING_CHECK_ADDR = 0x10076672;
     static constexpr uintptr_t RENDER_CUBE_MAP_ADDR = 0x10069cf0;
+    static constexpr uintptr_t RENDER_CAR_SHADOW_ADDR = 0x10068a40;
     static constexpr uintptr_t HEDGEHOG_RENDER_ADDR = 0x100674e0;
     static constexpr uintptr_t HEDGEHOG_CULL_FUNCTION_ADDR = 0x10062dd0;
 
@@ -190,6 +192,18 @@ namespace rbr {
         g::is_rendering_cube_map = true;
         g::hooks::render_cube_map.call(world);
         g::is_rendering_cube_map = false;
+    }
+
+    bool is_rendering_car_shadow()
+    {
+        return g::is_rendering_car_shadow;
+    }
+
+    void __attribute__((regparm(1))) render_car_shadow(void* world)
+    {
+        g::is_rendering_car_shadow = true;
+        g::hooks::render_car_shadow.call(world);
+        g::is_rendering_car_shadow = false;
     }
 
     static M4 get_view_frustum_matrix(RenderTarget tgt)
@@ -425,6 +439,7 @@ namespace rbr {
                 if (!g::hooks::load_texture.call) {
                     g::hooks::load_texture = Hook(*reinterpret_cast<decltype(load_texture)*>(handle + 0xAEC15), load_texture);
                     g::hooks::render_cube_map = Hook(reinterpret_cast<decltype(render_cube_map)*>(get_hedgehog_address(RENDER_CUBE_MAP_ADDR)), &render_cube_map);
+                    g::hooks::render_car_shadow = Hook(reinterpret_cast<decltype(render_car_shadow)*>(get_hedgehog_address(RENDER_CAR_SHADOW_ADDR)), &render_car_shadow);
                     g::hooks::hedgehog_render = Hook(*reinterpret_cast<decltype(hedgehog_render)*>(get_hedgehog_address(HEDGEHOG_RENDER_ADDR)), hedgehog_render);
                     g::hooks::hedgehog_cull = Hook(reinterpret_cast<decltype(&hedgehog::hedgehog_cull)>(get_hedgehog_address(HEDGEHOG_CULL_FUNCTION_ADDR)), &hedgehog::hedgehog_cull);
                 }

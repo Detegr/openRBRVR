@@ -130,6 +130,7 @@ namespace g {
         extern Hook<decltype(&rbr::render_windscreen_effects)> render_windscreen_effects;
         extern Hook<decltype(&rbr::set_camera_target)> set_camera_target;
         extern Hook<decltype(&rbr::render_cube_map)> render_cube_map;
+        extern Hook<decltype(&rbr::render_car_shadow)> render_car_shadow;
         extern Hook<decltype(&rbr::hedgehog_render)> hedgehog_render;
         extern Hook<decltype(&hedgehog::hedgehog_cull)> hedgehog_cull;
     }

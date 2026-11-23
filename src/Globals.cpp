@@ -50,6 +50,7 @@ namespace g {
         Hook<decltype(&rbr::render_windscreen_effects)> render_windscreen_effects;
         Hook<decltype(&rbr::set_camera_target)> set_camera_target;
         Hook<decltype(&rbr::render_cube_map)> render_cube_map;
+        Hook<decltype(&rbr::render_car_shadow)> render_car_shadow;
         Hook<decltype(&rbr::hedgehog_render)> hedgehog_render;
         Hook<decltype(&hedgehog::hedgehog_cull)> hedgehog_cull;
     }
