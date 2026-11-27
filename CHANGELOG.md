@@ -1,3 +1,9 @@
+## Unreleased
+
+- Add optional performance log (`perfLog`, `perfLogDetail`). Writes a summary of
+  CPU/GPU frame times, render settings and over-budget frames for each stage run
+  to `Plugins/openRBRVR/perf/runs.csv`. See `docs/PerfLog.md`.
+
 ## 2.2.4
 
 - Fix SteamVR OpenXR initialization in DXVK
