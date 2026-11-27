@@ -98,6 +98,8 @@ struct Config {
     bool draw_loading_screen = true;
     bool debug = false;
     int debug_mode = 0;
+    bool perf_log = false;
+    bool perf_log_detail = false;
     bool render_pausemenu_3d = true;
     bool render_prestage_3d = false;
     bool render_replays_3d = false;
@@ -143,6 +145,8 @@ struct Config {
         companion_mode = rhs.companion_mode;
         draw_loading_screen = rhs.draw_loading_screen;
         debug = rhs.debug;
+        perf_log = rhs.perf_log;
+        perf_log_detail = rhs.perf_log_detail;
         render_pausemenu_3d = rhs.render_pausemenu_3d;
         render_prestage_3d = rhs.render_prestage_3d;
         render_replays_3d = rhs.render_replays_3d;
@@ -189,6 +193,8 @@ struct Config {
             && companion_mode == rhs.companion_mode
             && draw_loading_screen == rhs.draw_loading_screen
             && debug == rhs.debug
+            && perf_log == rhs.perf_log
+            && perf_log_detail == rhs.perf_log_detail
             && debug_mode == rhs.debug_mode
             && render_pausemenu_3d == rhs.render_pausemenu_3d
             && render_prestage_3d == rhs.render_prestage_3d
@@ -241,6 +247,8 @@ struct Config {
             { "drawLoadingScreen", draw_loading_screen },
             { "debug", debug },
             { "debugMode", debug_mode },
+            { "perfLog", perf_log },
+            { "perfLogDetail", perf_log_detail },
             { "renderPauseMenu3d", render_pausemenu_3d },
             { "renderPreStage3d", render_prestage_3d },
             { "renderReplays3d", render_replays_3d },
@@ -341,6 +349,8 @@ struct Config {
         cfg.draw_loading_screen = parsed["drawLoadingScreen"].value_or(true);
         cfg.debug = parsed["debug"].value_or(false);
         cfg.debug_mode = parsed["debugMode"].value_or(0);
+        cfg.perf_log = parsed["perfLog"].value_or(false);
+        cfg.perf_log_detail = parsed["perfLogDetail"].value_or(false);
         cfg.render_pausemenu_3d = parsed["renderPauseMenu3d"].value_or(true);
         cfg.render_prestage_3d = parsed["renderPreStage3d"].value_or(false);
         cfg.render_replays_3d = parsed["renderReplays3d"].value_or(false);

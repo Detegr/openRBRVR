@@ -3,6 +3,7 @@
 #include "IPlugin.h"
 #include "OpenVR.hpp"
 #include "OpenXR.hpp"
+#include "PerfLog.hpp"
 #include "RBR.hpp"
 #include "Util.hpp"
 #include "Version.hpp"
@@ -339,13 +340,12 @@ namespace dx {
         return ret;
     }
 
-    static void draw_debug_info(uint64_t cpu_frametime_us)
+    static void draw_debug_info(uint64_t cpu_frametime_us, const FrameTimingInfo& t)
     {
         g::game->SetColor(1, 0, 1, 1.0);
         g::game->SetFont(IRBRGame::EFonts::FONT_DEBUG);
 
         float i = 0.0f;
-        auto t = g::vr->get_frame_timing();
         const float cpuTime = cpu_frametime_us / 1000.0f;
         static float gpu_total = 0.0f;
 
@@ -548,8 +548,26 @@ namespace dx {
         if (g::vr && !g::vr_error) {
             g::vr->submit_frames_to_hmd(g::d3d_dev);
 
-            if (g::cfg.debug) {
-                draw_debug_info(cpu_frame_time.count());
+            if (g::cfg.debug || g::cfg.perf_log) {
+                // Query the frame timing once per frame, it's shared by the debug overlay and the performance log
+                const auto t = g::vr->get_frame_timing();
+                if (g::cfg.debug) {
+                    draw_debug_info(cpu_frame_time.count(), t);
+                }
+                if (perflog::is_recording()) {
+                    perflog::on_frame({
+                        .frame_start = g::frame_start,
+                        .frame_end = frame_end,
+                        .cpu_ms = static_cast<float>(cpu_frame_time.count()) / 1000.0f,
+                        // OpenXR reports the GPU time in seconds, OpenVR in milliseconds
+                        .gpu_ms = g::vr->get_runtime_type() == OPENXR ? t.gpu_total * 1000.0f : t.gpu_total,
+                        .wait_ms = t.cpu_wait_for_present,
+                        .present_ms = t.cpu_present_call,
+                        .display_delta_ms = t.display_delta_ms,
+                        .late = t.dropped_frames > 0 || t.mispresented_frames > 0,
+                        .skipped = t.should_render_false,
+                    });
+                }
             }
         }
 

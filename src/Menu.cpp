@@ -96,6 +96,18 @@ static class Menu main_menu = { "openRBRVR", {
     .select_action = [] { if(g::vr) select_menu(6); },
     .visible = [] { return g::vr != nullptr; }
   },
+  { .text = [] { return std::format("Performance log: {}", g::cfg.perf_log ? "ON" : "OFF"); },
+    .long_text = { "Write a summary of frame times and render settings for each stage run", "to Plugins/openRBRVR/perf/runs.csv. No performance cost when OFF." },
+    .left_action = [] { Toggle(g::cfg.perf_log); },
+    .right_action = [] { Toggle(g::cfg.perf_log); },
+    .select_action = [] { Toggle(g::cfg.perf_log); },
+  },
+  { .text = [] { return std::format("Performance log detail: {}", g::cfg.perf_log_detail ? "ON" : "OFF"); },
+    .long_text = { "Also write a per-second CSV of the frame times for each stage run.", "Only has an effect if the performance log is ON." },
+    .left_action = [] { Toggle(g::cfg.perf_log_detail); },
+    .right_action = [] { Toggle(g::cfg.perf_log_detail); },
+    .select_action = [] { Toggle(g::cfg.perf_log_detail); },
+  },
   { .text = id("Debug settings"), .long_text = {"Not intended to be changed unless there is a problem that needs more information."}, .select_action = [] { select_menu(2); } },
   { .text = [] { return std::format("VR runtime: {}", g::cfg.runtime == OPENVR ? "OpenVR (SteamVR)" : "OpenXR"); },
     .long_text {
