@@ -16,6 +16,7 @@
 #include "Menu.hpp"
 #include "OpenVR.hpp"
 #include "OpenXR.hpp"
+#include "PerfLog.hpp"
 #include "Quaternion.hpp"
 #include "RBR.hpp"
 #include "Util.hpp"
@@ -85,6 +86,7 @@ openRBRVR::openRBRVR(IRBRGame* g)
 
 openRBRVR::~openRBRVR()
 {
+    perflog::end_run("quit");
     if (g::vr) {
         delete g::vr;
     }

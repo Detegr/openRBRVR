@@ -7,6 +7,7 @@ class OpenVR : public VRInterface {
 private:
     vr::IVRSystem* hmd;
     vr::IVRCompositor* compositor;
+    mutable float display_period_ms = -1.0f; // lazily queried from the HMD
     vr::TrackedDevicePose_t poses[vr::k_unMaxTrackedDeviceCount];
     vr::Texture_t openvr_texture[2];
     D3D9_TEXTURE_VR_DESC dxvk_texture[2];
@@ -32,6 +33,8 @@ public:
     bool update_vr_poses() override;
     void submit_frames_to_hmd(IDirect3DDevice9* dev) override;
     FrameTimingInfo get_frame_timing() override;
+    std::string get_runtime_info() const override { return std::format("SteamVR {}", hmd->GetRuntimeVersion()); }
+    float get_display_period_ms() const override;
     void reset_view() override
     {
         vr::VRChaperone()->ResetZeroPose(vr::ETrackingUniverseOrigin::TrackingUniverseSeated);

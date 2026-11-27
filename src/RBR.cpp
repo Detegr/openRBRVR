@@ -6,6 +6,7 @@
 #include "VR.hpp"
 
 #include "OpenXR.hpp"
+#include "PerfLog.hpp"
 #include <ranges>
 
 // Compilation unit global variables
@@ -481,6 +482,10 @@ namespace rbr {
             g::current_stage_id = *g::stage_id_ptr;
             g::seat_position_loaded = false;
             update_render_context();
+        }
+
+        if (g::car_id_ptr) {
+            perflog::update(g::game_mode, g::current_stage_id, *g::car_id_ptr);
         }
 
         if (g::game_mode == GameMode::Driving) [[likely]] {

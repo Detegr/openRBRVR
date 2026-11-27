@@ -11,6 +11,9 @@ const OPENRBRVR_VERSION = .{
 };
 
 pub fn build(b: *std.Build) void {
+    var git_exit_code: u8 = 0;
+    const commit = std.mem.trim(u8, b.runAllowFail(&.{ "git", "rev-parse", "--short", "HEAD" }, &git_exit_code, .Ignore) catch "unknown", " \r\n");
+
     const supported_targets = &.{
         std.Target.Query{ .cpu_arch = .x86, .os_tag = .windows, .abi = .msvc },
     };
@@ -29,6 +32,7 @@ pub fn build(b: *std.Build) void {
         }),
     });
     dll.linkLibC();
+    dll.root_module.addCMacro("OPENRBRVR_COMMIT", b.fmt("\"{s}\"", .{commit}));
     dll.addCSourceFiles(.{ .files = &.{
         "src/API.cpp",
         "src/Dx.cpp",
@@ -39,6 +43,7 @@ pub fn build(b: *std.Build) void {
         "src/Menu.cpp",
         "src/OpenVR.cpp",
         "src/OpenXR.cpp",
+        "src/PerfLog.cpp",
         "src/RBR.cpp",
         "src/RenderTarget.cpp",
         "src/VR.cpp",

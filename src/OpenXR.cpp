@@ -1077,7 +1077,7 @@ void OpenXR::prepare_frames_for_hmd(IDirect3DDevice9* dev)
     xrReleaseSwapchainImage(xr_context()->swapchains[LeftEye], &release_info);
     xrReleaseSwapchainImage(xr_context()->swapchains[RightEye], &release_info);
 
-    if (g::cfg.debug && perf_query_free_to_use) [[unlikely]] {
+    if ((g::cfg.debug || g::cfg.perf_log) && perf_query_free_to_use) [[unlikely]] {
         gpu_end_query->Issue(D3DISSUE_END);
         gpu_disjoint_query->Issue(D3DISSUE_END);
     }
@@ -1218,9 +1218,16 @@ bool OpenXR::update_vr_poses()
         .next = nullptr,
     };
 
+    const auto wait_start = std::chrono::steady_clock::now();
     if (auto res = xrWaitFrame(session, nullptr, &frame_state); res != XR_SUCCESS) {
         dbg(std::format("xrWaitFrame: {}", XrResultToString(instance, res)));
         return false;
+    }
+    if (g::cfg.debug || g::cfg.perf_log) {
+        // Before prediction dampening is applied
+        wait_frame_ms = std::chrono::duration<float, std::milli>(std::chrono::steady_clock::now() - wait_start).count();
+        display_delta_ms = last_display_time != 0 ? static_cast<float>(frame_state.predictedDisplayTime - last_display_time) / 1000000.0f : 0.0f;
+        last_display_time = frame_state.predictedDisplayTime;
     }
 
     if (g::cfg.prediction_dampening > 0 && xr_convert_win32_performance_counter_to_time) {
@@ -1258,7 +1265,7 @@ bool OpenXR::update_vr_poses()
 
     update_visual_hands(update_poses());
 
-    if (g::cfg.debug && perf_query_free_to_use) [[unlikely]] {
+    if ((g::cfg.debug || g::cfg.perf_log) && perf_query_free_to_use) [[unlikely]] {
         gpu_disjoint_query->Issue(D3DISSUE_BEGIN);
         gpu_start_query->Issue(D3DISSUE_END);
     }
@@ -1498,18 +1505,32 @@ FrameTimingInfo OpenXR::get_frame_timing()
         gpu_start_query->GetData(&gpu_start, sizeof(gpu_start), 0);
         gpu_end_query->GetData(&gpu_end, sizeof(gpu_end), 0);
 
-        uint64_t freq;
-        gpu_freq_query->Issue(D3DISSUE_END);
-        gpu_freq_query->GetData(&freq, sizeof(freq), 0);
+        // The timestamp frequency does not change, query it only until we get a value
+        if (gpu_freq == 0) {
+            gpu_freq_query->Issue(D3DISSUE_END);
+            gpu_freq_query->GetData(&gpu_freq, sizeof(gpu_freq), 0);
+        }
 
-        ret.gpu_total = float(gpu_end - gpu_start) / float(freq);
+        ret.gpu_total = gpu_freq ? float(gpu_end - gpu_start) / float(gpu_freq) : 0.0f;
 
         perf_query_free_to_use = true;
     } else {
         perf_query_free_to_use = false;
     }
 
+    ret.cpu_wait_for_present = wait_frame_ms;
+    ret.display_delta_ms = display_delta_ms;
+    ret.should_render_false = frame_state.shouldRender == XR_FALSE;
     return ret;
+}
+
+std::string OpenXR::get_runtime_info() const
+{
+    XrInstanceProperties props = { .type = XR_TYPE_INSTANCE_PROPERTIES };
+    if (xrGetInstanceProperties(instance, &props) != XR_SUCCESS) {
+        return "";
+    }
+    return std::format("{} {}.{}.{}", props.runtimeName, XR_VERSION_MAJOR(props.runtimeVersion), XR_VERSION_MINOR(props.runtimeVersion), XR_VERSION_PATCH(props.runtimeVersion));
 }
 
 void OpenXR::reset_view()

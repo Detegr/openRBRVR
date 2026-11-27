@@ -52,7 +52,11 @@ private:
     XrSystemId system_id;
     XrSpace space;
     XrSpace view_space;
-    XrFrameState frame_state;
+    XrFrameState frame_state = {};
+    // Frame pacing information for the performance log
+    XrTime last_display_time = 0;
+    float wait_frame_ms = 0.0f;
+    float display_delta_ms = 0.0f;
     int64_t swapchain_format;
     XrPosef view_pose;
     XrViewConfigurationType primary_view_config_type;
@@ -78,6 +82,7 @@ private:
     std::vector<char> instance_extensions;
 
     bool perf_query_free_to_use = true;
+    uint64_t gpu_freq = 0;
     IDirect3DQuery9* gpu_start_query;
     IDirect3DQuery9* gpu_end_query;
     IDirect3DQuery9* gpu_disjoint_query;
@@ -124,6 +129,8 @@ public:
     bool supports_hand_tracking() const override { return hand_tracking.supported(); }
     std::string get_hand_tracking_status() const override { return hand_tracking.status(); }
     FrameTimingInfo get_frame_timing() override;
+    std::string get_runtime_info() const override;
+    float get_display_period_ms() const override { return static_cast<float>(frame_state.predictedDisplayPeriod) / 1000000.0f; }
     VRRuntime get_runtime_type() const override { return OPENXR; }
 
     constexpr XrInstance get_instance() const { return instance; }

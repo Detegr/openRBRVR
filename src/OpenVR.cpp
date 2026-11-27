@@ -234,6 +234,15 @@ bool OpenVR::update_vr_poses()
     return true;
 }
 
+float OpenVR::get_display_period_ms() const
+{
+    if (display_period_ms < 0.0f) {
+        const auto hz = hmd->GetFloatTrackedDeviceProperty(vr::k_unTrackedDeviceIndex_Hmd, vr::Prop_DisplayFrequency_Float);
+        display_period_ms = hz > 0.0f ? 1000.0f / hz : 0.0f;
+    }
+    return display_period_ms;
+}
+
 FrameTimingInfo OpenVR::get_frame_timing()
 {
     FrameTimingInfo ret = { 0 };

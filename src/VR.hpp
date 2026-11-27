@@ -87,6 +87,9 @@ struct FrameTimingInfo {
     uint32_t reprojection_flags;
     uint32_t mispresented_frames;
     uint32_t dropped_frames;
+    // OpenXR only: time between the predicted display times of the last two frames, and xrWaitFrame returning shouldRender = false
+    float display_delta_ms;
+    bool should_render_false;
 };
 
 struct RenderContext {
@@ -148,6 +151,10 @@ public:
         return std::make_tuple(current_render_context->width[tgt], current_render_context->height[tgt]);
     }
     virtual FrameTimingInfo get_frame_timing() = 0;
+    // HMD display period (frame budget) in milliseconds, 0 if unknown
+    virtual float get_display_period_ms() const { return 0.0f; }
+    // Name and version of the VR runtime, for diagnostics
+    virtual std::string get_runtime_info() const { return ""; }
 
     const M4& get_projection(RenderTarget tgt) const
     {
